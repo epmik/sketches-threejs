@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "@types/three": "^0.165.0",
+    "alea": "^1.0.1",
+    "dat.gui": "^0.7.9",
+    "delaunator": "^5.0.1",
+    "esm-seedrandom": "^3.0.5",
+    "gl-noise": "^1.6.1",
+    "jquery": "^3.7.1",
+    "p5": "^1.10.0",
+    "pngjs": "^7.0.0",
+    "simplex-noise": "^4.0.1",
+    "three": "^0.165.0",
+    "three-rt-helper": "^0.0.9"
+  }
+}

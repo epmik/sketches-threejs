@@ -1,0 +1,25 @@
+{
+  "name": "001-try-out",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/three": "^0.126.0",
+    "alea": "^1.0.0",
+    "dat.gui": "^0.7.7",
+    "delaunator": "^4.0.1",
+    "noisejs": "^2.1.0",
+    "open-simplex-noise": "^2.4.0",
+    "perlin-noise": "0.0.1",
+    "perlin.js": "^1.0.0",
+    "simplex-noise": "^2.4.0",
+    "stats.js": "^0.17.0",
+    "three": "^0.126.1"
+  }
+}

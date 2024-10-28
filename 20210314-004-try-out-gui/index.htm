@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>My first three.js app</title>
+		<style>
+			body { margin: 0; }
+		</style>
+	</head>
+	<body>
+		<!-- <script type="text/javascript" src="/node_modules/three/build/three.min.js"></script> -->
+		<script type="text/javascript" src="/node_modules/stats.js/build/stats.min.js"></script>
+		<!-- <script type="text/javascript" src="/node_modules/dat.gui/build/dat.gui.min.js"></script> -->
+		<script type="text/javascript" src="/node_modules/delaunator/delaunator.min.js"></script>
+		<!-- noise functions -->
+		
+		<!-- https://github.com/joshforisha/open-simplex-noise-js#readme -->
+		<!-- works only as a module : import { makeNoise2D } from "open-simplex-noise"; -->
+		<!-- <script type="text/javascript" src="/node_modules/open-simplex-noise/lib/index.js"></script> -->
+
+		<!-- https://github.com/andrewrk/node-perlin-noise#readme -->
+		<!-- works only as a module : import { makeNoise2D } from "open-simplex-noise"; -->
+		<!-- <script type="text/javascript" src="/node_modules/perlin-noise/index.js"></script> -->
+
+		<!-- https://github.com/josephg/noisejs#readme -->
+		<!-- <script type="text/javascript" src="/node_modules/perlin.js/perlin.js"></script> -->
+
+		<!-- https://github.com/xixixao/noisejs#readme -->
+		<!-- <script type="text/javascript" src="/node_modules/noisejs/index.js"></script> -->
+
+		<!-- https://github.com/jwagner/simplex-noise.js#readme -->
+		<script type="text/javascript" src="/node_modules/simplex-noise/simplex-noise.js"></script>
+
+		<!-- https://github.com/josephg/noisejs#readme -->
+		<script type="text/javascript" src="https://josephg.github.io/noisejs/perlin.js"></script>
+
+		<!-- random functions -->
+		<script type="text/javascript" src="/node_modules/alea/alea.js"></script>
+
+		<script type="module">
+
+			import * as THREE from '/node_modules/three/build/three.module.js';
+
+			// use const gui = new dat.GUI();
+			// or when using script references
+			// use const gui = new dat.GUI();
+			import * as dat from "/node_modules/dat.gui/build/dat.gui.module.js";
+			let camera, scene, renderer, stats;
+
+			var obj = {
+				message: 'Hello World',
+				displayOutline: false,
+
+				maxSize: 6.0,
+				speed: 5,
+
+				height: 10,
+				noiseStrength: 10.2,
+				growthSpeed: 0.2,
+
+				type: 'three',
+
+				explode: function () 
+				{
+					alert('Bang!');
+				},
+
+				color : {
+					HEX: '#ffae23', // CSS string
+					RGB: [ 0, 128, 255 ], // RGB array
+					RGBA: [ 0, 128, 255, 0.3 ], // RGB with alpha
+					HSV: { h: 350, s: 0.9, v: 0.3 } // Hue, saturation, value
+				}
+			};
+
+			init();
+			animate();
+
+			function init() 
+			{
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				document.body.appendChild( renderer.domElement );
+
+				//
+
+				camera = new THREE.PerspectiveCamera( 27, window.innerWidth / window.innerHeight, 1, 3500 );
+				camera.position.z = 64;
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0x050505 );
+
+				//
+
+				//
+
+				stats = new Stats();
+				document.body.appendChild( stats.dom );
+
+				//
+
+				initGui();
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+
+				stats.update();
+			}
+
+			function render() 
+			{
+				renderer.render( scene, camera );
+			}
+
+			function initGui()
+			{
+				const gui = new dat.GUI({name: 'GUI example'});
+
+				// gui.add( material, 'wireframe' );
+				
+				var folder1 = gui.addFolder('First folder');
+
+				folder1.open();
+				
+				var folder2 = gui.addFolder('Empty folder');
+
+				// string
+				folder1.add(obj, 'message');
+
+				// boolean
+				folder1.add(obj, 'displayOutline');
+				
+				// functions call
+    			folder1.add(obj, 'explode').name('Click my custom label');
+
+				folder1.add(obj, 'maxSize').min(-10).max(10).step(0.25).onChange(function() { console.log(obj.maxSize) });
+				folder1.add(obj, 'height').min(1).max(300).step(5);
+
+				// Choose from accepted values
+				folder1.add(obj, 'type', [ 'one', 'two', 'three' ] );
+
+				// Choose from named values
+				folder1.add(obj, 'speed', { Stopped: 0, Slow: 0.1, Fast: 5 } );
+				
+				var folder3 = folder1.addFolder('Colors');
+
+				folder3.addColor(obj.color, 'HEX');
+				folder3.addColor(obj.color, 'RGB');
+				folder3.addColor(obj.color, 'RGBA');
+				folder3.addColor(obj.color, 'HSV');
+			}
+
+		</script>
+
+	</body>
+</html>

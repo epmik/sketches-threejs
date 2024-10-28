@@ -1,0 +1,8 @@
+node_modules
+media
+three.js-master
+jsm
+libs
+*/__node_modules
+*/_screens
+*/data

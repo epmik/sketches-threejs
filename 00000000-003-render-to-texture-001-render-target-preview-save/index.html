@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - orbit controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<script type="text/javascript" src="/js/date-extensions.js"></script>
+		<script src='https://unpkg.com/three-rt-helper'></script>
+	</head>
+
+	<body>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "../node_modules/three/build/three.module.js",
+					"scrblr": "../scrblr/scrblr.module.js",
+					"pngjs": "../node_modules/pngjs/browser.js",
+					"three/addons/": "../jsm/"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three';
+			import * as Scrblr from 'scrblr';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import Stats from 'three/addons/libs/stats.module.js';
+			import * as PNG from 'pngjs';
+			import { prng_alea } from '../../node_modules/esm-seedrandom/esm/alea.min.mjs';
+
+			let _screenCapturePrefix = "00000000-003-render-to-texture-000-bare-bones";
+			let _camera, _controls, _scene, _renderer;
+			let _offscreenRenderer, _offscreenScene;
+			let _canvasWidth = 800, _canvasHeight = 800;
+			let _sceneWidth = 1, _sceneHeight = 1;
+			let _near = 1, _far = 1000, _fov = 60;
+			let _gui, _guiActions;
+			let boxMesh, offscreenBoxMesh;
+			let renderTargetHelper;
+			let _sketch;
+
+			init();
+			//render(); // remove when using animation loop
+
+			function init() 
+			{
+				_renderer = new THREE.WebGLRenderer( { antialias: true, stencil: true, alpha: true } );
+				_renderer.setPixelRatio( window.devicePixelRatio );
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+				_renderer.setAnimationLoop( update );
+				_renderer.setClearColor(0xFFFFFF, 0);
+
+				document.body.appendChild( _renderer.domElement );
+
+				_offscreenRenderer = new THREE.WebGLRenderTarget(_canvasWidth * 2, _canvasHeight * 2, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter});
+				_offscreenRenderer.background = new THREE.Color( 0xffffff );
+
+				_camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
+				_camera.position.set(0, 0, 10 );
+
+				_scene = new THREE.Scene();
+				_scene.background = new THREE.Color( 0xcccccc );
+
+				_offscreenScene = new THREE.Scene();
+				_offscreenScene.background = new THREE.Color( 0xffde00 );
+
+				_sketch = new Scrblr.Sketch(_renderer);
+				
+				// -----------------------
+
+				var offscreenBoxMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+				var offscreenBoxGeometry = new THREE.BoxGeometry( 2, 0.5, 4 );
+				offscreenBoxMesh = new THREE.Mesh(offscreenBoxGeometry, offscreenBoxMaterial);
+				_offscreenScene.add(offscreenBoxMesh);
+
+				// -----------------------
+
+				var boxMaterial = new THREE.MeshBasicMaterial({ map: _offscreenRenderer.texture });
+				var boxGeometry = new THREE.BoxGeometry( 2, 2, 2 );
+				boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+				_scene.add(boxMesh);
+
+				// -----------------------
+				// gui
+
+				_guiActions = {
+					_savePrimaryScreenBufferAction: function () { _savePrimaryScreenBuffer(); },
+					_saveoffscreenBufferAction: function () { _saveoffscreenBuffer(); }
+				};
+
+				_gui = new GUI();
+
+				_gui.add(_guiActions, '_savePrimaryScreenBufferAction').name('Save screen');
+				_gui.add(_guiActions, '_saveoffscreenBufferAction').name('Save offscreen buffer');
+
+				// -----------------------
+
+				renderTargetHelper = RenderTargetHelper(_renderer, _offscreenRenderer);
+
+				document.body.append( renderTargetHelper );
+
+				// -----------------------
+
+				window.addEventListener( 'resize', onWindowResize );
+			}
+
+			function onWindowResize() {
+
+				_camera.aspect = _canvasWidth / _canvasHeight;
+				_camera.updateProjectionMatrix();
+
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+			}
+
+			function update() 
+			{
+				const time = performance.now() * 0.001;
+
+				boxMesh.rotation.x = time;
+				boxMesh.rotation.y = time / 2;
+
+				offscreenBoxMesh.rotation.x = time / 8;
+				offscreenBoxMesh.rotation.y = time / 4;
+
+				renderTargetHelper.update();
+				
+				render();
+			}
+
+			function render() 
+			{
+				_renderer.setRenderTarget(_offscreenRenderer);
+				_renderer.render( _offscreenScene, _camera);
+				_renderer.setRenderTarget(null);
+
+				_renderer.render( _scene, _camera );
+			}
+
+			function _savePrimaryScreenBuffer()
+			{
+			/*
+				// open in new window like this
+				//
+				var d = new Date();
+				var w = window.open('', '');
+				w.document.title = ScreenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() + '.png';
+				//w.document.body.style.backgroundColor = "red";
+				var img = new Image();
+				// Without 'preserveDrawingBuffer' set to true, we must render now
+				renderer.render(scene, camera);
+				img.src = renderer.domElement.toDataURL();
+				w.document.body.appendChild(img);  
+			*/
+			/*
+				// download file like this.
+				//
+				var d = new Date();
+				var a = document.createElement('a');
+				// Without 'preserveDrawingBuffer' set to true, we must render now
+				renderer.render(scene, camera);
+				a.href = renderer.domElement.toDataURL().replace("image/png", "image/octet-stream");
+				a.download = ScreenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() + '.png';
+				a.click();
+			*/
+
+				const maxHiresW = 3200;
+				const maxHiresH = 3200;
+
+				if(_canvasWidth > maxHiresW || _canvasHeight > maxHiresH)
+				{
+					_savePrimaryScreenBufferHires();
+
+					return;
+				}
+				else
+				{
+					_renderer.render(_scene, _camera);
+
+					_saveCanvasAsPng(_renderer.domElement);
+				}
+
+			}
+
+			function _savePrimaryScreenBufferHires()
+			{
+				const maxW = 1600;
+				const maxH = 1600;
+
+				const d = new Date();
+				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
+
+				for (let y = 0; y < _canvasHeight; y += maxH)
+				{
+					for (let x = 0; x < _canvasWidth; x += maxW)
+					{
+						let w = Math.min(_canvasWidth - x, maxW);
+						let h = Math.min(_canvasHeight - y, maxH);
+
+						// console.log(prefix + '-' + x + '-' + y + '.png');
+
+						_renderer.setSize( w, h );
+
+						_camera.setViewOffset(_canvasWidth, _canvasHeight, x, y, w, h);
+						
+						_renderer.render(_scene, _camera);
+
+						_saveCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
+					}
+				}
+
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+
+				_camera.clearViewOffset();
+			}
+
+			function _saveoffscreenBuffer()
+			{
+				const width = _offscreenRenderer.width;
+				const height = _offscreenRenderer.height;
+
+				// let autoClear = _renderer.autoClear;
+
+				// let gl = _renderer.domElement.getContext('webgl2');
+
+				_renderer.setRenderTarget(_offscreenRenderer);
+
+				_renderer.render( _offscreenScene, _camera);
+
+				// gl.flush();
+
+				// -------------
+
+				_sketch
+					.createRandomPixelTextureAsync( 
+					{ 
+						offscreenRenderer: _offscreenRenderer,
+						coverPercentage : 0.05,
+						randomSeed : 0
+					})
+					.then( () => 
+					{
+						let buffer = new Uint8ClampedArray(4 * width * height)
+
+						_renderer.readRenderTargetPixels(_offscreenRenderer, 0, 0, width, height, buffer);
+
+						const imageData = new ImageData( buffer, width, height );
+
+						_renderer.setRenderTarget(null);
+
+						var canvas = document.createElement('canvas');
+
+						canvas.width = imageData.width;
+						canvas.height = imageData.height;
+
+						var context = canvas.getContext('2d');
+
+						context.putImageData(imageData, 0, 0);
+
+						_saveCanvasAsPng(canvas);
+					});
+			}
+
+			function _saveCanvasAsPng(canvas, name)
+			{
+				if(name === null || name === undefined || name === "")
+				{
+					var d = new Date();
+
+					name = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
+				}
+
+				canvas.toBlob(function (blob) {
+					var a = document.createElement('a');
+					var url = URL.createObjectURL(blob);
+					a.href = url;
+					a.download = name;
+					a.click();
+				}, 'image/png', 1.0); 
+			}
+
+		</script>
+
+	</body>
+</html>

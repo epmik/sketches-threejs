@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>20210321-001-stacked-block-layers</title>
+		<style>
+			body { margin: 0; }
+		</style>
+	</head>
+	<body>
+
+		<!-- <script type="text/javascript" src="/node_modules/three/build/three.min.js"></script> -->
+		<!-- <script type="text/javascript" src="/node_modules/stats.js/build/stats.min.js"></script> -->
+		<!-- <script type="text/javascript" src="/node_modules/dat.gui/build/dat.gui.min.js"></script> -->
+		<script type="text/javascript" src="/node_modules/delaunator/delaunator.min.js"></script>
+		<!-- noise functions -->
+
+		<!-- https://github.com/josephg/noisejs#readme -->
+		<!-- <script type="text/javascript" src="/node_modules/perlin.js/perlin.js"></script> -->
+
+		<!-- https://github.com/jwagner/simplex-noise.js#readme -->
+		<script type="text/javascript" src="/node_modules/simplex-noise/simplex-noise.js"></script>
+
+		<!-- https://github.com/josephg/noisejs#readme -->
+		<script type="text/javascript" src="https://josephg.github.io/noisejs/perlin.js"></script>
+
+		<!-- utility -->
+		<script type="text/javascript" src="/js/date-extensions.js"></script>
+
+		<!-- random functions -->
+		<script type="text/javascript" src="/js/alea.js"></script>
+
+		<!-- random functions -->
+		<script type="text/javascript" src="/node_modules/delaunator/delaunator.js"></script>
+
+		<script src="https://unpkg.com/meyda/dist/web/meyda.min.js"></script>
+		
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+		
+		<script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+		<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js" integrity="sha384-LtrjvnR4Twt/qOuYxE721u19sVFLVSA4hf/rRt6PrZTmiPltdZcI7q7PXQBYTKyf" crossorigin="anonymous"></script>
+
+
+		<div class="container-fluid">
+			<div class="row" style="padding: 4rem;">
+				<div class="col-12">
+					<div class="row">
+						<div class="col-12" style="text-align: center;">
+							<audio
+								class="audio"
+								controls
+								loop
+								crossorigin="anonymous"
+								id="audio"
+								src="/data/sound/Pneuma (Tool Cover) - Ernesto Schnack.mp3">
+							</audio>
+						</div>
+						<div class="col-12" style="text-align: center;">
+							<a href="" class="play">Play</a>
+						</div>
+					</div>
+					<div class="row">
+						<div class="col-12 col-md-4">
+							<label for="rmsLevelRange">RMS</label>
+							<ul>
+								<li>
+									Description: The root mean square of the waveform, that corresponds to its loudness. Corresponds to the ‘Energy’ feature in YAAFE, adapted from Loy’s Musimathics [1].
+								</li>
+								<li>
+									What Is It Used For: Getting a rough idea about the loudness of a signal.
+								</li>
+								<li>
+									Range: 0.0 - 1.0 where 0.0 is not loud and 1.0 is very loud.
+								</li>
+							</ul>
+							<input type="range"
+								id="rmsLevelRange"
+								name="rmsLevelRange"
+								min="0.0"
+								max="1.0"
+								step="0.001"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="zcrLevelRange">ZCR</label>
+							<ul>
+								<li>
+									Description: The number of times that the signal crosses the zero value in the buffer.
+								</li>
+								<li>
+									What Is It Used For: Helps differentiating between percussive and pitched sounds. Percussive sounds will have a random ZCR across buffers, where pitched sounds will return a more constant value.
+								</li>
+								<li>
+									Range: 0 - ((buffer size / 2) - 1). In Meyda, the default buffer size (bufferSize) is 512 and therefore the default ZCR range is 0 - 255.
+								</li>
+							</ul>
+							<input type="range"
+								id="zcrLevelRange"
+								name="zcrLevelRange"
+								min="0"
+								max="255"
+								step="1"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="energyLevelRange">ENERGY</label>
+							<ul>
+								<li>
+									Description: The infinite integral of the squared signal. According to Lathi [2].
+								</li>
+								<li>
+									What Is It Used For: This is another indicator to the loudness of the signal.
+								</li>
+								<li>
+									Range: 0 - bufferSize, where 0.0 is very quiet and bufferSize is very loud.
+								</li>
+							</ul>
+							<input type="range"
+								id="energyLevelRange"
+								name="energyLevelRange"
+								min="0"
+								max="512"
+								step="1"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="amplitudeSpectrumLevelRange">Amplitude Spectrum</label>
+							<ul>
+								<li>
+									Description: This is also known as the magnitude spectrum. By calculating the Fast Fourier Transform (FFT), we get the signal represented in the frequency domain. The output is an array, where each index is a frequency bin (i.e. containing information about a range of frequencies) containing a complex value (real and imaginary). The amplitude spectrum takes this complex array and computes the amplitude of each index. The result is the distribution of frequencies in the signal along with their corresponding strength. If you want to learn more about Fourier Transform, and the differences between time-domain to frequency-domain analysis, this article is a good place to start.
+								</li>
+								<li>
+									What Is It Used For: Very useful for any sort of audio analysis. In fact, many of the features extracted in Meyda are based on this :).
+								</li>
+								<li>
+									Range: An array half the size of the FFT, containing information about frequencies between 0 - half of the sampling rate. In Meyda the default sampling rate (sampleRate) is 44100Hz and the FFT size is equal to the buffer size (bufferSize) - with a default of 512.
+								</li>
+							</ul>
+							<input type="range"
+								id="amplitudeSpectrumLevelRange"
+								name="amplitudeSpectrumLevelRange"
+								min="0"
+								max="512"
+								step="1"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="powerSpectrumLevelRange">Power Spectrum</label>
+							<ul>
+								<li>
+									Description: This is the amplitudeSpectrum squared.
+								</li>
+								<li>
+									What Is It Used For: This better emphasizes the differences between frequency bins, compared to the amplitude spectrum.
+								</li>
+								<li>
+									Range: An array half the size of the FFT, containing information about between frequencies 0 - half of the sampling rate. In Meyda the default sampling rate (sampleRate) is 44100Hz and the FFT size is equal to the buffer size (bufferSize) - with a default of 512.
+								</li>
+							</ul>
+							<input type="range"
+								id="powerSpectrumLevelRange"
+								name="powerSpectrumLevelRange"
+								min="0"
+								max="256"
+								step="1"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="spectralCentroidLevelRange">spectralCentroid</label>
+							<ul>
+								<li>
+									Description: An indicator of the “brightness” of a given sound, representing the spectral centre of gravity. If you were to take the spectrum, make a wooden block out of it and try to balance it on your finger (across the X axis), the spectral centroid would be the frequency that your finger “touches” when it successfully balances.
+								</li>
+								<li>
+									What Is It Used For: As mentioned, it’s quantifying the “brightness” of a sound. This can be used for example to classify a bass guitar (low spectral centroid) from a trumpet (high spectral centroid).
+								</li>
+								<li>
+									Range: 0 - half of the FFT size. In Meyda the FFT size is equal to the buffer size (bufferSize) - with a default of 512.
+								</li>
+							</ul>
+							<input type="range"
+								id="spectralCentroidLevelRange"
+								name="spectralCentroidLevelRange"
+								min="0"
+								max="256"
+								step="1"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="spectralFlatnessLevelRange">Spectral Flatness</label>
+							<ul>
+								<li>
+									Description: The flatness of the spectrum. It is computed using the ratio between the geometric and arithmetic means.
+								</li>
+								<li>
+									What Is It Used For: Determining how noisy a sound is. For example a pure sine wave will have a flatness that approaches 0.0, and white noise will have a flatness that approaches 1.0.
+								</li>
+								<li>
+									Range: 0.0 - 1.0 where 0.0 is not flat and 1.0 is very flat.
+								</li>
+							</ul>
+							<input type="range"
+								id="spectralFlatnessLevelRange"
+								name="spectralFlatnessLevelRange"
+								min="0.0"
+								max="1.0"
+								step="0.001"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="spectralFluxLevelRange">Spectral Flux</label>
+							<ul>
+								<li>
+									Description: A measure of how quickly the spectrum of a signal is changing. It is calculated by computing the difference between the current spectrum and that of the previous frame.
+								</li>
+								<li>
+									What Is It Used For: Often corresponds to perceptual “roughness” of a sound. Can be used for example, to determine the timbre of a sound.
+								</li>
+								<li>
+									Range: Starts at 0.0. This has no upper range as it depends on the input signal.
+								</li>
+							</ul>
+							<input type="range"
+								id="spectralFluxLevelRange"
+								name="spectralFluxLevelRange"
+								min="0"
+								max="512"
+								step="1"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="spectralSlopeLevelRange">Spectral Slope</label>
+							<ul>
+								<li><em>Description</em>: A measure of how ‘inclined’ the shape of the spectrum is. Calculated by performing linear regression on the amplitude spectrum.</li>
+								<li><em>What Is It Used For</em>: Can be used to differentiate between different voice qualities, such as hissing, breathing and regular speech. Closely relates to spectral centroid and spectral rolloff.</li>
+								<li><em>Range</em>: <code class="language-plaintext highlighter-rouge">0.0 - 1.0</code></li>
+							</ul>
+							<input type="range"
+								id="spectralSlopeLevelRange"
+								name="spectralSlopeLevelRange"
+								min="0.0"
+								max="1.0"
+								step="0.001"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="spectralRolloffLevelRange">Spectral Rolloff</label>
+							<ul>
+								<li><em>Description</em>: The frequency below which is contained 99% of the energy of the spectrum.</li>
+								<li><em>What Is It Used For</em>: Can be used to approximate the maximum frequency in a signal.</li>
+								<li><em>Range</em>: 0 - half of the sampling rate. In Meyda the default sampling rate (<code class="language-plaintext highlighter-rouge">sampleRate</code>) is 44100Hz.</li>
+							  </ul>
+							<input type="range"
+								id="spectralRolloffLevelRange"
+								name="spectralRolloffLevelRange"
+								min="0"
+								max="22050"
+								step="150"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="spectralSpreadLevelRange">Spectral Spread</label>
+							<ul>
+								<li><em>Description</em>: Indicates how spread the frequency content is across the spectrum. Corresponds with the frequency bandwidth.</li>
+								<li><em>What Is It Used For</em>: Can be used to differentiate between noisy (high spectral spread) and pitched sounds (low spectral spread).</li>
+								<li><em>Range</em>: 0 - half of the FFT size. In Meyda the FFT size is equal to the buffer size (<code class="language-plaintext highlighter-rouge">bufferSize</code>) - with a default of 512.</li>
+							</ul>
+							<input type="range"
+								id="spectralSpreadLevelRange"
+								name="spectralSpreadLevelRange"
+								min="0"
+								max="256"
+								step="1"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="spectralSkewnessLevelRange">Spectral Skewness</label>
+							<ul>
+								<li><em>Description</em>: Indicates whether or not the spectrum is skewed towards a particular range of values, relative to its mean.</li>
+								<li><em>What Is It Used For</em>: Often used to get an idea about the timbre of a sound.</li>
+								<li><em>Range</em>: Could be negative, positive, or 0. Where 0 is symmetric about the mean, negative indicates that the frequency content is skewed towards the right of the mean, and positive indicates that the frequency content is skewed towards the left of the mean.</li>
+							</ul>
+							<input type="range"
+								id="spectralSkewnessLevelRange"
+								name="spectralSkewnessLevelRange"
+								min="-10.0"
+								max="10.0"
+								step="0.1"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label for="spectralKurtosisLevelRange">Spectral Kurtosis</label>
+							<ul>
+								<li><em>Description</em>: An indicator to how pointy the spectrum is. Can be viewed as the opposite of Spectral Flatness.</li>
+								<li><em>What Is It Used For</em>: Often used to indicate “pitchiness / tonality” of a sound.</li>
+								<li><em>Range</em>: <code class="language-plaintext highlighter-rouge">0.0 - 1.0</code>, where <code class="language-plaintext highlighter-rouge">0.0</code> is not tonal, and <code class="language-plaintext highlighter-rouge">1.0</code> is very tonal.</li>
+							</ul>
+							<input type="range"
+								id="spectralKurtosisLevelRange"
+								name="spectralKurtosisLevelRange"
+								min="0.0"
+								max="1.0"
+								step="0.001"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label>Chroma</label>
+							<ul>
+								<li><em>Description</em>: Calculates the how much of each chromatic pitch class (C, C♯, D, D♯, E, F, F♯, G, G♯, A, A♯, B) exists in the signal.</li>
+								<li><em>What Is It Used For</em>: Often used to analyse the harmonic content of recorded music, such as in chord or key detection.</li>
+								<li><em>Range</em>: <code class="language-plaintext highlighter-rouge">0.0 - 1.0</code> for each pitch class.</li>
+							</ul>
+						</div>
+						<div class="col-12 col-md-4">
+							<br />
+							C <input type="range"
+								id="chromaLevelRangeC"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							C# <input type="range"
+								id="chromaLevelRangeCSharp"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							D <input type="range"
+								id="chromaLevelRangeD"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							D# <input type="range"
+								id="chromaLevelRangeDSharp"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							E <input type="range"
+								id="chromaLevelRangeE"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							F <input type="range"
+								id="chromaLevelRangeF"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							F# <input type="range"
+								id="chromaLevelRangeFSharp"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							G <input type="range"
+								id="chromaLevelRangeG"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							G# <input type="range"
+								id="chromaLevelRangeGSharp"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							A <input type="range"
+								id="chromaLevelRangeA"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							A# <input type="range"
+								id="chromaLevelRangeASharp"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+							B <input type="range"
+								id="chromaLevelRangeB"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+						</div>
+						<div class="col-12 col-md-4">
+							<label>Loudness</label>
+							<ul>
+								<li><em>Description</em>: Humans’ perception of frequency is non-linear. The <a href="https://en.wikipedia.org/wiki/Bark_scale">Bark Scale</a> was developed in order to have a scale on which equal distances correspond to equal distances of frequency perception. This feature outputs an object with two values:
+								  <ul>
+									<li>The loudness of the input sound on each step (often referred to as bands) of this scale (<code class="language-plaintext highlighter-rouge">.specific</code>). There are 24 bands overall.</li>
+									<li>Total Loudness (<code class="language-plaintext highlighter-rouge">.total</code>), which is a sum of the 24 <code class="language-plaintext highlighter-rouge">.specific</code> loudness coefficients.</li>
+								  </ul>
+								</li>
+								<li><em>What Is It Used For</em>: Can be used to construct filters that better correspond with the human perception of loudness.</li>
+								<li><em>Range</em>: <code class="language-plaintext highlighter-rouge">0.0 - 1.0</code> for each <code class="language-plaintext highlighter-rouge">.specific</code> loudness. <code class="language-plaintext highlighter-rouge">0.0 - 24.0</code> for <code class="language-plaintext highlighter-rouge">.total</code> loudness.</li>
+							</ul>
+							<input type="range"
+								id="loudnessLevelRange"
+								min="0.0"
+								max="48.0"
+								step="0.1"
+								/>			
+							<br />
+						</div>
+						<div class="col-12 col-md-4">
+							<label>Perceptual Spread</label>
+							<ul>
+								<li><em>Description</em>: Computes the spread of the <code class="language-plaintext highlighter-rouge">.specific</code> loudness coefficients, over the bark scale.</li>
+								<li><em>What Is It Used For</em>: An indicator of how “rich / full” a sound will be perceived.</li>
+								<li><em>Range</em>: <code class="language-plaintext highlighter-rouge">0.0 - 1.0</code> where <code class="language-plaintext highlighter-rouge">0.0</code> is not “rich” and <code class="language-plaintext highlighter-rouge">1.0</code> is very “rich”.</li>
+							</ul>
+							<input type="range"
+								id="perceptualSpreadLevelRange"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>			
+							<br />
+						</div>
+						<!-- <div class="col-12 col-md-4">
+							<label>Perceptual Sharpness</label>
+							<ul>
+								<li><em>Description</em>: Perceived “sharpness” of a sound, based the Bark loudness coefficients.</li>
+								<li><em>What Is It Used For</em>: Detecting if an input sound is perceived as “sharp”. Can be used, for example, for differentiating between snare-drum and bass-drum sounds.</li>
+								<li><em>Range</em>: <code class="language-plaintext highlighter-rouge">0.0 - 1.0</code> where <code class="language-plaintext highlighter-rouge">0.0</code> is not “sharp” (e.g. bass-drum) and <code class="language-plaintext highlighter-rouge">1.0</code> very sharp (e.g. snare-drum).</li>
+							</ul>
+							<input type="range"
+								id="perceptualSharpnessLevelRange"
+								min="0.0"
+								max="1.0"
+								step="0.01"
+								/>
+							<br />
+						</div> -->
+						<div class="col-12 col-md-4">
+							<label>Mel-Frequency Cepstral Coefficients</label>
+							<ul>
+								<li><em>Description</em>: As humans don’t interpret pitch in a linear manner, various scales of frequencies were devised to represent the way humans hear the distances between pitches. The <a href="https://en.wikipedia.org/wiki/Mel_scale">Mel scale</a> is one of them, and it is now widely used for voice-related applications. The Meyda implementation was inspired by Huang [3], Davis [4], Grierson [5] and the <a href="https://github.com/bmcfee/librosa">librosa</a> library.</li>
+								<li><em>What Is It Used For</em>: Often used to perform voice activity detection (VAD) prior to automatic speech recognition (ASR).</li>
+								<li><em>Range</em>: An array of values representing the intensity for each Mel band. The default size of the array is 13, but is configureable via <code class="language-plaintext highlighter-rouge">numberOfMFCCCoefficients</code>.</li>
+							</ul>
+							<input type="range"
+								id="mfccLevelRange"
+								min="0.0"
+								max="48.0"
+								step="0.1"
+								/>			
+							<br />
+						</div>
+					</div>
+
+				</div>
+			</div>
+		</div>
+
+		<script type="module" src="/js/index.js"></script>
+
+	</body>
+</html>

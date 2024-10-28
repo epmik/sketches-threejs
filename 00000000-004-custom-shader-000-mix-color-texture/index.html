@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - orbit controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<script type="text/javascript" src="/js/date-extensions.js"></script>
+		<script src='https://unpkg.com/three-rt-helper'></script>
+	</head>
+
+	<body>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "../node_modules/three/build/three.module.js",
+					"scrblr": "../scrblr/scrblr.module.js",
+					"pngjs": "../node_modules/pngjs/browser.js",
+					"three/addons/": "../jsm/"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three';
+			import * as Scrblr from 'scrblr';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import Stats from 'three/addons/libs/stats.module.js';
+			import * as PNG from 'pngjs';
+			import { prng_alea } from '../../node_modules/esm-seedrandom/esm/alea.min.mjs';
+			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+			import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
+			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+			import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
+
+			const SpecleShader = {
+
+name: 'SpecleShader',
+
+uniforms: {
+
+	'tDiffuse': { value: null },
+	'tSpecle': { value: new THREE.TextureLoader().load('https://assets.codepen.io/6547170/SST-Neuron-442x252.jpeg') },
+	vColor: { value: new THREE.Color( 0xFFFF00 ) },  
+	uTime: { value: 0.0 }
+},
+
+vertexShader: /* glsl */`
+
+	varying vec2 vUv;
+
+	void main() {
+
+		vUv = uv;
+
+		gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+	}`,
+
+fragmentShader: /* glsl */`
+
+	#include <common>
+
+	uniform sampler2D tDiffuse;
+	uniform sampler2D tSpecle;
+	uniform vec3 vColor;
+	uniform float uTime;
+
+	varying vec2 vUv;
+
+	void main() {
+
+		vec4 texel = texture2D( tDiffuse, vUv );
+
+		float l = luminance(texel.rgb);
+		vec4 t = texture2D( tSpecle, vUv);
+
+		gl_FragColor = mix(vec4(vColor, 1), t, uTime);
+		//gl_FragColor = texture2D( tSpecle, vUv );
+		//gl_FragColor = vec4( l, l, l, texel.w );
+
+	}`
+
+};			
+
+			let _screenCapturePrefix = "00000000-004-custom-shader-000";
+			let _camera, _controls, _scene, _renderer;
+			let _offscreenRenderer, _offscreenScene, _effectsComposer;
+			let _canvasWidth = 800, _canvasHeight = 800;
+			let _sceneWidth = 1, _sceneHeight = 1;
+			let _near = 1, _far = 1000, _fov = 60;
+			let _gui, _guiActions;
+			let boxMesh, offscreenBoxMesh;
+			let _sketch;
+			let uTimeFactor = 0.25;
+			let uTimeFactorIncrement = true;
+			let speclePass;
+			let _clock, _deltaTime;
+
+			init();
+			//render(); // remove when using animation loop
+
+			function init() 
+			{
+				_renderer = new THREE.WebGLRenderer( { antialias: true, stencil: true, alpha: true } );
+				_renderer.setPixelRatio( window.devicePixelRatio );
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+				_renderer.setAnimationLoop( update );
+				_renderer.setClearColor(0xFFFFFF, 0);
+
+				document.body.appendChild( _renderer.domElement );
+
+				_offscreenRenderer = new THREE.WebGLRenderTarget(_canvasWidth * 2, _canvasHeight * 2, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter});
+				_offscreenRenderer.background = new THREE.Color( 0xffffff );
+
+				_camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
+				_camera.position.set(0, 0, 10 );
+
+				_scene = new THREE.Scene();
+				_scene.background = new THREE.Color( 0xcccccc );
+
+				_offscreenScene = new THREE.Scene();
+				_offscreenScene.background = new THREE.Color( 0xffde00 );
+
+				_sketch = new Scrblr.Sketch(_renderer);
+				
+				// -----------------------
+
+				var offscreenBoxMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+				var offscreenBoxGeometry = new THREE.BoxGeometry( 2, 0.5, 4 );
+				offscreenBoxMesh = new THREE.Mesh(offscreenBoxGeometry, offscreenBoxMaterial);
+				_offscreenScene.add(offscreenBoxMesh);
+
+				// -----------------------
+
+				var boxMaterial = new THREE.MeshBasicMaterial({ map: _offscreenRenderer.texture });
+				var boxGeometry = new THREE.BoxGeometry( 2, 2, 2 );
+				boxMesh = new THREE.Mesh(boxGeometry, boxMaterial);
+				_scene.add(boxMesh);
+
+				// -----------------------
+				// gui
+
+				_guiActions = {
+					_savePrimaryScreenBufferAction: function () { _downloadWebGLRenderer(); },
+					_downloadWebGLRenderTarget: function () 
+					{ 
+						_renderer.setRenderTarget(_offscreenRenderer);
+
+						_renderer.render( _offscreenScene, _camera);
+
+						_downloadWebGLRenderTarget(_renderer, _offscreenRenderer); 
+
+						_renderer.setRenderTarget(null);
+					}
+				};
+
+				_gui = new GUI();
+
+				_gui.add(_guiActions, '_savePrimaryScreenBufferAction').name('Save screen');
+				_gui.add(_guiActions, '_downloadWebGLRenderTarget').name('Save offscreen buffer');
+
+				// -----------------------
+
+				_sketch
+					.createRandomPixelTextureAsync( 
+					{ 
+						webGlRenderTarget: _offscreenRenderer,
+						coverPercentage : 0.05,
+						randomSeed : 0
+					});
+					// .then((webGlRenderTarget) => 
+					// {
+					// 	_downloadWebGLRenderTarget(_renderer, webGlRenderTarget);
+					// });
+
+				// -----------------------
+
+				_effectsComposer = new EffectComposer( _renderer );
+
+				const renderPass = new RenderPass( _scene, _camera );
+				_effectsComposer.addPass( renderPass );
+
+				// const luminosityPass = new ShaderPass( LuminosityShader );
+				// composer.addPass( luminosityPass );				
+
+				speclePass = new ShaderPass( SpecleShader );
+				_effectsComposer.addPass( speclePass );	
+				// speclePass.uniforms.tSpecle.value = _offscreenRenderer.texture;		
+				// speclePass.uniforms.vColor.value = new THREE.Color( 0xFFFF00 );		
+				// speclePass.uniforms.uTime.value = 0.0;		
+
+				const glitchPass = new GlitchPass();
+				_effectsComposer.addPass( glitchPass );
+
+				const outputPass = new OutputPass();
+				_effectsComposer.addPass( outputPass );				
+
+				// -----------------------
+
+				window.addEventListener( 'resize', onWindowResize );
+
+				_clock = new THREE.Clock();
+			}
+
+			function onWindowResize() {
+
+				_camera.aspect = _canvasWidth / _canvasHeight;
+				_camera.updateProjectionMatrix();
+
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+				_effectsComposer.setSize( _canvasWidth, _canvasHeight );
+			}
+
+			function update() 
+			{
+				_deltaTime = _clock.getDelta();
+
+				const time = performance.now() * 0.001;
+
+				const f = _deltaTime * uTimeFactor;
+
+				boxMesh.rotation.x = time;
+				boxMesh.rotation.y = time / 2;
+
+				offscreenBoxMesh.rotation.x = time / 8;
+				offscreenBoxMesh.rotation.y = time / 4;
+
+				if(uTimeFactorIncrement)
+				{
+					speclePass.uniforms.uTime.value += f;	
+
+					if(speclePass.uniforms.uTime.value > 1)
+					{
+						uTimeFactorIncrement = !uTimeFactorIncrement;
+						speclePass.uniforms.uTime.value -= f;
+					}
+				}
+				else{
+					speclePass.uniforms.uTime.value -= f;	
+					
+					if(speclePass.uniforms.uTime.value < 0)
+					{
+						uTimeFactorIncrement = !uTimeFactorIncrement;
+						speclePass.uniforms.uTime.value += f;
+					}
+				}
+
+				render();
+			}
+
+			function render() 
+			{
+				_renderer.setRenderTarget(_offscreenRenderer);
+				_renderer.render( _offscreenScene, _camera);
+				_renderer.setRenderTarget(null);
+
+				// _renderer.render( _scene, _camera );
+				_effectsComposer.render();
+			}
+
+			function _downloadWebGLRenderer()
+			{
+				const maxHiresW = 3200;
+				const maxHiresH = 3200;
+
+				if(_canvasWidth > maxHiresW || _canvasHeight > maxHiresH)
+				{
+					_downloadWebGLRendererHires();
+
+					return;
+				}
+				else
+				{
+					_renderer.render(_scene, _camera);
+
+					_downloadCanvasAsPng(_renderer.domElement);
+				}
+
+			}
+
+			function _downloadWebGLRendererHires()
+			{
+				const maxW = 1600;
+				const maxH = 1600;
+
+				const d = new Date();
+				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
+
+				for (let y = 0; y < _canvasHeight; y += maxH)
+				{
+					for (let x = 0; x < _canvasWidth; x += maxW)
+					{
+						let w = Math.min(_canvasWidth - x, maxW);
+						let h = Math.min(_canvasHeight - y, maxH);
+
+						// console.log(prefix + '-' + x + '-' + y + '.png');
+
+						_renderer.setSize( w, h );
+
+						_camera.setViewOffset(_canvasWidth, _canvasHeight, x, y, w, h);
+						
+						_renderer.render(_scene, _camera);
+
+						_downloadCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
+					}
+				}
+
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+
+				_camera.clearViewOffset();
+			}
+
+			function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
+			{
+				let buffer = new Uint8ClampedArray(4 * webGLRenderTarget.width * webGLRenderTarget.height)
+
+				webGLRenderer.readRenderTargetPixels(webGLRenderTarget, 0, 0, webGLRenderTarget.width, webGLRenderTarget.height, buffer);
+
+				var canvas = document.createElement('canvas');
+
+				canvas.width = webGLRenderTarget.width;
+				canvas.height = webGLRenderTarget.height;
+
+				var context = canvas.getContext('2d');
+
+				context.putImageData(new ImageData( buffer, webGLRenderTarget.width, webGLRenderTarget.height ), 0, 0);
+
+				_downloadCanvasAsPng(canvas);
+			}
+
+			function _downloadCanvasAsPng(canvas, name)
+			{
+				if(name === null || name === undefined || name === "")
+				{
+					var d = new Date();
+
+					name = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
+				}
+
+				canvas.toBlob(function (blob) {
+					var a = document.createElement('a');
+					var url = URL.createObjectURL(blob);
+					a.href = url;
+					a.download = name;
+					a.click();
+				}, 'image/png', 1.0); 
+			}
+
+		</script>
+
+	</body>
+</html>

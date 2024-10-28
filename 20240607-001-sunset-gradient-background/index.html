@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - buffergeometry - indexed</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
+
+		<div id="container"></div>
+		<div id="info"><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> webgl - buffergeometry - indexed</div>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "../node_modules/three/build/three.module.js",
+					"three/addons/": "../jsm/"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			// Three.js uses a right-handed coordinate system
+			// This means that, with all axes perpendicular to one another, if the +y-axis is pointing upwards and the +x-axis pointing right, 
+			// then the +z-axis is pointing towards you and the -z-axis is running into the screen.
+
+			import * as THREE from 'three';
+
+			import Stats from 'three/addons/libs/stats.module.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+			let _camera, _scene, _renderer, _stats;
+
+			// let mesh;
+
+			let _width = 600, _height = 600, _near = 1, _far = 10000;
+			let _widthHalf = _width * 0.5, _heightHalf = _height * 0.5;
+
+			init();
+
+			function init() {
+
+
+				//
+
+				// camera = new THREE.PerspectiveCamera( 27, _width / _height, 1, 5000);
+				// camera.position.z = 64;
+
+				_camera = new THREE.OrthographicCamera( -_width * 0.5, _width * 0.5, -_height * 0.5, _height * 0.5, _near, _far );
+				_camera.position.x = 0;
+				_camera.position.y = 0;
+				_camera.position.z = 10;
+
+				_scene = new THREE.Scene();
+				_scene.background = new THREE.Color( 0x050505 );
+
+				// -------------
+
+				addGradient();
+
+				// -------------
+
+				addSunMask();
+
+				// -------------
+
+				addRectangle();
+
+				// const material1 = new THREE.LineBasicMaterial({
+				// 	color: 0x0000ff
+				// });
+
+				// const points = [];
+				
+				// points.push( new THREE.Vector3(-widthHalf, 0, 0 ) );
+				// points.push( new THREE.Vector3( widthHalf, 0, 0 ) );
+				// points.push( new THREE.Vector3(-widthHalf, 10, 0 ) );
+				// points.push( new THREE.Vector3( widthHalf, 10, 0 ) );
+
+				// const geometry1 = new THREE.BufferGeometry().setFromPoints( points );
+
+				// const line = new THREE.LineSegments( geometry1, material1 );
+				// scene.add( line );				
+
+				// -------------
+
+				_renderer = new THREE.WebGLRenderer( { antialias: true } );
+				_renderer.setPixelRatio( window.devicePixelRatio );
+				_renderer.setSize( _width, _height );
+				_renderer.setAnimationLoop( animate );
+
+				// let gl = _renderer.getContext('webgl2');
+
+				// gl.disable(gl.DEPTH_TEST);
+
+				document.body.appendChild( _renderer.domElement );
+
+				//
+
+				_stats = new Stats();
+				document.body.appendChild( _stats.dom );
+
+				//
+
+				const gui = new GUI();
+				// gui.add( material, 'wireframe' );
+
+				const folder = gui.addFolder('Rectangle geometry');
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+
+			function addRectangle()
+			{
+				const geometry = new THREE.BufferGeometry();
+
+				const indices = [];
+
+				const vertices = [];
+				const normals = [];
+				// const colors = [];
+
+				const rectangleWidth = 200;
+				const rectangleWidthSegments = 10;
+
+				const rectangleHeight = 400;
+				const rectangleHeightSegments = 2;
+
+				const rectangleHalfWidth = rectangleWidth / 2;
+				const rectangleWidthSegmentSize = rectangleWidth / rectangleWidthSegments;
+
+				const rectangleHalfHeight = rectangleHeight / 2;
+				const rectangleHeightSegmentSize = rectangleHeight / rectangleHeightSegments;
+
+				for ( let i = 0; i <= rectangleHeightSegments; i ++ ) 
+				{
+					const y = ( i * rectangleHeightSegmentSize ) - rectangleHalfHeight;
+
+					for ( let j = 0; j <= rectangleWidthSegments; j ++ ) 
+					{
+						const x = ( j * rectangleWidthSegmentSize ) - rectangleHalfWidth;
+
+						vertices.push( x, - y, -100);
+						normals.push( 0, 0, 1 );
+					}
+				}
+
+				// generate indices (data for element array buffer)
+
+				for ( let i = 0; i < rectangleHeightSegments; i ++ ) 
+				{
+					for ( let j = 0; j < rectangleWidthSegments; j ++ ) 
+					{
+						const a = i * ( rectangleWidthSegments + 1 ) + ( j + 1 );
+						const b = i * ( rectangleWidthSegments + 1 ) + j;
+						const c = ( i + 1 ) * ( rectangleWidthSegments + 1 ) + j;
+						const d = ( i + 1 ) * ( rectangleWidthSegments + 1 ) + ( j + 1 );
+
+						// generate two faces (triangles) per iteration
+
+						indices.push( a, b, d ); // face one
+						indices.push( b, c, d ); // face two
+
+					}
+
+				}
+
+				geometry.setIndex( indices );
+				geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
+				geometry.setAttribute( 'normal', new THREE.Float32BufferAttribute( normals, 3 ) );
+
+				const material = new THREE.MeshBasicMaterial({ color: 0xff0000, side: THREE.DoubleSide, depthTest: false });
+
+				const mesh = new THREE.Mesh( geometry, material );
+
+				_scene.add( mesh );
+			}
+
+			function addSunMask()
+			{
+				const circleGeometry = new THREE.CircleGeometry( 150, 32 ); 
+				const circleMaterial = new THREE.MeshBasicMaterial( { color: 0xffff00, side: THREE.DoubleSide, depthTest: false } ); 
+				
+				const circleMesh = new THREE.Mesh( circleGeometry, circleMaterial ); 
+				
+				_scene.add( circleMesh );
+			}
+
+			function addGradient()
+			{
+				const lineGeometry = new THREE.BufferGeometry();
+
+				let lineVertices = [];
+				let lineColors = [];
+				let factor = 0;
+
+				const lineColor = new THREE.Color();
+
+				const fromColor = new THREE.Color('rgb(255, 54, 0)');
+            	const toColor = new THREE.Color('rgb(255, 144, 0)');
+
+				for ( let i = 0; i <= _height; i ++ ) 
+				{
+					factor = i / _height;
+
+					lineColor.lerpColors(fromColor, toColor, factor);
+
+					lineVertices.push(-_widthHalf, -_heightHalf + i, 0);
+					lineVertices.push( _widthHalf, -_heightHalf + i, 0);
+					lineColors.push( lineColor.r, lineColor.g, lineColor.b );
+					lineColors.push( lineColor.r, lineColor.g, lineColor.b );
+				}
+
+				lineGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute( lineVertices, 3 ) );
+				lineGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( lineColors, 3 ) );
+
+				// Create lines and add to scene
+
+				const lineMaterial = new THREE.LineBasicMaterial( { color: 0xffffff, vertexColors: true, depthTest: false } );
+				
+				const lineSegmentsMesh = new THREE.LineSegments( lineGeometry, lineMaterial );
+				_scene.add( lineSegmentsMesh );				
+			}
+
+			function onWindowResize() {
+
+				_camera.aspect = _width / _height;
+				_camera.updateProjectionMatrix();
+
+				_renderer.setSize( _width, _height );
+
+			}
+
+			//
+
+			function animate() {
+
+				//  const time = Date.now() * 0.001;
+
+				//  mesh.rotation.x = time * 0.25;
+				//  mesh.rotation.y = time * 0.5;
+
+				_renderer.render( _scene, _camera );
+
+				_stats.update();
+
+			}
+
+		</script>
+
+	</body>
+</html>

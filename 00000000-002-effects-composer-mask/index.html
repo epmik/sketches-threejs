@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+	<title>three.js webgl - clipping stencil</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+</head>
+<body>
+
+	<div id="info"><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - solid geometry with clip planes and stencil materials</div>
+
+	<script type="importmap">
+		{
+			"imports": {
+				"three": "../node_modules/three/build/three.module.js",
+				"three/addons/": "../jsm/"
+			}
+		}
+	</script>
+
+	<script type="module">
+		import * as THREE from 'three';
+		import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+		import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+		import Stats from 'three/addons/libs/stats.module.js';
+
+
+		import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+		import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+		import { TexturePass } from 'three/addons/postprocessing/TexturePass.js';
+		import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
+			import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
+			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+			let camera, composer, renderer;
+			let box, torus;
+
+			init();
+
+			function init() 
+			{
+				THREE.ColorManagement.enabled = true;
+
+				camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 1, 1000 );
+				camera.position.z = 10;
+
+				const backgroundTexture = new THREE.TextureLoader().load( '2294472375_24a3b8ef46_o.jpg' );
+				backgroundTexture.colorSpace = THREE.SRGBColorSpace;
+				backgroundTexture.minFilter = THREE.LinearFilter;
+
+				const texture1 = new THREE.TextureLoader().load( '758px-Canestra_di_frutta_(Caravaggio).jpg' );
+				texture1.colorSpace = THREE.SRGBColorSpace;
+				texture1.minFilter = THREE.LinearFilter;
+
+				const texture2 = new THREE.TextureLoader().load( 'AgueroSpain.jpg' );
+				texture2.colorSpace = THREE.SRGBColorSpace;
+				texture2.minFilter = THREE.LinearFilter;
+				
+				const texturePass1 = new TexturePass( texture1 );
+				
+				const texturePass2 = new TexturePass( texture2 );
+
+				const backgroundScene = new THREE.Scene();
+				backgroundScene.background = backgroundTexture;
+
+				const scene1 = new THREE.Scene();
+				box = new THREE.Mesh( new THREE.CircleGeometry( 4, 32 ), new THREE.MeshBasicMaterial( { color: 0x0000ff, side: THREE.DoubleSide } ) );
+				scene1.add( box );
+
+				const scene2 = new THREE.Scene();
+				torus = new THREE.Mesh( new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial( { color: 0x0000ff, side: THREE.DoubleSide } ) );
+				scene2.add( torus );
+
+				const clearPass = new ClearPass();
+
+				const clearMaskPass = new ClearMaskPass();
+
+				const backgroundPass = new RenderPass( backgroundScene, camera );
+
+				const maskPass1 = new MaskPass( scene1, camera );
+
+				const maskPass2 = new MaskPass( scene2, camera );
+
+				const outputPass = new OutputPass();
+
+				const parameters = {
+					stencilBuffer: true
+				};
+
+				const renderTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight, parameters );
+
+				renderer = new THREE.WebGLRenderer({ alpha: false, antialias: true });
+				renderer.setClearColor( 0xe0e0e0);
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setAnimationLoop( animate );
+				renderer.autoClear = false;
+				// renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+				document.body.appendChild( renderer.domElement );				
+
+				composer = new EffectComposer( renderer, renderTarget );
+				
+				composer.addPass( clearPass );
+
+				composer.addPass( backgroundPass );
+
+				composer.addPass( maskPass1 );
+				composer.addPass( texturePass1 );
+				
+				composer.addPass( clearMaskPass );
+
+				composer.addPass( maskPass2 );
+				composer.addPass( texturePass2 );
+
+				composer.addPass( clearMaskPass );
+
+				composer.addPass( outputPass );
+
+				window.addEventListener( 'resize', onWindowResize );
+
+			}
+
+			function onWindowResize() {
+
+				const width = window.innerWidth;
+				const height = window.innerHeight;
+
+				camera.aspect = width / height;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( width, height );
+				composer.setSize( width, height );
+
+			}
+
+			function animate() {
+
+				const time = performance.now() * 0.001 + 6000;
+
+				box.position.x = Math.cos( time / 1.5 ) * 2;
+				box.position.y = Math.sin( time ) * 2;
+				box.rotation.x = time;
+				box.rotation.y = time / 2;
+
+				torus.position.x = Math.cos( time / 1.5 * 0.5 ) * 2;
+				torus.position.y = Math.sin( time ) * 2 * 0.5;
+				torus.rotation.x = time / 4;
+				torus.rotation.y = time / 8;
+
+				renderer.clear();
+				composer.render( time );
+
+			}
+
+	</script>
+
+</body></html>

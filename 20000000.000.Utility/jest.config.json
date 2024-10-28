@@ -1,0 +1,14 @@
+{
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>"
+    ],
+    "testMatch": [
+        "**/**/*UnitTests.js",
+        "**/?(*.)+(spec|tests).js"
+    ],
+    "moduleFileExtensions": [
+      "js"
+    ]
+  }
+  

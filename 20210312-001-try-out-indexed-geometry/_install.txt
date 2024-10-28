@@ -1,0 +1,11 @@
+
+you'll need a webserver to run and view these file in a browser
+
+// create package.json
+npm init -y
+
+// install three.js
+npm i three
+
+// install three.js intellisence
+npm install --save @types/three

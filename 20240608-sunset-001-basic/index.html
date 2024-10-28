@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - orbit controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<style>
+			body {
+				background-color: #ccc;
+				color: #000;
+			}
+
+			a {
+				color: #f00;
+			}
+		</style>
+	</head>
+
+	<body>
+		<div id="info">
+			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - orbit controls
+		</div>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "../node_modules/three/build/three.module.js",
+					"three/addons/": "../jsm/"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three';
+
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+			let camera, controls, scene, renderer;
+			let _windowsWidth = 800, _windowsHeight = 800;
+			let _sceneWidth = 1, _sceneHeight = 1;
+			let _near = 1, _far = 1000, _fov = 60;
+
+			init();
+			//render(); // remove when using animation loop
+
+			function init() {
+
+				scene = new THREE.Scene();
+				scene.background = new THREE.Color( 0xaaaaaa );
+				// scene.fog = new THREE.FogExp2( 0xcccccc, 0.002 );
+
+				renderer = new THREE.WebGLRenderer( { antialias: true, stencil: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( _windowsWidth, _windowsHeight );
+				renderer.setAnimationLoop( animate );
+				document.body.appendChild( renderer.domElement );
+
+				camera = new THREE.PerspectiveCamera( _fov, _sceneWidth / _sceneHeight, _near, _far );
+				camera.position.set(0, 0, 10 );
+
+				camera = new THREE.OrthographicCamera( -_sceneWidth * 0.5, _sceneWidth * 0.5, -_sceneHeight * 0.5, _sceneHeight * 0.5, _near, _far );
+				camera.position.set(0, 0, 10 );
+
+				// controls
+
+				controls = new OrbitControls( camera, renderer.domElement );
+				controls.listenToKeyEvents( window ); // optional
+
+				//controls.addEventListener( 'change', render ); // call this only in static scenes (i.e., if there is no animation loop)
+
+				controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
+				controls.dampingFactor = 0.05;
+
+				controls.screenSpacePanning = false;
+
+				controls.minDistance = 1;
+				controls.maxDistance = 20;
+
+				controls.maxPolarAngle = Math.PI / 2;
+
+				// -----------------------
+
+				let fromColor = new THREE.Color('rgb(0, 102, 153)');
+            	let toColor = new THREE.Color('rgb(204, 102, 0)');
+
+				fromColor = new THREE.Color('rgb(255, 9, 158)');
+            	toColor = new THREE.Color('rgb(255, 140, 57)');
+
+				// fromColor = new THREE.Color('rgb(255, 54, 0)');
+            	// toColor = new THREE.Color('rgb(255, 144, 0)');
+
+				// -----------------------
+				// stencil material
+
+				const stencilMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, side : THREE.DoubleSide } );
+				stencilMaterial.colorWrite = false;	// disable color buffer
+				stencilMaterial.stencilWrite = true;	// enable stencil buffer
+				stencilMaterial.stencilRef = 1;			// value written to the stencil buffer
+				stencilMaterial.stencilFunc = THREE.AlwaysStencilFunc;	// always write to stencil buffer
+				stencilMaterial.stencilZPass = THREE.ReplaceStencilOp;	// ?
+
+				// -----------------------
+				// stencil circle
+
+				// geemetry
+				const stencilCircleGeometry = new THREE.CircleGeometry(0.25, 128);
+				const stencilCircleMesh = new THREE.Mesh( stencilCircleGeometry, stencilMaterial );
+
+				// wireframe
+				// const stencilCircleWireFrameGeometry = new THREE.WireframeGeometry( stencilCircleGeometry );
+  				// const stencilCircleWireFrameMesh = new THREE.LineSegments( stencilCircleWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0x000000, depthTest: false, opacity:0.25, transparent:true } ) );
+
+				// circle group
+				const stencilCircleGroup = new THREE.Group();
+				stencilCircleGroup.add(stencilCircleMesh);
+				// stencilCircleGroup.add(stencilCircleWireFrameMesh);
+				stencilCircleGroup.position.set(0, 0, 0);
+				scene.add( stencilCircleGroup );	
+
+				// -----------------------
+				// the clipped sphere
+
+				// const clippedSphereGeometry = new THREE.SphereGeometry( 2, 16);
+				// const clippedSphereMaterial = new THREE.MeshBasicMaterial( { color: 0x0000ff, depthTest: false } );
+				// clippedSphereMaterial.stencilWrite = true;	// enable stencil buffer
+				// clippedSphereMaterial.stencilRef = 0;		// value written to the stencil buffer
+				// clippedSphereMaterial.stencilFunc = THREE.LessStencilFunc;	// pass when the value in the stencil buffer matches the write value
+				
+				// const clippedSphereMesh = new THREE.Mesh( clippedSphereGeometry, clippedSphereMaterial );
+
+				// // -----------------------
+				// // the clipped sphere wireframe
+
+				// const clippedSphereMeshWireFrameGeometry = new THREE.WireframeGeometry( clippedSphereGeometry );
+				// const clippedSphereMeshWireFrameMesh = new THREE.LineSegments( clippedSphereMeshWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0xffffff, depthTest: false, opacity:0.25, transparent:true } ) );
+
+				// // the clipped sphere group
+				// const clippedSphereMeshGroup = new THREE.Group();
+				// clippedSphereMeshGroup.add( clippedSphereMesh );
+				// clippedSphereMeshGroup.add( clippedSphereMeshWireFrameMesh );	
+				// clippedSphereMeshGroup.position.set(0, 0, -1.75);
+				// scene.add( clippedSphereMeshGroup );	
+
+				// -----------------------
+				// the clipped plane
+
+				// const clippedPlaneGeometry = new THREE.PlaneGeometry(_sceneWidth, _sceneHeight, 10, 10);
+				// const clippedPlaneMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, depthTest: false } );
+				// clippedPlaneMaterial.stencilWrite = true;	// enable stencil buffer
+				// clippedPlaneMaterial.stencilRef = 1;		// value written to the stencil buffer
+				// clippedPlaneMaterial.stencilFunc = THREE.EqualStencilFunc;	// pass when the value in the stencil buffer matches the write value
+				
+				// const clippedPlaneMesh = new THREE.Mesh( clippedPlaneGeometry, clippedPlaneMaterial );
+
+				// // -----------------------
+				// // the clipped plane wireframe
+
+				// const clippedPlaneMeshWireFrameGeometry = new THREE.WireframeGeometry( clippedPlaneGeometry );
+				// const clippedPlaneMeshWireFrameMesh = new THREE.LineSegments( clippedPlaneMeshWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0xffffff, depthTest: false, opacity:0.25, transparent:true } ) );
+
+				// // the clipped plane group
+				// const clippedPlaneMeshGroup = new THREE.Group();
+				// clippedPlaneMeshGroup.add( clippedPlaneMesh );
+				// clippedPlaneMeshGroup.add( clippedPlaneMeshWireFrameMesh );	
+				// clippedPlaneMeshGroup.position.set(0, 0, 0);
+				// scene.add( clippedPlaneMeshGroup );	
+
+				// -----------------------
+
+				const gradientMaterial = new THREE.LineBasicMaterial( { vertexColors: true, side: THREE.DoubleSide, depthTest: false } );				
+
+				const gradientLineSegmentMesh = createGradientLineSegments(fromColor, toColor, gradientMaterial);
+
+				gradientLineSegmentMesh.position.set(0, 0, -1);
+				scene.add( gradientLineSegmentMesh );				
+
+				// -----------------------
+
+				const clippedGradientMaterial = new THREE.LineBasicMaterial( { vertexColors: true, side: THREE.DoubleSide, depthTest: false } );				
+				clippedGradientMaterial.stencilWrite = true;	// enable stencil buffer
+				clippedGradientMaterial.stencilRef = 1;		// value written to the stencil buffer
+				clippedGradientMaterial.stencilFunc = THREE.EqualStencilFunc;	// pass when the value in the stencil buffer matches the write value
+
+				const clippedGradientLineSegmentMesh = createGradientLineSegments(toColor, fromColor, clippedGradientMaterial);
+
+				clippedGradientLineSegmentMesh.position.set(0, 0, -1);
+				scene.add( clippedGradientLineSegmentMesh );				
+
+				// -----------------------
+
+				window.addEventListener( 'resize', onWindowResize );
+			}
+
+			function createGradientLineSegments(fromColor, toColor, material)
+			{
+				const lineGeometry = new THREE.BufferGeometry();
+
+				let lineVertices = [];
+				let lineColors = [];
+				let factor = 0;
+
+				const lineColor = new THREE.Color();
+
+				const _halfSceneWidth = _sceneWidth * 0.5;
+				const _halfSceneHeight = _sceneHeight * 0.5;
+
+				for ( let i = 0; i <= _windowsHeight; i ++ ) 
+				{
+					factor = i / _windowsHeight;
+
+					lineColor.lerpColors(fromColor, toColor, factor);
+
+					lineVertices.push(-_halfSceneWidth, -_halfSceneHeight + factor, 0);
+					lineVertices.push( _halfSceneWidth, -_halfSceneHeight + factor, 0);
+					lineColors.push( lineColor.r, lineColor.g, lineColor.b );
+					lineColors.push( lineColor.r, lineColor.g, lineColor.b );
+				}
+
+				lineGeometry.setAttribute( 'position', new THREE.Float32BufferAttribute( lineVertices, 3 ) );
+				lineGeometry.setAttribute( 'color', new THREE.Float32BufferAttribute( lineColors, 3 ) );
+
+				return new THREE.LineSegments( lineGeometry, material );
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( _windowsWidth, _windowsHeight );
+
+			}
+
+			function animate() {
+
+				controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
+
+				render();
+
+			}
+
+			function render() {
+
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+
+	</body>
+</html>

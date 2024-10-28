@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<link rel="stylesheet" type="text/css" href="main.css">
+		<link rel="shortcut icon" href="/favicon_white.ico" media="(prefers-color-scheme: dark)">
+		<link rel="shortcut icon" href="/favicon.ico" media="(prefers-color-scheme: light)">
+		<title>My first three.js app</title>
+		<style>
+			body { margin: 0; }
+		</style>
+            <!--
+                three.js versions: https://www.npmjs.com/package/three?activeTab=versions 
+            -->
+            <script type="importmap">
+            {
+                "imports": 
+                {
+                    "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
+                    "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/",
+                    "gl-noise": "/node_modules/gl-noise/build/glNoise.m.js",
+                    "simplex-noise": "/node_modules/simplex-noise/dist/esm/simplex-noise.js"
+                }
+            }
+        </script>	
+    </head>
+	<body>
+		<script type="module" src="main.js"></script>
+	</body>
+</html>
