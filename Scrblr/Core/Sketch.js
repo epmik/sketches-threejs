@@ -1,15 +1,16 @@
-import { WebGLRenderTarget } from '../../node_modules/three/src/renderers/WebGLRenderTarget.js';
-import { Scene } from '../../node_modules/three/src/scenes/Scene.js';
-import { BufferAttribute } from '../../node_modules/three/src/core/BufferAttribute.js';
-import { BufferGeometry } from '../../node_modules/three/src/core/BufferGeometry.js';
-import { Color } from '../../node_modules/three/src/math/Color.js';
-import { Points } from '../../node_modules/three/src/objects/Points.js';
-import { PointsMaterial } from '../../node_modules/three/src/materials/PointsMaterial.js';
-import { prng_alea } from '../../node_modules/esm-seedrandom/esm/alea.min.mjs';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import * as THREE from 'three';
+// import { WebGLRenderTarget } from 'three/src/renderers/WebGLRenderTarget.js';
+// import { Scene } from 'three/src/scenes/Scene.js';
+// import { BufferAttribute } from 'three/src/core/BufferAttribute.js';
+// import { BufferGeometry } from 'three/src/core/BufferGeometry.js';
+// import { Color } from 'three/src/math/Color.js';
+// import { Points } from 'three/src/objects/Points.js';
+// import { PointsMaterial } from 'three/src/materials/PointsMaterial.js';
+// import { prng_alea } from '../../node_modules/esm-seedrandom/esm/alea.min.mjs';
+// import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+// import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+// import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+// import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 class Sketch
 {

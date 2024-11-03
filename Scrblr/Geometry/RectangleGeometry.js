@@ -1,8 +1,9 @@
-import { BufferGeometry } from '../../node_modules/three/src/core/BufferGeometry.js';
-import { Float32BufferAttribute } from '../../node_modules/three/src/core/BufferAttribute.js';
-import { Vector3 } from '../../node_modules/three/src/math/Vector3.js';
+// import { BufferGeometry } from 'three/src/core/BufferGeometry.js';
+// import { Float32BufferAttribute } from 'three/src/core/BufferAttribute.js';
+import * as THREE from 'three';
 
-class RectangleGeometry extends BufferGeometry {
+
+class RectangleGeometry extends THREE.BufferGeometry {
 
 	constructor( width = 1, height = 1, widthSegments = 1, heightSegments = 1 ) {
 

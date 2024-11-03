@@ -14,10 +14,11 @@
 		<script type="importmap">
 			{
 				"imports": {
-					"three": "../node_modules/three/build/three.module.js",
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
 					"scrblr": "../scrblr/scrblr.module.js",
-					"pngjs": "../node_modules/pngjs/browser.js",
-					"three/addons/": "../jsm/"
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
 				}
 			}
 		</script>
@@ -30,7 +31,7 @@
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
             import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-			import { prng_alea } from '../../node_modules/esm-seedrandom/esm/alea.min.mjs';
+			import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm'
 			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 			import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
@@ -39,11 +40,13 @@
 			import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
             import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
             import { Line2 } from "three/addons/lines/Line2.js";
+            import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
             import { LineMaterial } from "three/addons/lines/LineMaterial.js";
             import { LineGeometry } from "three/addons/lines/LineGeometry.js";
+            import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 
             let _screenCapturePrefix = "00000000.000.Template-with-animated-model-and-lighting";
-            let _effectsComposer, _useEffectsComposer = false;
+            let _effectsComposer, _useEffectsComposer = false, _settings = null;
             let scene, renderer, camera, stats, controls;
             let modelMarine, modelForestHouse, modelLittleTokyo, skeletonMarine, mixerMarine, mixerLittleTokyo;
             let spotLight, spotLightHelper;
@@ -62,8 +65,8 @@
             let singleStepMode = false;
             let sizeOfNextStep = 0;
 
-            var line, material;
-            var MAX_POINTS = 500;
+            var lines, linesMaterial, _gridLines, _gridLinesMaterial, _lineSegments;
+            var MAX_POINTS = 50;
             var drawCount = 0;            
 
             init();
@@ -75,28 +78,73 @@
                 _canvasWidth = _canvasWidth === undefined ? window.innerWidth : _canvasWidth;
                 _canvasHeight = _canvasHeight === undefined ? window.innerHeight : _canvasHeight;
 
-                renderer = new THREE.WebGLRenderer( { antialias: true, stencil: true, alpha: true } );
+                renderer = new THREE.WebGLRenderer( { antialias: true, samples: 4, stencil: true, alpha: true } );
                 renderer.setPixelRatio( window.devicePixelRatio );
                 renderer.setSize( _canvasWidth, _canvasHeight );
                 renderer.shadowMap.enabled = true;
                 container.appendChild( renderer.domElement );
 
-                camera = new THREE.PerspectiveCamera( _fov, _canvasWidth /_canvasHeight, _near, _far );
-                camera.position.set( 1, 4, -6);
-                camera.lookAt( 0, 1, 0 );
+                // renderer.capabilities.maxSamples;
 
-                controls = new OrbitControls( camera, renderer.domElement );
-				controls.minDistance = 2;
-				controls.maxDistance = 12;
-				controls.maxPolarAngle = Math.PI / 2;
-				controls.target.set( 0, 1, 0 );
-				controls.update();                
+                // console.log(Object.getOwnPropertyNames(renderer.capabilities));
+
+                // for (const [key, value] of Object.entries(renderer.capabilities)) 
+                // {
+                //     console.log(`${key}: ${value}`);
+                // }
+                
+                
+                // for(var p in renderer.capabilities) 
+                // {
+                //     // propertyName is what you want
+                //     //  you can get the value like this: myObject[propertyName]
+                //     console.log(`${p}: ${renderer.capabilities[p]}`);
+                // }
+
+                // camera = new THREE.PerspectiveCamera( _fov, _canvasWidth /_canvasHeight, _near, _far );
+                // camera.position.set( 0, 0, -10);
+                // camera.lookAt( 0, 0, 0 );
+
+                camera = new THREE.OrthographicCamera( -1, 1, -1, 1, _near, _far);
+                // camera = new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, 1, 1000 );
+                camera.position.set( 0, 0, -10);
+                camera.lookAt( 0, 0, 0 );
+
+                // controls = new OrbitControls( camera, renderer.domElement );
+				// controls.minDistance = 2;
+				// controls.maxDistance = 12;
+				// controls.maxPolarAngle = Math.PI / 2;
+				// controls.target.set( 0, 1, 0 );
+				// controls.update();                
 
                 // scene
 	            scene = new THREE.Scene();
 
+                // ----------------------
+
                 // geometry
-                var geometry = new LineGeometry();
+                var gridLinesGeometry = new LineGeometry();
+
+                // attributes
+                var grdiLinesPosition = new Float32Array( MAX_POINTS * 3 ); // 3 values per point
+                gridLinesGeometry.setPositions( grdiLinesPosition);
+
+                // material
+                linesMaterial = new LineMaterial( { color: 0xff0000, linewidth: 2 } );
+                // material.resolution.set( window.innerWidth, window.innerHeight );
+
+                // line
+                lines = new Line2( gridLinesGeometry,  linesMaterial );
+                scene.add( lines );
+
+                // ----------------------
+
+                updateLinesPosition();                
+
+                // ----------------------
+
+                // geometry
+                var geometry = new LineSegmentsGeometry();
 
                 // attributes
                 var positions = new Float32Array( MAX_POINTS * 3 ); // 3 vertices per point
@@ -104,17 +152,18 @@
 
 
                 // material
-                material = new LineMaterial( { color: 0xff0000, linewidth: 2 } );
+                var material = new LineMaterial( { color: 0xffff00, linewidth: 20 } );
                 material.resolution.set( window.innerWidth, window.innerHeight );
 
                 // line
-                line = new Line2( geometry,  material );
-                scene.add( line );
+                _lineSegments = new LineSegments2( geometry,  material );
+                scene.add( _lineSegments );
 
-                // update positions
-                updatePositions();                
-                
-                ////////////
+                // ----------------------
+
+                updateLineSegmentPositions();
+
+                // ----------------------
 
                 if(_useEffectsComposer)
                 {
@@ -137,7 +186,13 @@
                 }
 
 
-                // createGui();
+				_settings = 
+                {
+					downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
+					downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(4); }
+				};
+
+                createGui();
 
 
                 _clock = new THREE.Clock();
@@ -153,11 +208,48 @@
 
 
 
+                renderer.domElement.addEventListener("keydown", onKeyDown, false);
+                renderer.domElement.addEventListener("keyup", onKeyUp, false);
+                renderer.domElement.addEventListener("mousemove", onMouseMove, false);
+                renderer.domElement.addEventListener("mousedown", onMouseDown, false);
+                renderer.domElement.addEventListener("mouseup", onMouseUp, false);
+
+                // window.addEventListener("keydown", onKeyDown, false);
+                // window.addEventListener("keyup", onKeyUp, false);
+                // window.addEventListener("mousemove", onMouseMove, false);
+                // window.addEventListener("mousedown", onMouseDown, false);
+                // window.addEventListener("mouseup", onMouseUp, false);
+
                 window.addEventListener( 'resize', onWindowResize );
 
             }
 
-            function updatePositions() 
+            function getRandom(min, max) 
+            {
+                return Math.random() * (max - min) + min;
+            }
+
+            function getRandomInt(min, max) 
+            {
+                if(max === undefined)
+                {
+                    max = min;
+                    min = 0;                    
+                }
+
+                const minCeiled = Math.ceil(min);
+                const maxFloored = Math.floor(max);
+                return Math.floor(Math.random() * (maxFloored - minCeiled) + minCeiled); // The maximum is exclusive and the minimum is inclusive
+            }    
+            
+            function getRandomIntInclusive(min, max) 
+            {
+                const minCeiled = Math.ceil(min);
+                const maxFloored = Math.floor(max);
+                return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled); // The maximum is inclusive and the minimum is inclusive
+            }        
+                        
+            function updateLineSegmentPositions() 
             {
                 //var positions = line.geometry.attributes.position.array;
                 var positions =[ ];
@@ -165,104 +257,219 @@
                 var y = 0;
                 var z = 0;
                 var index = 0;
+                var count = getRandomInt(1, 5) * 2;
+
+                for ( var i = 0; i < count; i ++ ) 
+                {
+                    x = ( Math.random() - 0.5 ) * 2;
+                    y = ( Math.random() - 0.5 ) * 2;
+
+                    positions[ index ++ ] = x;
+                    positions[ index ++ ] = y;
+                    positions[ index ++ ] = z;
+
+                }
+
+                _lineSegments.geometry.setPositions(positions)
+
+            }
+
+            function updateLinesPosition() 
+            {
+                //var positions = line.geometry.attributes.position.array;
+                var positions =[];
+                var x = 0;
+                var y = 0;
+                var z = 0;
+                var index = 0;
 
                 for ( var i = 0, l = MAX_POINTS; i < l; i ++ ) 
                 {
-                    x += ( Math.random() - 0.5 ) * 30;
-                    y += ( Math.random() - 0.5 ) * 30;
-                    z += ( Math.random() - 0.5 ) * 30;
+                    x += ( Math.random() - 0.5 ) * 2;
+                    y += ( Math.random() - 0.5 ) * 2;
+                    // z += ( Math.random() - 0.5 ) * 30;
 
                     positions[ index ++ ] = x;
                     positions[ index ++ ] = y;
                     positions[ index ++ ] = z;
                 }
 
-                line.geometry.setPositions(positions);
+                lines.geometry.setPositions(positions);
 
-                material.linewidth = 1 + Math.random() * 8;
-                material.needsUpdate = true;
+                linesMaterial.linewidth = 1 + Math.random() * 8;
+                linesMaterial.needsUpdate = true;
             }            
+
+            function update() 
+            {
+				_deltaTime = _clock.getDelta();
+
+				_time += _deltaTime;
+
+
+                drawCount = ( drawCount + 1 ) % MAX_POINTS;
+                
+                lines.geometry.maxInstancedCount = drawCount;
+
+                if ( drawCount === 0 ) {
+
+                    // periodically, generate new data
+
+                    updateLinesPosition();
+
+                    // updateLineSegmentPositions();
+
+                    lines.material.color.setHSL( Math.random(), 1, 0.5 );
+
+                }                
+                
+                if(_useEffectsComposer)
+                {
+                    _effectsComposer.render();
+                }
+                else
+                {
+                    renderer.render( scene, camera );
+                }
+
+                stats.update();
+            }
+
+            function onKeyDown(event) 
+            {
+                event.preventDefault();
+
+                var keyCode = event.which;
+
+                switch(keyCode)
+                {
+                    default: 
+                        break;
+                }
+            };            
+
+            function onKeyUp(event) 
+            {
+                event.preventDefault();
+            };            
+
+            function onMouseDown(event) 
+            {
+                event.preventDefault();
+
+                switch(event.button)
+                {
+                    case 0:
+                        updateLineSegmentPositions();
+                        break;
+                }
+
+                // console.log(event.button);
+                // console.log(event.buttons);
+            }; 
+
+            function onMouseUp(event) 
+            {
+                event.preventDefault();
+            };  
+
+            function onMouseMove(event) 
+            {
+                event.preventDefault();
+
+                // event.clientX    // The X coordinate of the mouse pointer in viewport coordinates.
+                // event.clientY    // The Y coordinate of the mouse pointer in viewport coordinates.
+                // event.altKey     // Returns true if the alt key was down when the mouse event was fired.
+                // event.ctrlKey    // Returns true if the ctrl key was down when the mouse event was fired.
+                // event.shiftKey   // Returns true if the shift key was down when the mouse event was fired.
+                // event.button     // The button number that was pressed (if applicable) when the mouse event was fired.
+                // event.buttons    // The buttons being pressed (if any) when the mouse event was fired.
+                // event.movementX  // The X coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.movementY  // The Y coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.screenX    // The X coordinate of the mouse pointer in screen coordinates.
+                // event.screenY    // The Y coordinate of the mouse pointer in screen coordinates.
+            };            
 
             function createGui() {
 
                 const panel = new GUI( { width: 310, closeFolders: true } );
 
-                const folderAnimation = panel.addFolder( 'Animation' );
-                const folderLighting = panel.addFolder( 'Lighting' );
-                const folderShading = panel.addFolder( 'Shading' );
-                const folderModels = panel.addFolder( 'Models' );
+                // const folderAnimation = panel.addFolder( 'Animation' );
+                // const folderLighting = panel.addFolder( 'Lighting' );
+                // const folderShading = panel.addFolder( 'Shading' );
+                // const folderModels = panel.addFolder( 'Models' );
 
-                folderAnimation.add( settings, 'deactivate/activate animation');
-				folderAnimation.add( settings, 'pause/continue animation' );
+                // folderAnimation.add( settings, 'deactivate/activate animation');
+				// folderAnimation.add( settings, 'pause/continue animation' );
 
-                crossFadeControls.push( folderAnimation.add( settings, 'from walk to idle' ) );
-                crossFadeControls.push( folderAnimation.add( settings, 'from idle to walk' ) );
-                crossFadeControls.push( folderAnimation.add( settings, 'from walk to run' ) );
-                crossFadeControls.push( folderAnimation.add( settings, 'from run to walk' ) );
+                // crossFadeControls.push( folderAnimation.add( settings, 'from walk to idle' ) );
+                // crossFadeControls.push( folderAnimation.add( settings, 'from idle to walk' ) );
+                // crossFadeControls.push( folderAnimation.add( settings, 'from walk to run' ) );
+                // crossFadeControls.push( folderAnimation.add( settings, 'from run to walk' ) );
 
-                folderAnimation.add( settings, 'duration', 0, 4, 0.025 );
+                // folderAnimation.add( settings, 'duration', 0, 4, 0.025 );
 
-                folderLighting.addColor( settings, 'color' ).onChange( function ( val ) { spotLight.color.setHex( val ); } );
+                // folderLighting.addColor( settings, 'color' ).onChange( function ( val ) { spotLight.color.setHex( val ); } );
 
-                folderLighting.add( settings, 'intensity', 0, 500 ).onChange( function ( val ) { spotLight.intensity = val; } );
+                // folderLighting.add( settings, 'intensity', 0, 500 ).onChange( function ( val ) { spotLight.intensity = val; } );
 
-                folderLighting.add( settings, 'distance', 0, 20 ).onChange( function ( val ) { spotLight.distance = val; } );
+                // folderLighting.add( settings, 'distance', 0, 20 ).onChange( function ( val ) { spotLight.distance = val; } );
 
-                folderLighting.add( settings, 'angle', 0, Math.PI / 3 ).onChange( function ( val ) { spotLight.angle = val; } );
+                // folderLighting.add( settings, 'angle', 0, Math.PI / 3 ).onChange( function ( val ) { spotLight.angle = val; } );
 
-                folderLighting.add( settings, 'penumbra', 0, 1 ).onChange( function ( val ) { spotLight.penumbra = val; } );
+                // folderLighting.add( settings, 'penumbra', 0, 1 ).onChange( function ( val ) { spotLight.penumbra = val; } );
 
-                folderLighting.add( settings, 'decay', 1, 2 ).onChange( function ( val ) { spotLight.decay = val; } );
+                // folderLighting.add( settings, 'decay', 1, 2 ).onChange( function ( val ) { spotLight.decay = val; } );
 
-                folderLighting.add( settings, 'shadows' ).onChange( function ( val ) 
-                { 
-                    renderer.shadowMap.enabled = val; 
+                // folderLighting.add( settings, 'shadows' ).onChange( function ( val ) 
+                // { 
+                //     renderer.shadowMap.enabled = val; 
 
-                    scene.traverse( function ( child ) 
-                    {
-                        if ( child.material ) 
-                        {
-                            child.material.needsUpdate = true;
-                        }
+                //     scene.traverse( function ( child ) 
+                //     {
+                //         if ( child.material ) 
+                //         {
+                //             child.material.needsUpdate = true;
+                //         }
 
-                    } );
-                } );
+                //     } );
+                // } );
 
-                folderShading.add( settings, 'materialIndex', [ 'default', 'wireframe', 'flat', 'smooth', 'glossy', 'textured', 'reflective' ] ).name( 'Shading' ).onChange( function(val) 
-                {
-                    let material = settings.materials[settings.materialIndex];
-                    let model = settings.models[settings.modelIndex];
+                // folderShading.add( settings, 'materialIndex', [ 'default', 'wireframe', 'flat', 'smooth', 'glossy', 'textured', 'reflective' ] ).name( 'Shading' ).onChange( function(val) 
+                // {
+                //     let material = settings.materials[settings.materialIndex];
+                //     let model = settings.models[settings.modelIndex];
 
-                    model.traverse( function ( child ) 
-                    {
-                        if ( child.material && child.isMesh) 
-                        {
-                            child.material = material === null ? child.userData.defaultMaterial : material;
-                            child.material.needsUpdate = true;
-                        }
+                //     model.traverse( function ( child ) 
+                //     {
+                //         if ( child.material && child.isMesh) 
+                //         {
+                //             child.material = material === null ? child.userData.defaultMaterial : material;
+                //             child.material.needsUpdate = true;
+                //         }
 
-                    } );
-                } );
+                //     } );
+                // } );
 
-                folderModels.add( settings, 'modelIndex', [ 'marine', 'forest house' , 'little tokyo' ] ).name( 'Model' ).onChange( function(val) 
-                {
-                    for (let m in settings.models) 
-                    {
-                        settings.models[m].visible = false;
-                    }
+                // folderModels.add( settings, 'modelIndex', [ 'marine', 'forest house' , 'little tokyo' ] ).name( 'Model' ).onChange( function(val) 
+                // {
+                //     for (let m in settings.models) 
+                //     {
+                //         settings.models[m].visible = false;
+                //     }
 
-                    let model = settings.models[settings.modelIndex];
+                //     let model = settings.models[settings.modelIndex];
 
-                    model.visible = true;
-                } );
+                //     model.visible = true;
+                // } );
 
-                panel.add(settings, 'downloadWebGLRendererAction').name('Save screen');
-                panel.add(settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
+                panel.add(_settings, 'downloadWebGLRendererAction').name('Save screen');
+                panel.add(_settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
 
-                folderAnimation.close();
-                folderLighting.close();
-                folderShading.close();
-                folderModels.close();
+                // folderAnimation.close();
+                // folderLighting.close();
+                // folderShading.close();
+                // folderModels.close();
             }
 
             function deactivateActivateAllActions() 
@@ -456,46 +663,11 @@
                 }
             }
 
-            function update() 
-            {
-				_deltaTime = _clock.getDelta();
-
-				_time += _deltaTime;
-
-
-                drawCount = ( drawCount + 1 ) % MAX_POINTS;
-                
-                line.geometry.maxInstancedCount = drawCount;
-
-                if ( drawCount === 0 ) {
-
-                    // periodically, generate new data
-
-                    updatePositions();
-
-                    line.material.color.setHSL( Math.random(), 1, 0.5 );
-
-                }                
-                
-                if(_useEffectsComposer)
-                {
-                    _effectsComposer.render();
-                }
-                else
-                {
-                    renderer.render( scene, camera );
-                }
-
-                stats.update();
-            }
-
 			function _downloadWebGLRenderer(hiresScale)
 			{
-                _downloadScaledWebGLRenderer(hiresScale === undefined ? 1 : hiresScale);
-			}
 
-			function _downloadScaledWebGLRenderer(hiresScale)
-			{
+                hiresScale = (hiresScale === undefined || hiresScale === null || hiresScale == 0 ? 1 : hiresScale);
+
                 const width = Math.round(_canvasWidth * hiresScale);
                 const height = Math.round(_canvasHeight * hiresScale);
 

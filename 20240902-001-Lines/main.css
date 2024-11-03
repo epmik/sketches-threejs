@@ -6,7 +6,9 @@ body{
 	width:auto;
 	margin: 0;
 	padding: 0;
+	background-color: #dddddd;
 }
 canvas{
 	margin: auto;
+	background-color: #ffffff;
 }
