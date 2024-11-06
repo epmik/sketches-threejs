@@ -15,7 +15,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Launch Chrome localhost:3000 (npx serve)",
-            "url": "http://localhost:3000/",
+            "url": "http://localhost:3000/20240902-001-Lines/index.htm",
             "webRoot": "${workspaceFolder}"
         }
     ]

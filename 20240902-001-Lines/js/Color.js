@@ -147,7 +147,7 @@ class Color
   {
     if (hue !== undefined)
     {
-        this._hue = this.Wrap(hue);
+        this._hue = Color.Wrap(hue);
     }
       
       this.CalculateRgb();
@@ -213,10 +213,23 @@ class Color
 
 Rgb(r, g, b, a)
 {
-    if(a === undefined)
-    {
-        a = 1;
-    }
+  if(r === undefined)
+  {
+      r = 0;
+  }
+  if(g === undefined)
+  {
+      g = 0;
+  }
+  if(b === undefined)
+  {
+      b = 0;
+  }
+  if(a === undefined)
+  {
+      a = 1;
+  }
+
   this._r = MathUtility.Clamp(r);
   this._g = MathUtility.Clamp(g);
   this._b = MathUtility.Clamp(b);
@@ -228,11 +241,11 @@ Rgb(r, g, b, a)
   Hsb(h, s, b, a)
   {
     if(a === undefined)
-        {
-            a = 1;
-        }
+    {
+        a = 1;
+    }
 
-    this._hue = Wrap(h);
+    this._hue = Color.Wrap(h);
     this._saturation = MathUtility.Clamp(s);
     this._brightness = MathUtility.Clamp(b);
     this._a = MathUtility.Clamp(a);
@@ -269,45 +282,12 @@ Rgb(r, g, b, a)
   {
     time = MathUtility.Clamp(time);
 
-    let a1 = c1.AInt();
-    let r1 = c1.RInt();
-    let g1 = c1.GInt();
-    let b1 = c1.BInt();
-    let a2 = c2.AInt();
-    let r2 = c2.RInt();
-    let g2 = c2.GInt();
-    let b2 = c2.BInt();
-
-    return new Color().Rgb(
-        (Math.floor(r1 + (r2 - r1) * time)),
-        (Math.floor(g1 + (g2 - g1) * time)),
-        (Math.floor(b1 + (b2 - b1) * time)),
-        (Math.floor(a1 + (a2 - a1) * time)));
-
-    // return ((Math.round(a1 + (a2-a1)*time) << 24) |
-    // (Math.round(r1 + (r2-r1)*time) << 16) |
-    // (Math.round(g1 + (g2-g1)*time) << 8) |
-    // (Math.round(b1 + (b2-b1)*time)));
-  }
-  
-//   static public int Interpolate(int c1, int c2, float time) 
-//   {
-//     time = Utility.Math.Clamp(time);
-
-//     float a1 = ((c1 >> 24) & 0xff);
-//     float r1 = (c1 >> 16) & 0xff;
-//     float g1 = (c1 >> 8) & 0xff;
-//     float b1 = c1 & 0xff;
-//     float a2 = (c2 >> 24) & 0xff;
-//     float r2 = (c2 >> 16) & 0xff;
-//     float g2 = (c2 >> 8) & 0xff;
-//     float b2 = c2 & 0xff;
-
-//     return ((PApplet.round(a1 + (a2-a1)*time) << 24) |
-//             (PApplet.round(r1 + (r2-r1)*time) << 16) |
-//             (PApplet.round(g1 + (g2-g1)*time) << 8) |
-//             (PApplet.round(b1 + (b2-b1)*time)));
-//   }  
+    return new Color(
+      (c1._r + (c2._r - c1._r) * time),
+      (c1._g + (c2._g - c1._b) * time),
+      (c1._b + (c2._b - c1._b) * time),
+      (c1._a + (c2._a - c1._a) * time));
+  } 
  
   CalculateHsb() 
   {
@@ -354,66 +334,66 @@ Rgb(r, g, b, a)
 
     let r = 0, g = 0, b = 0;
     
-    if (_saturation == 0) 
+    if (this._saturation == 0) 
     {
-      r = g = b = (int) (_brightness * 255.0 + 0.5);
+      r = g = b = (int) (this._brightness * 255.0 + 0.5);
     } 
     else 
     {
-        let h = (_hue - Math.floor(_hue)) * 6.0;
+        let h = (this._hue - Math.floor(this._hue)) * 6.0;
         let f = h - Math.floor(h);
-        let p = _brightness * (1.0 - _saturation);
-        let q = _brightness * (1.0 - _saturation * f);
-        let t = _brightness * (1.0 - (_saturation * (1.0 - f)));
+        let p = this._brightness * (1.0 - this._saturation);
+        let q = this._brightness * (1.0 - this._saturation * f);
+        let t = this._brightness * (1.0 - (this._saturation * (1.0 - f)));
         switch (Math.floor(h))
         {
         case 0:
-          r = (int) (_brightness * 255.0 + 0.5);
-          g = (int) (t * 255.0 + 0.5);
-          b = (int) (p * 255.0 + 0.5);
+          r = Math.floor(this._brightness * 255.0 + 0.5);
+          g = Math.floor(t * 255.0 + 0.5);
+          b = Math.floor(p * 255.0 + 0.5);
           break;
         case 1:
-          r = (int) (q * 255.0 + 0.5);
-          g = (int) (_brightness * 255.0 + 0.5);
-          b = (int) (p * 255.0 + 0.5);
+          r = Math.floor(q * 255.0 + 0.5);
+          g = Math.floor(this._brightness * 255.0 + 0.5);
+          b = Math.floor(p * 255.0 + 0.5);
           break;
         case 2:
-          r = (int) (p * 255.0 + 0.5);
-          g = (int) (_brightness * 255.0 + 0.5);
-          b = (int) (t * 255.0 + 0.5);
+          r = Math.floor(p * 255.0 + 0.5);
+          g = Math.floor(this._brightness * 255.0 + 0.5);
+          b = Math.floor(t * 255.0 + 0.5);
           break;
         case 3:
-          r = (int) (p * 255.0 + 0.5);
-          g = (int) (q * 255.0 + 0.5);
-          b = (int) (_brightness * 255.0 + 0.5);
+          r = Math.floor(p * 255.0 + 0.5);
+          g = Math.floor(q * 255.0 + 0.5);
+          b = Math.floor(this._brightness * 255.0 + 0.5);
           break;
         case 4:
-          r = (int) (t * 255.0 + 0.5);
-          g = (int) (p * 255.0 + 0.5);
-          b = (int) (_brightness * 255.0 + 0.5);
+          r = Math.floor(t * 255.0 + 0.5);
+          g = Math.floor(p * 255.0 + 0.5);
+          b = Math.floor(this._brightness * 255.0 + 0.5);
           break;
         case 5:
-          r = (int) (_brightness * 255.0 + 0.5);
-          g = (int) (p * 255.0 + 0.5);
-          b = (int) (q * 255.0 + 0.5);
+          r = Math.floor(this._brightness * 255.0 + 0.5);
+          g = Math.floor(p * 255.0 + 0.5);
+          b = Math.floor(q * 255.0 + 0.5);
           break;
       }
     }
 
-    _r = MathUtility.Clamp(r * Color.ByteToDoubleFactor);
-    _g = MathUtility.Clamp(g * Color.ByteToDoubleFactor);
-    _b = MathUtility.Clamp(b * Color.ByteToDoubleFactor);
+    this._r = MathUtility.Clamp(r * Color.ByteToDoubleFactor);
+    this._g = MathUtility.Clamp(g * Color.ByteToDoubleFactor);
+    this._b = MathUtility.Clamp(b * Color.ByteToDoubleFactor);
     
     return this;
   }
  
-  static  Wrap(v)
+  static Wrap(v)
   {
     if (v < 0) {
-      return this.Wrap(v + 1);
+      return Color.Wrap(v + 1);
     }
     if (v > 1) {
-      return this.Wrap(v - 1);
+      return Color.Wrap(v - 1);
     }
     return v;
   }

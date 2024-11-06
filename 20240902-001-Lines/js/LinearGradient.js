@@ -1,6 +1,8 @@
 "use strict";
 
 import { RandomGenerator } from '../js/RandomGenerator.js';
+import { MathUtility } from '../js/MathUtility.js';
+import { Color } from '../js/Color.js';
 
 class LinearGradient
 {
@@ -48,7 +50,7 @@ class LinearGradient
 
     ColorAt(time)
     {
-        time = Utility.Math.Clamp(time, _minTime, _maxTime);
+        time = MathUtility.Clamp(time, this._minTime, this._maxTime);
 
         let first = 0, last = 0; 
       
@@ -93,6 +95,7 @@ class LinearGradientEntry
         this.G = g;
         this.B = b;
         this.A = a;
+        this.Color = new Color(r, g, b, a);
     }     
 
 }

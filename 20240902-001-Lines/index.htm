@@ -52,13 +52,17 @@
 
             let _screenCapturePrefix = "Sketch20240902_001_Lines";
             let _effectsComposer, _useEffectsComposer = false, _settings = null;
-            let scene, renderer, camera, stats, controls;
+            let _scene, _renderer, _camera, _stats, _controls;
             let modelMarine, modelForestHouse, modelLittleTokyo, skeletonMarine, mixerMarine, mixerLittleTokyo;
-            let spotLight, spotLightHelper;
+            let _spotLight, _spotLightHelper;
             let _canvasWidth = 800, _canvasHeight = 800;
             let _near = 1, _far = 1000, _fov = 60;
             let _clock, _deltaTime, _time;
             let _spotlightAngle = Math.PI, _spotlightRotateSpeed = Math.PI * 0.125;
+
+            const _backgroundResolution = 1000;
+            const _backgroundResolutionStep = 2 / _backgroundResolution;
+            let _backgroundLinearGradient;
 
             let _randomGenerator;
 
@@ -72,7 +76,7 @@
             let singleStepMode = false;
             let sizeOfNextStep = 0;
 
-            var lines, linesMaterial, _gridLines, _gridLinesMaterial, _lineSegments;
+            var lines, linesMaterial, _gridLines, _gridLinesMaterial, _lineSegments, _backgroundGeometry, _backgroundLineSegments;
             var MAX_POINTS = 50;
             var drawCount = 0;            
 
@@ -82,30 +86,30 @@
 
                 const container = document.getElementById( 'sketch-container' );
 
-                _randomGenerator = new RandomGenerator();
+                // _randomGenerator = new RandomGenerator();
 
-                for (let i = 0; i < 10; i++) console.log(_randomGenerator.Double());
+                // for (let i = 0; i < 10; i++) console.log(_randomGenerator.Double());
 
-                let _linearGradient = new LinearGradient();
+                // let _linearGradient = new LinearGradient();
 
-                _linearGradient.Insert(0.5, 1, 0, 0, 1);
-                _linearGradient.Insert(1.0, 1, 1, 0);
-                _linearGradient.Insert(0.0, 0, 1, 1);
+                // _linearGradient.Insert(0.5, 1, 0, 0, 1);
+                // _linearGradient.Insert(1.0, 1, 1, 0);
+                // _linearGradient.Insert(0.0, 0, 1, 1);
 
-                let color1 = new Color();
-                let color2 = new Color(1, 0, 0);
-                let color3 = new Color(1, 0, 0, 1);
-                let color4 = Color.FromRgb(1, 0, 0, 1);
-                let color5 = Color.FromHsb(1, 0, 0, 1);
+                // let color1 = new Color();
+                // let color2 = new Color(1, 0, 0);
+                // let color3 = new Color(1, 0, 0, 1);
+                // let color4 = Color.FromRgb(1, 0.25, 0.5, 0.5);
+                // let color5 = Color.FromHsb(0.25, 0.5, 0.5, 1);
 
                 _canvasWidth = _canvasWidth === undefined ? window.innerWidth : _canvasWidth;
                 _canvasHeight = _canvasHeight === undefined ? window.innerHeight : _canvasHeight;
 
-                renderer = new THREE.WebGLRenderer( { antialias: true, samples: 4, stencil: true, alpha: true } );
-                renderer.setPixelRatio( window.devicePixelRatio );
-                renderer.setSize( _canvasWidth, _canvasHeight );
-                renderer.shadowMap.enabled = true;
-                container.appendChild( renderer.domElement );
+                _renderer = new THREE.WebGLRenderer( { antialias: true, samples: 4, stencil: true, alpha: true } );
+                _renderer.setPixelRatio( window.devicePixelRatio );
+                _renderer.setSize( _canvasWidth, _canvasHeight );
+                _renderer.shadowMap.enabled = true;
+                container.appendChild( _renderer.domElement );
 
                 // renderer.capabilities.maxSamples;
 
@@ -128,10 +132,10 @@
                 // camera.position.set( 0, 0, -10);
                 // camera.lookAt( 0, 0, 0 );
 
-                camera = new THREE.OrthographicCamera( -1, 1, -1, 1, _near, _far);
+                _camera = new THREE.OrthographicCamera( -1, 1, -1, 1, _near, _far);
                 // camera = new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, 1, 1000 );
-                camera.position.set( 0, 0, -10);
-                camera.lookAt( 0, 0, 0 );
+                _camera.position.set( 0, 0, -10);
+                _camera.lookAt( 0, 0, 0 );
 
                 // controls = new OrbitControls( camera, renderer.domElement );
 				// controls.minDistance = 2;
@@ -141,7 +145,7 @@
 				// controls.update();                
 
                 // scene
-	            scene = new THREE.Scene();
+	            _scene = new THREE.Scene();
 
                 // ----------------------
 
@@ -158,7 +162,7 @@
 
                 // line
                 lines = new Line2( gridLinesGeometry,  linesMaterial );
-                scene.add( lines );
+                _scene.add( lines );
 
                 // ----------------------
 
@@ -182,7 +186,7 @@
 
                 // line
                 _lineSegments = new LineSegments2( geometry,  material );
-                scene.add( _lineSegments );
+                _scene.add( _lineSegments );
 
                 // ----------------------
 
@@ -190,11 +194,33 @@
 
                 // ----------------------
 
+                // geometry
+                _backgroundGeometry = new LineSegmentsGeometry();              
+
+                // attributes
+                var positions = new Float32Array(_backgroundResolution * 2 * 3); // number of lines * 2 points per line * 3 values per point
+                geometry.setPositions(positions);
+
+                var colors = new Float32Array(_backgroundResolution * 2 * 3); // number of lines * 2 points per line * 3 values per point
+                geometry.setColors(colors);
+
+                // material
+                var backgroundMaterial = new LineMaterial( { color: 0xff00ff, linewidth: 1, vertexColors: true } );
+                backgroundMaterial.resolution.set( window.innerWidth, window.innerHeight );
+
+                // line
+                _backgroundLineSegments = new LineSegments2( _backgroundGeometry,  backgroundMaterial );
+                _scene.add( _backgroundLineSegments );
+
+                _backgroundLinearGradient = new LinearGradient();
+
+                // ----------------------
+
                 if(_useEffectsComposer)
                 {
-                    _effectsComposer = new EffectComposer( renderer );
+                    _effectsComposer = new EffectComposer( _renderer );
 
-                    const renderPass = new RenderPass( scene, camera );
+                    const renderPass = new RenderPass( _scene, _camera );
                     _effectsComposer.addPass( renderPass );
 
                     const glitchPass = new GlitchPass();
@@ -224,18 +250,18 @@
 
 
 
-                renderer.setAnimationLoop( update );
+                _renderer.setAnimationLoop( update );
 
 
 
-                stats = new Stats();
-                container.appendChild( stats.dom );
+                _stats = new Stats();
+                container.appendChild( _stats.dom );
 
-                renderer.domElement.addEventListener("keydown", onKeyDown, false);
-                renderer.domElement.addEventListener("keyup", onKeyUp, false);
-                renderer.domElement.addEventListener("mousemove", onMouseMove, false);
-                renderer.domElement.addEventListener("mousedown", onMouseDown, false);
-                renderer.domElement.addEventListener("mouseup", onMouseUp, false);
+                _renderer.domElement.addEventListener("keydown", onKeyDown, false);
+                _renderer.domElement.addEventListener("keyup", onKeyUp, false);
+                _renderer.domElement.addEventListener("mousemove", onMouseMove, false);
+                _renderer.domElement.addEventListener("mousedown", onMouseDown, false);
+                _renderer.domElement.addEventListener("mouseup", onMouseUp, false);
 
                 window.addEventListener( 'resize', onWindowResize );
 
@@ -346,7 +372,16 @@
 
                     lines.material.color.setHSL( Math.random(), 1, 0.5 );
 
-                }                
+                } 
+                
+                render();
+
+                _stats.update();
+            }
+
+            function render()
+            {
+                renderBackground();
                 
                 if(_useEffectsComposer)
                 {
@@ -354,10 +389,70 @@
                 }
                 else
                 {
-                    renderer.render( scene, camera );
+                    // _renderer.autoClear = false;
+                    _renderer.render( _scene, _camera );
+                }
+                // _renderer.autoClear = true;
+            }
+
+            function renderBackground()
+            {
+                let positions = [];
+                let colors = [];
+
+                let timeStep = 1 / _backgroundResolution;
+
+                let t = 0;
+
+                for(var y = -1; y <= 1; y += _backgroundResolutionStep, t += timeStep)
+                {
+
+                    positions.push(-1);
+                    positions.push(y);
+                    positions.push(0);
+
+                    positions.push(1);
+                    positions.push(y);
+                    positions.push(0);
+
+                    const color = _backgroundLinearGradient.ColorAt(t);
+
+                    if(y >= 0.25)
+                {
+                    var u = 0;
                 }
 
-                stats.update();
+                    // const r = Math.random();
+                    // const g = Math.random();
+                    // const b = Math.random();
+
+                    // colors.push(r);
+                    // colors.push(g);
+                    // colors.push(b);
+
+                    // colors.push(r);
+                    // colors.push(g);
+                    // colors.push(b);
+
+                    // colors.push(color.r);
+                    // colors.push(color.g);
+                    // colors.push(color.b);
+
+                    // colors.push(color.r);
+                    // colors.push(color.g);
+                    // colors.push(color.b);
+
+                    colors.push(1);
+                    colors.push(0);
+                    colors.push(1);
+
+                    colors.push(1);
+                    colors.push(0);
+                    colors.push(1);
+                }
+
+                _backgroundGeometry.setPositions(positions);
+                _backgroundGeometry.setColors(colors);
             }
 
             function onKeyDown(event) 
@@ -499,10 +594,10 @@
 
             function onWindowResize() 
             {
-                camera.aspect = _canvasWidth / _canvasHeight;
-                camera.updateProjectionMatrix();
+                _camera.aspect = _canvasWidth / _canvasHeight;
+                _camera.updateProjectionMatrix();
 
-                renderer.setSize( _canvasWidth, _canvasHeight );
+                _renderer.setSize( _canvasWidth, _canvasHeight );
 
                 if(_useEffectsComposer)
                 {
@@ -512,7 +607,6 @@
 
 			function _downloadWebGLRenderer(hiresScale)
 			{
-
                 hiresScale = (hiresScale === undefined || hiresScale === null || hiresScale == 0 ? 1 : hiresScale);
 
                 const width = Math.round(_canvasWidth * hiresScale);
@@ -533,35 +627,37 @@
 
 						// console.log(prefix + '-' + x + '-' + y + '.png');
 
-						renderer.setSize( w, h );
+						_renderer.setSize( w, h );
                         if(_useEffectsComposer)
                         {
                             _effectsComposer.setSize(w, h);
                         }
 
-						camera.setViewOffset(width, height, x, y, w, h);
-						
-                        if(_useEffectsComposer)
-                        {
-                            _effectsComposer.render();
-                        }
-                        else
-                        {
-                            renderer.render(scene, camera);
-                        }
+						_camera.setViewOffset(width, height, x, y, w, h);
 
-                        _downloadCanvasAsPng(renderer.domElement, prefix + '-' + x + '-' + y + '.png');
+                        render();
+						
+                        // if(_useEffectsComposer)
+                        // {
+                        //     _effectsComposer.render();
+                        // }
+                        // else
+                        // {
+                        //     _renderer.render(_scene, _camera);
+                        // }
+
+                        _downloadCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
 					}
 				}
 
-                renderer.setSize( _canvasWidth, _canvasHeight );
+                _renderer.setSize( _canvasWidth, _canvasHeight );
 
                 if(_useEffectsComposer)
                 {
                     _effectsComposer.setSize(_canvasWidth, _canvasHeight);
                 }
 
-                camera.clearViewOffset();
+                _camera.clearViewOffset();
 			}
 
 			function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
