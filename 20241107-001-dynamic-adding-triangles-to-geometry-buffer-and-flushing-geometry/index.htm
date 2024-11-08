@@ -34,7 +34,6 @@
 			import { Color } from './js/Color.js';
 			import Stats from 'three/addons/libs/stats.module.js';
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-            import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 			import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm'
 			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -43,7 +42,6 @@
 			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 			import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
-            import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
             import { Line2 } from "three/addons/lines/Line2.js";
             import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
             import { LineMaterial } from "three/addons/lines/LineMaterial.js";
@@ -65,6 +63,16 @@
 
             let _randomGenerator;
 
+            const crossFadeControls = [];
+
+            let idleAction, walkAction, runAction;
+            let idleWeight, walkWeight, runWeight;
+            let actionsMarine, settings;
+            let textureMap, textureCube;
+
+            let singleStepMode = false;
+            let sizeOfNextStep = 0;
+
             var lines, linesMaterial, _gridLines, _gridLinesMaterial, _lineSegments, _backgroundGeometry, _backgroundLineSegments;
             var MAX_POINTS = 50;
             var drawCount = 0;        
@@ -75,137 +83,43 @@
             let _randomRectanglesCount = 1;
             let _randomRectanglesMesh;
 
-            class QuadBuilder
-            {
-                constructor() 
-                {
-                    this._quadCount = 0;
-                    this._vertexCount = 0;
-                    this._positionArray = new Float32Array(4 * 3);  // 4 vertices, 3 coordinates per position
-                    this._normalArray = new Float32Array(4 * 3);  // 4 vertices, 3 coordinates per normal
-                    this._colorArray = new Float32Array(4 * 4);  // 4 vertices, 4 channels per color
-                    this._uvwArray = new Float32Array(4 * 3);  // 4 vertices, 3 coordinates per texture coordinate
-                    
-                    this._geometryBufferElementCount = 1024;
-                    this._geometryBufferElementIndex = 0;
-                    this._geometry = new THREE.BufferGeometry();
-				    this._geometry.setAttribute('position', new THREE.Float32BufferAttribute( new Float32Array( this._geometryBufferElementCount * 3 ), 3));
-				    this._geometry.setAttribute('normal', new THREE.Float32BufferAttribute( new Float32Array( this._geometryBufferElementCount * 3 ), 3));
-				    this._geometry.setAttribute('color', new THREE.Float32BufferAttribute( new Float32Array( this._geometryBufferElementCount * 4), 4));
-				    this._geometry.setAttribute('uv', new THREE.Float32BufferAttribute( new Float32Array( this._geometryBufferElementCount * 3), 3));
-                    const position = this._geometry.attributes.position;
-				    position.usage = THREE.DynamicDrawUsage;
-                }
-
-                Position(x, y, z)
-                {
-                    if(z === undefined)
-                    {
-                        z = 0.0;
-                    }
-
-                    this._vertexCount++
-
-                    this._positionArray[this._vertexCount * 4 + 0] = x;
-                    this._positionArray[this._vertexCount * 4 + 1] = y;
-                    this._positionArray[this._vertexCount * 4 + 2] = z;
-
-                    if(this._vertexCount == 3)
-                    {
-                        // this._geometry.setPositions(this._positionArray);
-
-                        const position = geometry.attributes.position;
-                        position.set(this._positionArray, this._quadCount * 4);
-                        position.needsUpdate = true;                        
-
-                        this._vertexCount = -1;
-                        this._quadCount++;
-
-                        this.Color(0, 0, 0, 1);
-                        this.Normal(0, 0, -1);
-                        this.Uvw(0, 0, 0);
-                    }
-
-                    return this;
-                }
-
-                Color(r, g, b, a)
-                {
-                    if(a === undefined)
-                    {
-                        a = 1.0;
-                    }
-
-                    for(let c = this._vertexCount; c < 4; c++)
-                    {
-                        this._colorArray[c * 4 + 0] = r;
-                        this._colorArray[c * 4 + 1] = g;
-                        this._colorArray[c * 4 + 2] = b;
-                        this._colorArray[c * 4 + 2] = a;
-                    }
-
-                    return this;
-                }
-
-                Normal(x, y, z)
-                {
-                    for(let c = this._vertexCount; c < 4; c++)
-                    {
-                        this._normalArray[c * 4 + 0] = x;
-                        this._normalArray[c * 4 + 1] = y;
-                        this._normalArray[c * 4 + 2] = z;
-                    }
-
-                    return this;
-                }
-
-                Uvw(u, v, w)
-                {
-                    if(w === undefined)
-                    {
-                        w = 0.0;
-                    }
-
-                    for(let c = this._vertexCount; c < 4; c++)
-                    {
-                        this._uvwArray[c * 4 + 0] = u;
-                        this._uvwArray[c * 4 + 1] = v;
-                        this._uvwArray[c * 4 + 2] = w;
-                    }
-
-                    return this;
-                }
-            }
-
             init(); 
 
             async function init() {
 
-                const container = document.getElementById( 'sketch-container' );            
+                const container = document.getElementById( 'sketch-container' );
+
+                // _randomGenerator = new RandomGenerator();
 
                 _canvasWidth = _canvasWidth === undefined ? window.innerWidth : _canvasWidth;
                 _canvasHeight = _canvasHeight === undefined ? window.innerHeight : _canvasHeight;
 
                 _renderer = new THREE.WebGLRenderer( { antialias: true, samples: 4, stencil: true, alpha: true } );
-                
                 _renderer.setPixelRatio( window.devicePixelRatio );
                 _renderer.setSize( _canvasWidth, _canvasHeight );
-                // _renderer.shadowMap.enabled = true;
-
+                _renderer.shadowMap.enabled = true;
                 container.appendChild( _renderer.domElement );
 
+
                 // _camera = new THREE.OrthographicCamera( -1, 1, -1, 1, _near, _far);
-                // // camera = new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, 1, 1000 );
                 // _camera.position.set( 0, 0, -10);
                 // _camera.lookAt( 0, 0, 0 );
 
                 _camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
-				_camera.position.z = 1250;     
+				_camera.position.z = 1250;
+
+                // controls = new OrbitControls( camera, renderer.domElement );
+				// controls.minDistance = 2;
+				// controls.maxDistance = 12;
+				// controls.maxPolarAngle = Math.PI / 2;
+				// controls.target.set( 0, 1, 0 );
+				// controls.update();                
 
                 // scene
 	            _scene = new THREE.Scene();
 
                 // ----------------------
+
                 
 				const light1 = new THREE.DirectionalLight( 0xffffff, 1.5 );
 				light1.position.set( 1, 1, 1 );
@@ -217,7 +131,7 @@
 
                 // ----------------------
 
-                initRandomTriangles();
+                initRandomRectangles();
 
                 // ----------------------
 
@@ -367,6 +281,129 @@
                 _scene.add( _randomTrianglesMesh );            
             }
 
+            function initRandomRectangles()
+            {
+				const geometry = new THREE.BufferGeometry();
+
+				const positions = [];
+				const normals = [];
+				const colors = [];
+
+				const color = new THREE.Color();
+
+				const n = 800, n2 = n / 2;	// triangles spread in the cube
+				const d = 96, d2 = d / 2;	// individual triangle size
+
+				const pA = new THREE.Vector3();
+				const pB = new THREE.Vector3();
+				const pC = new THREE.Vector3();
+
+				const cb = new THREE.Vector3();
+				const ab = new THREE.Vector3();
+
+				for ( let i = 0; i < _randomRectanglesCount; i ++ ) 
+                {
+					// positions
+
+					const x = Math.random() * n - n2;
+					const y = Math.random() * n - n2;
+					const z = 0;//Math.random() * n - n2;
+
+					const ax = x + Math.random() * d - d2;
+					const ay = y + Math.random() * d - d2;
+					const az = z;
+
+					const bx = x + Math.random() * d - d2;
+					const by = y + Math.random() * d - d2;
+					const bz = z;
+
+					const cx = x + Math.random() * d - d2;
+					const cy = y + Math.random() * d - d2;
+					const cz = z;
+
+					const dx = x + Math.random() * d - d2;
+					const dy = y + Math.random() * d - d2;
+					const dz = z;
+
+					positions.push( ax, ay, az );
+					positions.push( bx, by, bz );
+					positions.push( cx, cy, cz );
+
+                    positions.push( bx, by, bz );
+					positions.push( cx, cy, cz );
+					positions.push( dx, dy, dz );
+
+					// flat face normals
+
+					pA.set( ax, ay, az );
+					pB.set( bx, by, bz );
+					pC.set( cx, cy, cz );
+
+					cb.subVectors( pC, pB );
+					ab.subVectors( pA, pB );
+					cb.cross( ab );
+
+					cb.normalize();
+
+					normals.push( cb.x, cb.y, cb.z );
+					normals.push( cb.x, cb.y, cb.z );
+					normals.push( cb.x, cb.y, cb.z );
+
+
+					pA.set( bx, by, bz );
+					pB.set( cx, cy, cz );
+					pC.set( dx, dy, dz );
+
+					cb.subVectors( pC, pB );
+					ab.subVectors( pA, pB );
+					cb.cross( ab );
+
+					cb.normalize();
+
+					normals.push( cb.x, cb.y, cb.z );
+					normals.push( cb.x, cb.y, cb.z );
+					normals.push( cb.x, cb.y, cb.z );
+
+                    // colors
+
+					const vx = ( x / n ) + 0.5;
+					const vy = ( y / n ) + 0.5;
+					const vz = ( z / n ) + 0.5;
+
+					color.setRGB( vx, vy, vz );
+
+					const alpha = Math.random();
+
+					colors.push( color.r, color.g, color.b, alpha );
+					colors.push( color.r, color.g, color.b, alpha );
+					colors.push( color.r, color.g, color.b, alpha );
+
+					colors.push( color.r, color.g, color.b, alpha );
+					colors.push( color.r, color.g, color.b, alpha );
+					colors.push( color.r, color.g, color.b, alpha );
+                }
+
+				geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ).onUpload( disposeArray ) );
+				geometry.setAttribute( 'normal', new THREE.Float32BufferAttribute( normals, 3 ).onUpload( disposeArray ) );
+				geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( colors, 4 ).onUpload( disposeArray ) );
+
+				geometry.computeBoundingSphere();
+
+				const material = new THREE.MeshPhongMaterial( {
+					color: 0xd5d5d5, 
+                    specular: 0xffffff, 
+                    shininess: 250,
+                    depthWrite: false,
+					side: THREE.DoubleSide, 
+                    vertexColors: true, 
+                    transparent: false
+				} );
+
+				_randomRectanglesMesh = new THREE.Mesh( geometry, material );
+				
+                _scene.add( _randomRectanglesMesh );            
+            }
+
             function disposeArray() 
             {
                 this.array = null;
@@ -378,8 +415,7 @@
 
 				_time += _deltaTime;
 
-				_randomTrianglesMesh.rotation.x = _time * 0.25;
-				_randomTrianglesMesh.rotation.y = _time * 0.5;        
+				const time = Date.now() * 0.001;
                 
                 render();
 
@@ -387,7 +423,7 @@
             }
 
             function render()
-            {                
+            {
                 if(_useEffectsComposer)
                 {
                     _effectsComposer.render();
