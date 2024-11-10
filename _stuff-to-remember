@@ -1,0 +1,10 @@
+THREEjs
+
+uses a right handed coordinate system
+    - positive x moves right
+    - positive y moves up
+    - positive z moves back, negative z moves forward into the screen, 
+
+front faces have a counter-clockwise winding order
+
+GL.TriangleStrip and GL.TriangleFan aren't supported anymore (since version 112)

@@ -49,39 +49,19 @@
             import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 
             let _screenCapturePrefix = "20241107-001-dynamic-adding-triangles-to-geometry-buffer-and-flushing-geometry";
-            let _effectsComposer, _useEffectsComposer = false, _settings = null;
+            // let _effectsComposer, _useEffectsComposer = false; 
+            let _settings = null;
             let _scene, _renderer, _camera, _stats, _controls;
-            let _spotLight, _spotLightHelper;
             let _canvasWidth = 800, _canvasHeight = 800;
             let _near = 1, _far = 8000, _fov = 60;
             let _clock, _deltaTime, _time;
-            let _spotlightAngle = Math.PI, _spotlightRotateSpeed = Math.PI * 0.125;
 
-            const _backgroundResolution = 1000;
-            const _backgroundResolutionStep = 2 / _backgroundResolution;
-            let _backgroundLinearGradient;
+            let _randomGenerator;       
 
-            let _randomGenerator;
-
-            const crossFadeControls = [];
-
-            let idleAction, walkAction, runAction;
-            let idleWeight, walkWeight, runWeight;
-            let actionsMarine, settings;
-            let textureMap, textureCube;
-
-            let singleStepMode = false;
-            let sizeOfNextStep = 0;
-
-            var lines, linesMaterial, _gridLines, _gridLinesMaterial, _lineSegments, _backgroundGeometry, _backgroundLineSegments;
-            var MAX_POINTS = 50;
-            var drawCount = 0;        
-            
-            let _randomTrianglesCount = 5000;
-            let _randomTrianglesMesh;
-            
-            let _randomRectanglesCount = 1;
-            let _randomRectanglesMesh;
+            let _triangleGeometryBufferElementTotal = 1024 * 256;
+            let _triangleGeometryBufferElementCount = 0;
+            let _triangleGeometryBuffer;
+            let _triangleGeometryBufferMesh;
 
             init(); 
 
@@ -97,16 +77,17 @@
                 _renderer = new THREE.WebGLRenderer( { antialias: true, samples: 4, stencil: true, alpha: true } );
                 _renderer.setPixelRatio( window.devicePixelRatio );
                 _renderer.setSize( _canvasWidth, _canvasHeight );
-                _renderer.shadowMap.enabled = true;
+                // _renderer.shadowMap.enabled = true;
+                _renderer.autoClear = false;
                 container.appendChild( _renderer.domElement );
 
 
-                // _camera = new THREE.OrthographicCamera( -1, 1, -1, 1, _near, _far);
-                // _camera.position.set( 0, 0, -10);
-                // _camera.lookAt( 0, 0, 0 );
+                _camera = new THREE.OrthographicCamera( -1, 1, 1, -1, _near, _far);
+                _camera.position.set( 0, 0, 10);
+                _camera.lookAt( 0, 0, 0 );
 
-                _camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
-				_camera.position.z = 1250;
+                // _camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
+				// _camera.position.z = 10;
 
                 // controls = new OrbitControls( camera, renderer.domElement );
 				// controls.minDistance = 2;
@@ -120,40 +101,83 @@
 
                 // ----------------------
 
+                _triangleGeometryBuffer = new THREE.BufferGeometry();
+
+                _triangleGeometryBuffer.setAttribute('position', new THREE.Float32BufferAttribute( new Float32Array( _triangleGeometryBufferElementTotal * 3 ), 3));
+                _triangleGeometryBuffer.setAttribute('color', new THREE.Float32BufferAttribute( new Float32Array( _triangleGeometryBufferElementTotal * 4), 4));
+
+                _triangleGeometryBuffer.attributes.position.usage = THREE.DynamicDrawUsage;
+                _triangleGeometryBuffer.attributes.color.usage = THREE.DynamicDrawUsage;
                 
-				const light1 = new THREE.DirectionalLight( 0xffffff, 1.5 );
-				light1.position.set( 1, 1, 1 );
-				_scene.add( light1 );
+                const triangleMaterial = new THREE.MeshBasicMaterial({ wireframe: false, side: THREE.DoubleSide, vertexColors: true });
 
-				const light2 = new THREE.DirectionalLight( 0xffffff, 4.5 );
-				light2.position.set( 0, - 1, 0 );
-				_scene.add( light2 );
+				_triangleGeometryBufferMesh = new THREE.Mesh( _triangleGeometryBuffer, triangleMaterial );
+				
+                _scene.add( _triangleGeometryBufferMesh );            
+
+                // ----------------------
+             
+                const n = 2;
+
+                InsertTriangle(
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff0000,
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xffff00,
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
+
+                InsertTriangle(
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x0000ff,
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x00ffff,
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
+             
+                // ----------------------
+
+                InsertQuad(
+                    0, 0, 0xffff00, 
+                    0.95, 0, 0xffff00, 
+                    0, 0.95, 0xffff00,
+                    0.75, 0.75, 0xffff00);
+
+                InsertQuad(
+                    -Math.random(), 0, 0xffff00, 
+                    -0.25 - Math.random(), 0, 0xffff00, 
+                    0, -0.25 - Math.random(), 0xffff00,
+                    -0.25 - Math.random(), -0.25 - Math.random(), 0xffff00);
 
                 // ----------------------
 
-                initRandomRectangles();
+                InsertLine(
+                    0, 0, 0xff0000, 0.250, 
+                    0.75, -0.5, 0x00ff00, 0.25);
+
+                InsertLine(
+                    Math.random(), Math.random(), 0xff0000, 0.05,
+                    -Math.random(), -Math.random(), 0xffff00, 0.01);
+
+                InsertLine(
+                    -Math.random(), -Math.random(), 0xff00ff, 0.05,
+                    Math.random(), Math.random(), 0x00ff00, 0.01);
 
                 // ----------------------
 
-                if(_useEffectsComposer)
-                {
-                    _effectsComposer = new EffectComposer( _renderer );
+                // if(_useEffectsComposer)
+                // {
+                //     _effectsComposer = new EffectComposer( _renderer );
 
-                    const renderPass = new RenderPass( _scene, _camera );
-                    _effectsComposer.addPass( renderPass );
+                //     const renderPass = new RenderPass( _scene, _camera );
+                //     _effectsComposer.addPass( renderPass );
 
-                    const glitchPass = new GlitchPass();
-                    _effectsComposer.addPass( glitchPass );
+                //     const glitchPass = new GlitchPass();
+                //     _effectsComposer.addPass( glitchPass );
 
-                    const outputPass = new OutputPass();
-                    _effectsComposer.addPass( outputPass );
+                //     const outputPass = new OutputPass();
+                //     _effectsComposer.addPass( outputPass );
 
-                    console.log("Using Effects Composer");
-                }
-                else
-                {
-                    console.log("Not using Effects Composer");
-                }
+                //     console.log("Using Effects Composer");
+                // }
+                // else
+                // {
+                //     console.log("Not using Effects Composer");
+                // }
 
 
 				_settings = 
@@ -186,228 +210,193 @@
 
             }
 
-            function initRandomTriangles()
+            function InsertTriangle(
+                x0, y0, c0,
+                x1, y1, c1,
+                x2, y2, c2)
             {
-				const geometry = new THREE.BufferGeometry();
+                _triangleGeometryBuffer.attributes.position.needsUpdate = true;                        
+                _triangleGeometryBuffer.attributes.color.needsUpdate = true;
 
-				const positions = [];
-				const normals = [];
-				const colors = [];
+                const co0 = new THREE.Color(c0);
 
-				const color = new THREE.Color();
+                _triangleGeometryBuffer.attributes.position.setXYZ(_triangleGeometryBufferElementCount, x0, y0, 0);                    
+                _triangleGeometryBuffer.attributes.color.setXYZW(_triangleGeometryBufferElementCount, co0.r, co0.g, co0.b, 1);
+                _triangleGeometryBufferElementCount++;
 
-				const n = 800, n2 = n / 2;	// triangles spread in the cube
-				const d = 12, d2 = d / 2;	// individual triangle size
+                const co1 = new THREE.Color(c1);
 
-				const pA = new THREE.Vector3();
-				const pB = new THREE.Vector3();
-				const pC = new THREE.Vector3();
+                _triangleGeometryBuffer.attributes.position.setXYZ(_triangleGeometryBufferElementCount, x1, y1, 0);                    
+                _triangleGeometryBuffer.attributes.color.setXYZW(_triangleGeometryBufferElementCount, co1.r, co1.g, co1.b, 1);
+                _triangleGeometryBufferElementCount++;
 
-				const cb = new THREE.Vector3();
-				const ab = new THREE.Vector3();
+                const co2 = new THREE.Color(c2);
 
-				for ( let i = 0; i < _randomTrianglesCount; i ++ ) {
+                _triangleGeometryBuffer.attributes.position.setXYZ(_triangleGeometryBufferElementCount, x2, y2, 0);                    
+                _triangleGeometryBuffer.attributes.color.setXYZW(_triangleGeometryBufferElementCount, co2.r, co2.g, co2.b, 1);
+                _triangleGeometryBufferElementCount++;
 
-					// positions
+                _triangleGeometryBuffer.setDrawRange(0, _triangleGeometryBufferElementCount);
 
-					const x = Math.random() * n - n2;
-					const y = Math.random() * n - n2;
-					const z = Math.random() * n - n2;
-
-					const ax = x + Math.random() * d - d2;
-					const ay = y + Math.random() * d - d2;
-					const az = z + Math.random() * d - d2;
-
-					const bx = x + Math.random() * d - d2;
-					const by = y + Math.random() * d - d2;
-					const bz = z + Math.random() * d - d2;
-
-					const cx = x + Math.random() * d - d2;
-					const cy = y + Math.random() * d - d2;
-					const cz = z + Math.random() * d - d2;
-
-					positions.push( ax, ay, az );
-					positions.push( bx, by, bz );
-					positions.push( cx, cy, cz );
-
-					// flat face normals
-
-					pA.set( ax, ay, az );
-					pB.set( bx, by, bz );
-					pC.set( cx, cy, cz );
-
-					cb.subVectors( pC, pB );
-					ab.subVectors( pA, pB );
-					cb.cross( ab );
-
-					cb.normalize();
-
-					const nx = cb.x;
-					const ny = cb.y;
-					const nz = cb.z;
-
-					normals.push( nx, ny, nz );
-					normals.push( nx, ny, nz );
-					normals.push( nx, ny, nz );
-
-					// colors
-
-					const vx = ( x / n ) + 0.5;
-					const vy = ( y / n ) + 0.5;
-					const vz = ( z / n ) + 0.5;
-
-					color.setRGB( vx, vy, vz );
-
-					const alpha = Math.random();
-
-					colors.push( color.r, color.g, color.b, alpha );
-					colors.push( color.r, color.g, color.b, alpha );
-					colors.push( color.r, color.g, color.b, alpha );
-                }
-
-				geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ).onUpload( disposeArray ) );
-				geometry.setAttribute( 'normal', new THREE.Float32BufferAttribute( normals, 3 ).onUpload( disposeArray ) );
-				geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( colors, 4 ).onUpload( disposeArray ) );
-
-				geometry.computeBoundingSphere();
-
-				const material = new THREE.MeshPhongMaterial( {
-					color: 0xd5d5d5, specular: 0xffffff, shininess: 250,
-					side: THREE.DoubleSide, vertexColors: true, transparent: true
-				} );
-
-				_randomTrianglesMesh = new THREE.Mesh( geometry, material );
-				
-                _scene.add( _randomTrianglesMesh );            
+                return _triangleGeometryBufferElementCount;
             }
 
-            function initRandomRectangles()
+            function InsertQuad(
+                x0, y0, c0,
+                x1, y1, c1,
+                x2, y2, c2,
+                x3, y3, c3)
             {
-				const geometry = new THREE.BufferGeometry();
+                // triangle 1
+                InsertTriangle(
+                    x0, y0, c0,
+                    x1, y1, c1,
+                    x2, y2, c2);
 
-				const positions = [];
-				const normals = [];
-				const colors = [];
+                // triangle 2
+                return InsertTriangle(
+                    x1, y1, c1,
+                    x2, y2, c2,
+                    x3, y3, c3);
+            }
 
-				const color = new THREE.Color();
+            function InsertLine(
+                x0, y0, c0, w0,
+                x1, y1, c1, w1)
+            {
+                const wh0 = w0 * 0.5;
+                const wh1 = w1 * 0.5;
 
-				const n = 800, n2 = n / 2;	// triangles spread in the cube
-				const d = 96, d2 = d / 2;	// individual triangle size
+                const p = PerpendicularVector2(new THREE.Vector2(x1 - x0, y1 - y0)).normalize();
 
-				const pA = new THREE.Vector3();
-				const pB = new THREE.Vector3();
-				const pC = new THREE.Vector3();
+                InsertCircle(x0, y0, c0, wh0, p);
+                InsertCircle(x1, y1, c1, wh1, p);
 
-				const cb = new THREE.Vector3();
-				const ab = new THREE.Vector3();
+                return InsertQuad(
+                    x0 + p.x * wh0, y0 + p.y * wh0, c0, 
+                    x0 - p.x * wh0, y0 - p.y * wh0, c0, 
+                    x1 + p.x * wh1, y1 + p.y * wh1, c1, 
+                    x1 - p.x * wh1, y1 - p.y * wh1, c1);
+            }
 
-				for ( let i = 0; i < _randomRectanglesCount; i ++ ) 
+            function InsertCircle(x0, y0, c0, radius, p)
+            {
+                let p00 = TransformVectorToScreenSpace(new THREE.Vector3(x0 + p.x * radius, y0 + p.y * radius, 0), _camera);
+                let p01 = TransformVectorToScreenSpace(new THREE.Vector3(x0 - p.x * radius, y0 - p.y * radius, 0), _camera);
+
+                const circumference = p01.sub(p00).length() * Math.PI;
+
+                const segments = Math.ceil(circumference * 0.25);
+
+                const step = 2 * Math.PI / segments;
+
+                for(var i = 0, a = 0; i < segments; i++, a += step)
                 {
-					// positions
+                    const s0x = x0 + (radius * Math.cos(a));
+                    const s0y = y0 + (radius * Math.sin(a));
 
-					const x = Math.random() * n - n2;
-					const y = Math.random() * n - n2;
-					const z = 0;//Math.random() * n - n2;
+                    const s1x = x0 + (radius * Math.cos(a + step));
+                    const s1y = y0 + (radius * Math.sin(a + step));
 
-					const ax = x + Math.random() * d - d2;
-					const ay = y + Math.random() * d - d2;
-					const az = z;
-
-					const bx = x + Math.random() * d - d2;
-					const by = y + Math.random() * d - d2;
-					const bz = z;
-
-					const cx = x + Math.random() * d - d2;
-					const cy = y + Math.random() * d - d2;
-					const cz = z;
-
-					const dx = x + Math.random() * d - d2;
-					const dy = y + Math.random() * d - d2;
-					const dz = z;
-
-					positions.push( ax, ay, az );
-					positions.push( bx, by, bz );
-					positions.push( cx, cy, cz );
-
-                    positions.push( bx, by, bz );
-					positions.push( cx, cy, cz );
-					positions.push( dx, dy, dz );
-
-					// flat face normals
-
-					pA.set( ax, ay, az );
-					pB.set( bx, by, bz );
-					pC.set( cx, cy, cz );
-
-					cb.subVectors( pC, pB );
-					ab.subVectors( pA, pB );
-					cb.cross( ab );
-
-					cb.normalize();
-
-					normals.push( cb.x, cb.y, cb.z );
-					normals.push( cb.x, cb.y, cb.z );
-					normals.push( cb.x, cb.y, cb.z );
-
-
-					pA.set( bx, by, bz );
-					pB.set( cx, cy, cz );
-					pC.set( dx, dy, dz );
-
-					cb.subVectors( pC, pB );
-					ab.subVectors( pA, pB );
-					cb.cross( ab );
-
-					cb.normalize();
-
-					normals.push( cb.x, cb.y, cb.z );
-					normals.push( cb.x, cb.y, cb.z );
-					normals.push( cb.x, cb.y, cb.z );
-
-                    // colors
-
-					const vx = ( x / n ) + 0.5;
-					const vy = ( y / n ) + 0.5;
-					const vz = ( z / n ) + 0.5;
-
-					color.setRGB( vx, vy, vz );
-
-					const alpha = Math.random();
-
-					colors.push( color.r, color.g, color.b, alpha );
-					colors.push( color.r, color.g, color.b, alpha );
-					colors.push( color.r, color.g, color.b, alpha );
-
-					colors.push( color.r, color.g, color.b, alpha );
-					colors.push( color.r, color.g, color.b, alpha );
-					colors.push( color.r, color.g, color.b, alpha );
+                    InsertTriangle(x0, y0, c0, s0x, s0y, c0, s1x, s1y, c0);
                 }
-
-				geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( positions, 3 ).onUpload( disposeArray ) );
-				geometry.setAttribute( 'normal', new THREE.Float32BufferAttribute( normals, 3 ).onUpload( disposeArray ) );
-				geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( colors, 4 ).onUpload( disposeArray ) );
-
-				geometry.computeBoundingSphere();
-
-				const material = new THREE.MeshPhongMaterial( {
-					color: 0xd5d5d5, 
-                    specular: 0xffffff, 
-                    shininess: 250,
-                    depthWrite: false,
-					side: THREE.DoubleSide, 
-                    vertexColors: true, 
-                    transparent: false
-				} );
-
-				_randomRectanglesMesh = new THREE.Mesh( geometry, material );
-				
-                _scene.add( _randomRectanglesMesh );            
             }
 
-            function disposeArray() 
+            function PerpendicularVector2(vector)
             {
-                this.array = null;
+                return new THREE.Vector2(vector.y, -vector.x);
             }
+
+            function TransformVectorToScreenSpace(vector, camera)
+            {
+                vector.project(camera);
+
+                const r = _renderer.domElement.getBoundingClientRect();
+
+                let hw = r.width * 0.5;
+                let hh = r.height * 0.5;
+
+                return new THREE.Vector2((vector.x * hw) + hw, (vector.y * hh) + hh);
+            }
+
+            function TransformObjectToScreenSpace(object, camera)
+            {
+                return TransformVectorToScreenSpace(new THREE.Vector3().setFromMatrixPosition(object.matrixWorld), camera);
+            }
+
+            // function Flush()
+            // {
+            //     const gl = _renderer.getContext();
+
+            //     if(!_rendererBuffersAreCleared)
+            //     {
+            //         // _renderer.clear(true, true, true);
+            //         // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+                    
+            //         _renderer.clear(true, true, true);
+
+            //         _rendererBuffersAreCleared = true;
+            //     }
+                
+            //     // _renderer.autoClear = false;
+
+            //     // gl.clear();
+
+            //     // _renderer.render(_scene, _camera);
+
+            //     gl.drawArrays(gl.TRIANGLES, 0, _triangleGeometryBufferElementCount);
+   
+            //     _triangleGeometryBufferElementCount = 0;
+            //  }
+
+            function Render()
+            {
+                // if(!_rendererBuffersAreCleared)
+                // {
+                //     _renderer.clear(true, true, true);
+                // }
+                
+                _renderer.render(_scene, _camera);
+
+                // _rendererBuffersAreCleared = false;
+            }
+
+            // function InsertTriangleSetArrays(triangleCount)
+            // {
+            //     const n = 2;
+            //     const elementCount = triangleCount * 3;
+
+            //     const positionArray = new Float32Array(elementCount * 3);
+            //     const colorArray = new Float32Array(elementCount * 4);
+
+            //     for(let c = 0; c < elementCount; c++)
+            //     {
+            //         positionArray[c * 3 + 0] = (Math.random() - 0.5) * n;   // x
+            //         positionArray[c * 3 + 1] = (Math.random() - 0.5) * n;   // y
+            //         positionArray[c * 3 + 2] = 0;                   // z
+
+            //         colorArray[c * 3 + 0] = Math.random();       // r
+            //         colorArray[c * 3 + 1] = Math.random();       // g
+            //         colorArray[c * 3 + 2] = Math.random();       // b
+            //         colorArray[c * 3 + 3] = 1;                   // a
+
+            //         // position.setXYZ(_geometryBufferElementIndex, (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0);
+                    
+            //         // color.setXYZW(_geometryBufferElementIndex, Math.random(), Math.random(), Math.random(), 1);
+
+            //         // _geometryBufferElementIndex++;
+            //     }
+
+            //     _triangleGeometryBuffer.attributes.position.set(positionArray, _triangleGeometryBufferElementCount);
+            //     _triangleGeometryBuffer.attributes.color.set(colorArray, _triangleGeometryBufferElementCount);
+
+            //     _triangleGeometryBuffer.attributes.position.needsUpdate = true;                        
+            //     _triangleGeometryBuffer.attributes.color.needsUpdate = true;
+
+            //     _triangleGeometryBufferElementCount += elementCount;
+
+            //     return elementCount;
+            // }
 
             function update() 
             {
@@ -417,24 +406,24 @@
 
 				const time = Date.now() * 0.001;
                 
-                render();
+                Render();
 
                 _stats.update();
             }
 
-            function render()
-            {
-                if(_useEffectsComposer)
-                {
-                    _effectsComposer.render();
-                }
-                else
-                {
-                    // _renderer.autoClear = false;
-                    _renderer.render( _scene, _camera );
-                }
-                // _renderer.autoClear = true;
-            }
+            // function render()
+            // {
+            //     if(_useEffectsComposer)
+            //     {
+            //         _effectsComposer.render();
+            //     }
+            //     else
+            //     {
+            //         // _renderer.autoClear = false;
+            //         _renderer.render( _scene, _camera );
+            //     }
+            //     // _renderer.autoClear = true;
+            // }
 
             function onKeyDown(event) 
             {
@@ -580,10 +569,10 @@
 
                 _renderer.setSize( _canvasWidth, _canvasHeight );
 
-                if(_useEffectsComposer)
-                {
-                    _effectsComposer.setSize( _canvasWidth, _canvasHeight );
-                }
+                // if(_useEffectsComposer)
+                // {
+                //     _effectsComposer.setSize( _canvasWidth, _canvasHeight );
+                // }
             }
 
 			function _downloadWebGLRenderer(hiresScale)
@@ -609,14 +598,15 @@
 						// console.log(prefix + '-' + x + '-' + y + '.png');
 
 						_renderer.setSize( w, h );
-                        if(_useEffectsComposer)
-                        {
-                            _effectsComposer.setSize(w, h);
-                        }
+
+                        // if(_useEffectsComposer)
+                        // {
+                        //     _effectsComposer.setSize(w, h);
+                        // }
 
 						_camera.setViewOffset(width, height, x, y, w, h);
 
-                        render();
+                        Render();
 						
                         // if(_useEffectsComposer)
                         // {
@@ -633,10 +623,10 @@
 
                 _renderer.setSize( _canvasWidth, _canvasHeight );
 
-                if(_useEffectsComposer)
-                {
-                    _effectsComposer.setSize(_canvasWidth, _canvasHeight);
-                }
+                // if(_useEffectsComposer)
+                // {
+                //     _effectsComposer.setSize(_canvasWidth, _canvasHeight);
+                // }
 
                 _camera.clearViewOffset();
 			}
