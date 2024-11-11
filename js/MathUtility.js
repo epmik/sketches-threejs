@@ -2,6 +2,8 @@
 
 class MathUtility
 {
+  static DegreesToRadiansFactor = Math.PI / 180.0;
+
   static Clamp(value, min, max)
   {
     if (min === undefined && max === undefined)
@@ -22,6 +24,11 @@ class MathUtility
   static Rebase(value, inMin, inMax, outMin, outMax)
   {
     return outMin + (outMax - outMin) * ((value - inMin) / (inMax - inMin));
+  }
+
+  static ToRadians(degrees)
+  {
+    return degrees *  MathUtility.DegreesToRadiansFactor;
   }
 }
 

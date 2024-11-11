@@ -48,7 +48,12 @@ class RandomGenerator
 
         return this._seed;
     }
-     
+  
+    Value(min, max)
+    {
+        return this.Double(min, max);
+    }
+    
     Single(min, max)
     {
         if (min === undefined && max == undefined)
