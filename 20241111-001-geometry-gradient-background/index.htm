@@ -29,6 +29,7 @@
 			import * as Scrblr from 'scrblr';
 			// import { Sketch } from './js/sketch.js';
 			import { RandomGenerator } from './js/RandomGenerator.js';
+			import { OpenSimplexNoiseGenerator } from './js/OpenSimplexNoiseGenerator.js';
 			import { LinearGradient } from './js/LinearGradient.js';
 			import { MathUtility } from './js/MathUtility.js';
 			import { Color } from './js/Color.js';
@@ -51,22 +52,30 @@
             import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
             import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 
-            let _screenCapturePrefix = "20241107-001-dynamic-adding-triangles-to-geometry-buffer-and-flushing-geometry";
-            // let _effectsComposer, _useEffectsComposer = false; 
-            let _settings = null;
-            let _scene, _renderer, _camera, _stats, _controls;
+            let _screenCapturePrefix = "20241111-001-geometry-gradient-background";
+            let _scene, _renderer, _camera, _stats, _orbitControls;
             let _composer, _composerClearPass, _composerMaskPass, _composerClearMaskPass; 
             let _canvasWidth = 800, _canvasHeight = 800;
             let _near = 1, _far = 8000, _fov = 60;
             let _clock, _deltaTime, _time;
 
             let _randomGenerator;       
+            let _noiseGenerator;       
 
             let _triangleGeometryBufferElementTotal = 1024 * 256;
             let _triangleGeometryBufferElementCount = 0;
             let _triangleGeometryBuffer;
             let _triangleGeometryBufferMesh;
-            let _mask, _maskBox, _maskScene, _maskMesh;
+            let _maskBox, _maskScene, _maskMesh;
+            let _linearGradient;
+
+            let _settings = 
+            {
+                downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
+                downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(4); },
+                saveTransparentBackground: true,
+                enableMask: false
+            };
 
             // class Mask
             // {
@@ -105,15 +114,8 @@
 
                 const container = document.getElementById( 'sketch-container' );
 
-				_settings = 
-                {
-					downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
-					downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(4); },
-                    saveTransparentBackground: true,
-                    enableMask: true
-				};
-
-                // _randomGenerator = new RandomGenerator();
+                _randomGenerator = new RandomGenerator();
+                _noiseGenerator = new OpenSimplexNoiseGenerator();
 
                 _canvasWidth = _canvasWidth === undefined ? window.innerWidth : _canvasWidth;
                 _canvasHeight = _canvasHeight === undefined ? window.innerHeight : _canvasHeight;
@@ -138,12 +140,12 @@
                 // _camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
 				// _camera.position.z = 10;
 
-                // controls = new OrbitControls( camera, renderer.domElement );
-				// controls.minDistance = 2;
-				// controls.maxDistance = 12;
-				// controls.maxPolarAngle = Math.PI / 2;
-				// controls.target.set( 0, 1, 0 );
-				// controls.update();                
+                _orbitControls = new OrbitControls( _camera, _renderer.domElement );
+				_orbitControls.minDistance = 2;
+				_orbitControls.maxDistance = 12;
+				_orbitControls.maxPolarAngle = Math.PI / 2;
+				_orbitControls.target.set( 0, 0, 0 );
+				_orbitControls.update();                
 
                 // scene
 	            _scene = new THREE.Scene();
@@ -216,6 +218,33 @@
                 _scene.add( _triangleGeometryBufferMesh );            
 
                 // ----------------------
+
+                _linearGradient = new LinearGradient();
+                _linearGradient.Insert(0, 1, 0, 0);
+                _linearGradient.Insert(0.25, 1, 1, 0);
+                _linearGradient.Insert(0.75, 0, 1, 1);
+                _linearGradient.Insert(1, 0, 0, 1);
+
+                const _linearGradientGeometryHeight = 1;
+
+                let entries = _linearGradient.Entries();
+
+                for(var i = 0; i < entries.length - 1; i++)
+                {
+                    let h = MathUtility.Rebase(entries[i].Time, 0, 1, -1, 1);
+                    let hh = MathUtility.Rebase(entries[i+1].Time, 0, 1, -1, 1);
+
+                    let c = entries[i].Color;
+                    let cc = entries[i+1].Color;
+
+                    InsertQuad(
+                        -1, h, c.ToInt(), 
+                        1, h, c.ToInt(), 
+                        -1, hh, cc.ToInt(),
+                        1, hh, cc.ToInt());
+                }
+
+                // ----------------------
              
                 const n = 2;
 
@@ -259,8 +288,8 @@
 
                 // ----------------------
 
-                InsertCircle2(-0.5, 0.5, 0.25, 0x000000);
-                InsertCircle2(0.5, 0.5, 0.25, 0x000000, 12);
+                InsertCircle(-0.5, 0.5, 0.25, 0x000000);
+                InsertCircle(0.5, 0.5, 0.25, 0x000000, 12);
 
                 // ----------------------
 
@@ -345,10 +374,10 @@
                 const wh0 = w0 * 0.5;
                 const wh1 = w1 * 0.5;
 
-                const p = PerpendicularVector2(new THREE.Vector2(x1 - x0, y1 - y0)).normalize();
+                InsertCircle(x0, y0, wh0, c0);
+                InsertCircle(x1, y1, wh1, c1);
 
-                InsertCircle(x0, y0, c0, wh0, p);
-                InsertCircle(x1, y1, c1, wh1, p);
+                const p = PerpendicularVector2(new THREE.Vector2(x1 - x0, y1 - y0)).normalize();
 
                 return InsertQuad(
                     x0 + p.x * wh0, y0 + p.y * wh0, c0, 
@@ -357,30 +386,7 @@
                     x1 - p.x * wh1, y1 - p.y * wh1, c1);
             }
 
-            function InsertCircle(x0, y0, c0, radius, p)
-            {
-                let p00 = TransformVectorToScreenSpace(new THREE.Vector3(x0 + p.x * radius, y0 + p.y * radius, 0), _camera);
-                let p01 = TransformVectorToScreenSpace(new THREE.Vector3(x0 - p.x * radius, y0 - p.y * radius, 0), _camera);
-
-                const circumference = p01.sub(p00).length() * Math.PI;
-
-                const segments = Math.ceil(circumference * 0.25);
-
-                const step = 2 * Math.PI / segments;
-
-                for(var i = 0, a = 0; i < segments; i++, a += step)
-                {
-                    const s0x = x0 + (radius * Math.cos(a));
-                    const s0y = y0 + (radius * Math.sin(a));
-
-                    const s1x = x0 + (radius * Math.cos(a + step));
-                    const s1y = y0 + (radius * Math.sin(a + step));
-
-                    InsertTriangle(x0, y0, c0, s0x, s0y, c0, s1x, s1y, c0);
-                }
-            }
-
-            function InsertCircle2(x, y, radius, color, segments)
+            function InsertCircle(x, y, radius, color, segments)
             {
                 if(radius === undefined)
                 {

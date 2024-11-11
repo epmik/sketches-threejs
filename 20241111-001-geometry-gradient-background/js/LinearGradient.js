@@ -47,6 +47,11 @@ class LinearGradient
     {
         this._entryArray = [];
     }
+    
+    Entries()
+    {
+        return this._entryArray;
+    }
 
     ColorAt(time)
     {
@@ -91,10 +96,6 @@ class LinearGradientEntry
         }
         
         this.Time = time;   
-        this.R = r;
-        this.G = g;
-        this.B = b;
-        this.A = a;
         this.Color = new Color(r, g, b, a);
     }     
 

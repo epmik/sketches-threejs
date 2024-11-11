@@ -18,6 +18,11 @@ class MathUtility
 
     return Math.max(min, Math.min(value, max));
   }
+
+  static Rebase(value, inMin, inMax, outMin, outMax)
+  {
+    return outMin + (outMax - outMin) * ((value - inMin) / (inMax - inMin));
+  }
 }
 
 export { MathUtility };
