@@ -259,8 +259,8 @@
 
                 // ----------------------
 
-                InsertCircle2(-0.5, 0.5, 0.25, 0x000000);
-                InsertCircle2(0.5, 0.5, 0.25, 0x000000, 12);
+                InsertCircle(-0.5, 0.5, 0.25, 0x000000);
+                InsertCircle(0.5, 0.5, 0.25, 0x000000, 12);
 
                 // ----------------------
 
@@ -345,10 +345,10 @@
                 const wh0 = w0 * 0.5;
                 const wh1 = w1 * 0.5;
 
-                const p = PerpendicularVector2(new THREE.Vector2(x1 - x0, y1 - y0)).normalize();
+                InsertCircle(x0, y0, wh0, c0);
+                InsertCircle(x1, y1, wh1, c1);
 
-                InsertCircle(x0, y0, c0, wh0, p);
-                InsertCircle(x1, y1, c1, wh1, p);
+                const p = PerpendicularVector2(new THREE.Vector2(x1 - x0, y1 - y0)).normalize();
 
                 return InsertQuad(
                     x0 + p.x * wh0, y0 + p.y * wh0, c0, 
@@ -357,30 +357,7 @@
                     x1 - p.x * wh1, y1 - p.y * wh1, c1);
             }
 
-            function InsertCircle(x0, y0, c0, radius, p)
-            {
-                let p00 = TransformVectorToScreenSpace(new THREE.Vector3(x0 + p.x * radius, y0 + p.y * radius, 0), _camera);
-                let p01 = TransformVectorToScreenSpace(new THREE.Vector3(x0 - p.x * radius, y0 - p.y * radius, 0), _camera);
-
-                const circumference = p01.sub(p00).length() * Math.PI;
-
-                const segments = Math.ceil(circumference * 0.25);
-
-                const step = 2 * Math.PI / segments;
-
-                for(var i = 0, a = 0; i < segments; i++, a += step)
-                {
-                    const s0x = x0 + (radius * Math.cos(a));
-                    const s0y = y0 + (radius * Math.sin(a));
-
-                    const s1x = x0 + (radius * Math.cos(a + step));
-                    const s1y = y0 + (radius * Math.sin(a + step));
-
-                    InsertTriangle(x0, y0, c0, s0x, s0y, c0, s1x, s1y, c0);
-                }
-            }
-
-            function InsertCircle2(x, y, radius, color, segments)
+            function InsertCircle(x, y, radius, color, segments)
             {
                 if(radius === undefined)
                 {
