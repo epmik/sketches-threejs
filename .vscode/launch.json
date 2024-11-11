@@ -15,7 +15,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Launch Chrome localhost:3000 (npx serve)",
-            "url": "http://localhost:3000/20241111-001-geometry-gradient-background/index.htm",
+            "url": "http://localhost:3000/20241111-003-straight-noise-rays/index.htm",
             "webRoot": "${workspaceFolder}"
         }
     ]
