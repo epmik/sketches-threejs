@@ -28,7 +28,7 @@
             import * as THREE from 'three';
 			import * as Scrblr from 'scrblr';
 			// import { Sketch } from './js/sketch.js';
-			import { RandomGenerator } from '/js/RandomGenerator.js';
+            import { RandomGenerator } from '/js/RandomGenerator.js';
 			import { OpenSimplexNoiseGenerator } from '/js/OpenSimplexNoiseGenerator.js';
 			import { SummedNoiseGenerator } from '/js/SummedNoiseGenerator.js';
 			import { LinearGradient } from '/js/LinearGradient.js';
@@ -225,6 +225,7 @@
                 // _mask.Apply(_triangleGeometryBufferMesh);
 				
                 _scene.add( _triangleGeometryBufferMesh );            
+                //_maskScene.add( _triangleGeometryBufferMesh );            
 
                 // ----------------------
 
@@ -255,50 +256,59 @@
 
                 // ----------------------
              
-                const n = 2;
+                // const n = 2;
 
-                InsertTriangle(
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff0000,
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xffff00,
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
+                // InsertTriangle(
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff0000,
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xffff00,
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
 
-                InsertTriangle(
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x0000ff,
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x00ffff,
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
+                // InsertTriangle(
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x0000ff,
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x00ffff,
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
              
                 // ----------------------
 
-                InsertQuad(
-                    0, 0, 0xffff00, 
-                    0.95, 0, 0xffff00, 
-                    0, 0.95, 0xffff00,
-                    0.75, 0.75, 0xffff00);
+                // InsertQuad(
+                //     0, 0, 0xffff00, 
+                //     0.95, 0, 0xffff00, 
+                //     0, 0.95, 0xffff00,
+                //     0.75, 0.75, 0xffff00);
 
-                InsertQuad(
-                    -Math.random(), 0, 0xffff00, 
-                    -0.25 - Math.random(), 0, 0xffff00, 
-                    0, -0.25 - Math.random(), 0xffff00,
-                    -0.25 - Math.random(), -0.25 - Math.random(), 0xffff00);
-
-                // ----------------------
-
-                InsertLine(
-                    0, 0, 0xff0000, 0.250, 
-                    0.75, -0.5, 0x00ff00, 0.25);
-
-                InsertLine(
-                    Math.random(), Math.random(), 0xff0000, 0.05,
-                    -Math.random(), -Math.random(), 0xffff00, 0.01);
-
-                InsertLine(
-                    -Math.random(), -Math.random(), 0xff00ff, 0.05,
-                    Math.random(), Math.random(), 0x00ff00, 0.01);
+                // InsertQuad(
+                //     -Math.random(), 0, 0xffff00, 
+                //     -0.25 - Math.random(), 0, 0xffff00, 
+                //     0, -0.25 - Math.random(), 0xffff00,
+                //     -0.25 - Math.random(), -0.25 - Math.random(), 0xffff00);
 
                 // ----------------------
 
-                InsertCircle(-0.5, 0.5, 0.25, 0x000000);
-                InsertCircle(0.5, 0.5, 0.25, 0x000000, 12);
+                // InsertLine(
+                //     0, 0, 0xff0000, 0.250, 
+                //     0.75, -0.5, 0x00ff00, 0.25);
+
+                // InsertLine(
+                //     Math.random(), Math.random(), 0xff0000, 0.05,
+                //     -Math.random(), -Math.random(), 0xffff00, 0.01);
+
+                // InsertLine(
+                //     -Math.random(), -Math.random(), 0xff00ff, 0.05,
+                //     Math.random(), Math.random(), 0x00ff00, 0.01);
+
+                // ----------------------
+
+                // InsertCircle(-0.5, 0.5, 0.25, 0x000000);
+                // InsertCircle(0.5, 0.5, 0.25, 0x000000, 12);
+
+                // ----------------------
+
+                const rayCount = 720;
+
+                for(let c = 0; c < rayCount; c++)
+                {
+                    RenderRay(0, 0, _randomGenerator.Int(0, 360));
+                }
 
                 // ----------------------
 
@@ -324,6 +334,30 @@
 
                 window.addEventListener( 'resize', onWindowResize );
 
+            }
+
+            function RenderRay(x, y, angle)
+            {
+                const thickness = 0.025;
+                const minLength = 0.1;
+                const maxLength = 0.95;
+                const angleDeviation = MathUtility.ToRadians(8);
+
+                const length = _randomGenerator.Value(minLength, maxLength);
+
+                angle = MathUtility.ToRadians(angle);
+
+                // const xxx = x + Math.sin(angle) * length;
+                // const yyy = x + Math.cos(angle) * length;
+
+                // InsertLine(x, y, 0xff0000, thickness, xxx, yyy, 0xffffff, thickness);
+
+                angle += _noiseGenerator.Value(angle * 0.1) * angleDeviation;
+
+                const xx = x + Math.sin(angle) * length;
+                const yy = x + Math.cos(angle) * length;
+
+                InsertLine(x, y, 0xff0000, thickness, xx, yy, 0x000000, thickness);
             }
 
             function InsertTriangle(
@@ -440,7 +474,7 @@
 
                 const circumference = p01.sub(p00).length() * Math.PI;
 
-                return Math.ceil(circumference * 0.25);
+                return Math.max(8, Math.ceil(circumference * 0.25));
             }
 
             function PerpendicularVector2(vector)

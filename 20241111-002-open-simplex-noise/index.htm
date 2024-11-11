@@ -28,11 +28,12 @@
             import * as THREE from 'three';
 			import * as Scrblr from 'scrblr';
 			// import { Sketch } from './js/sketch.js';
-			import { RandomGenerator } from './js/RandomGenerator.js';
-			import { OpenSimplexNoiseGenerator } from './js/OpenSimplexNoiseGenerator.js';
-			import { LinearGradient } from './js/LinearGradient.js';
-			import { MathUtility } from './js/MathUtility.js';
-			import { Color } from './js/Color.js';
+			import { RandomGenerator } from '/js/RandomGenerator.js';
+			import { OpenSimplexNoiseGenerator } from '/js/OpenSimplexNoiseGenerator.js';
+			import { SummedNoiseGenerator } from '/js/SummedNoiseGenerator.js';
+			import { LinearGradient } from '/js/LinearGradient.js';
+			import { MathUtility } from '/js/MathUtility.js';
+			import { Color } from '/js/Color.js';
 			import Stats from 'three/addons/libs/stats.module.js';
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -43,6 +44,7 @@
 			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 			import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
+            import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
             import { Line2 } from "three/addons/lines/Line2.js";
             import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
             import { LineMaterial } from "three/addons/lines/LineMaterial.js";
@@ -59,8 +61,7 @@
             let _near = 1, _far = 8000, _fov = 60;
             let _clock, _deltaTime, _time;
 
-            let _randomGenerator;       
-            let _noiseGenerator;       
+            let _randomGenerator, _noiseGenerator, _summedNoiseGenerator;       
 
             let _triangleGeometryBufferElementTotal = 1024 * 256;
             let _triangleGeometryBufferElementCount = 0;
@@ -116,6 +117,7 @@
 
                 _randomGenerator = new RandomGenerator();
                 _noiseGenerator = new OpenSimplexNoiseGenerator();
+                _summedNoiseGenerator = new SummedNoiseGenerator();
 
                 _canvasWidth = _canvasWidth === undefined ? window.innerWidth : _canvasWidth;
                 _canvasHeight = _canvasHeight === undefined ? window.innerHeight : _canvasHeight;
@@ -161,10 +163,10 @@
 
                 _maskScene.add(_maskMesh);
 
-                const stencilBoxWireFrameGeometry = new THREE.WireframeGeometry( geometry );
-			    const stencilBoxWireFrameMesh = new THREE.LineSegments( stencilBoxWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0x000000, depthTest: false, opacity:0.25, transparent:false } ) );
+                // const stencilBoxWireFrameGeometry = new THREE.WireframeGeometry( geometry );
+			    // const stencilBoxWireFrameMesh = new THREE.LineSegments( stencilBoxWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0x000000, depthTest: false, opacity:0.25, transparent:false } ) );
 
-                _scene.add(stencilBoxWireFrameMesh);
+                // _scene.add(stencilBoxWireFrameMesh);
 
                 // ----------------------
 
@@ -182,12 +184,18 @@
 				
                 var outputPass = new ShaderPass( CopyShader );
 				
+                var fxaaPass = new ShaderPass( FXAAShader );
+
+                fxaaPass.material.uniforms[ 'resolution' ].value.x = 1 / _canvasWidth * 0.90;
+				fxaaPass.material.uniforms[ 'resolution' ].value.y = 1 / _canvasHeight * 0.90;
+		
 				var parameters = {
 						minFilter: THREE.LinearFilter,
 						magFilter: THREE.LinearFilter,
 						format: THREE.RGBAFormat,
-						stencilBuffer: true,	// important!
-                        alpha: true
+						stencilBuffer: true,	        // important! disable stencil buffer writes
+                        depthBuffer: false,             // disable depth buffer writes
+                        samples: 8                      // multi sampling
 					};
 
 				var renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters );
@@ -198,6 +206,7 @@
 				_composer.addPass( renderPass );
 				_composer.addPass( _composerClearMaskPass );
 				_composer.addPass( outputPass );
+				// _composer.addPass( fxaaPass );
 
                 // --------------------
 
@@ -219,77 +228,98 @@
 
                 // ----------------------
 
-                _linearGradient = new LinearGradient();
-                _linearGradient.Insert(0, 1, 0, 0);
-                _linearGradient.Insert(0.25, 1, 1, 0);
-                _linearGradient.Insert(0.75, 0, 1, 1);
-                _linearGradient.Insert(1, 0, 0, 1);
+                // _linearGradient = new LinearGradient();
+                // _linearGradient.Insert(0, 1, 0, 0);
+                // _linearGradient.Insert(0.25, 1, 1, 0);
+                // _linearGradient.Insert(0.75, 0, 1, 1);
+                // _linearGradient.Insert(1, 0, 0, 1);
 
-                const _linearGradientGeometryHeight = 1;
+                // const _linearGradientGeometryHeight = 1;
 
-                let entries = _linearGradient.Entries();
+                // let entries = _linearGradient.Entries();
 
-                for(var i = 0; i < entries.length - 1; i++)
+                // for(var i = 0; i < entries.length - 1; i++)
+                // {
+                //     let h = MathUtility.Rebase(entries[i].Time, 0, 1, -1, 1);
+                //     let hh = MathUtility.Rebase(entries[i+1].Time, 0, 1, -1, 1);
+
+                //     let c = entries[i].Color;
+                //     let cc = entries[i+1].Color;
+
+                //     InsertQuad(
+                //         -1, h, c.ToInt(), 
+                //         1, h, c.ToInt(), 
+                //         -1, hh, cc.ToInt(),
+                //         1, hh, cc.ToInt());
+                // }
+
+                // // ----------------------
+             
+                // const n = 2;
+
+                // InsertTriangle(
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff0000,
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xffff00,
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
+
+                // InsertTriangle(
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x0000ff,
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x00ffff,
+                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
+             
+                // // ----------------------
+
+                // InsertQuad(
+                //     0, 0, 0xffff00, 
+                //     0.95, 0, 0xffff00, 
+                //     0, 0.95, 0xffff00,
+                //     0.75, 0.75, 0xffff00);
+
+                // InsertQuad(
+                //     -Math.random(), 0, 0xffff00, 
+                //     -0.25 - Math.random(), 0, 0xffff00, 
+                //     0, -0.25 - Math.random(), 0xffff00,
+                //     -0.25 - Math.random(), -0.25 - Math.random(), 0xffff00);
+
+                // // ----------------------
+
+                // InsertLine(
+                //     0, 0, 0xff0000, 0.250, 
+                //     0.75, -0.5, 0x00ff00, 0.25);
+
+                // InsertLine(
+                //     Math.random(), Math.random(), 0xff0000, 0.05,
+                //     -Math.random(), -Math.random(), 0xffff00, 0.01);
+
+                // InsertLine(
+                //     -Math.random(), -Math.random(), 0xff00ff, 0.05,
+                //     Math.random(), Math.random(), 0x00ff00, 0.01);
+
+                // // ----------------------
+
+                // InsertCircle(-0.5, 0.5, 0.25, 0x000000);
+                // InsertCircle(0.5, 0.5, 0.25, 0x000000, 12);
+
+                // ----------------------
+
+                const count = 100;
+                const size = 2 / (count);
+
+                for(var y = -1; y < 1; y += size)
                 {
-                    let h = MathUtility.Rebase(entries[i].Time, 0, 1, -1, 1);
-                    let hh = MathUtility.Rebase(entries[i+1].Time, 0, 1, -1, 1);
+                    for(var x = -1; x < 1; x += size)
+                    {
+                        const v = MathUtility.Rebase(_summedNoiseGenerator.Value(x, y), -1, 1, 0, 1);
 
-                    let c = entries[i].Color;
-                    let cc = entries[i+1].Color;
+                        const c = new Color(v, v, v).ToInt();
 
-                    InsertQuad(
-                        -1, h, c.ToInt(), 
-                        1, h, c.ToInt(), 
-                        -1, hh, cc.ToInt(),
-                        1, hh, cc.ToInt());
+                        InsertQuad(
+                            x, y, c,
+                            x + size, y, c,
+                            x, y + size, c,
+                            x + size, y + size, c);
+                    }
                 }
-
-                // ----------------------
-             
-                const n = 2;
-
-                InsertTriangle(
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff0000,
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xffff00,
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
-
-                InsertTriangle(
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x0000ff,
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x00ffff,
-                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
-             
-                // ----------------------
-
-                InsertQuad(
-                    0, 0, 0xffff00, 
-                    0.95, 0, 0xffff00, 
-                    0, 0.95, 0xffff00,
-                    0.75, 0.75, 0xffff00);
-
-                InsertQuad(
-                    -Math.random(), 0, 0xffff00, 
-                    -0.25 - Math.random(), 0, 0xffff00, 
-                    0, -0.25 - Math.random(), 0xffff00,
-                    -0.25 - Math.random(), -0.25 - Math.random(), 0xffff00);
-
-                // ----------------------
-
-                InsertLine(
-                    0, 0, 0xff0000, 0.250, 
-                    0.75, -0.5, 0x00ff00, 0.25);
-
-                InsertLine(
-                    Math.random(), Math.random(), 0xff0000, 0.05,
-                    -Math.random(), -Math.random(), 0xffff00, 0.01);
-
-                InsertLine(
-                    -Math.random(), -Math.random(), 0xff00ff, 0.05,
-                    Math.random(), Math.random(), 0x00ff00, 0.01);
-
-                // ----------------------
-
-                InsertCircle(-0.5, 0.5, 0.25, 0x000000);
-                InsertCircle(0.5, 0.5, 0.25, 0x000000, 12);
 
                 // ----------------------
 
@@ -635,6 +665,16 @@
 
             function onWindowResize() 
             {
+                // if(window.clientWidth < window.clientHeight)
+                // {
+                //     _canvasWidth = window.clientWidth;
+                //     _canvasHeight = Math.floor(_canvasWidth * _camera.aspect);
+                // }
+                // else{
+                //     _canvasHeight = window.clientHeight;
+                //     _canvasWidth = Math.floor(_canvasHeight * _camera.aspect);
+                // }
+
                 _camera.aspect = _canvasWidth / _canvasHeight;
                 _camera.updateProjectionMatrix();
 
