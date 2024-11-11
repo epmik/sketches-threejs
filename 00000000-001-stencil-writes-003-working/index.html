@@ -42,6 +42,7 @@
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 			let camera, controls, scene, renderer;
+			let stencilPlaneGroup, stencilBoxGroup, stencilGroup;
 
 			init();
 			//render(); // remove when using animation loop
@@ -59,7 +60,8 @@
 				document.body.appendChild( renderer.domElement );
 
 				camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 1000 );
-				camera.position.set( 5, 5, 10 );
+				camera.position.set( 35, 5, 30 );
+				// camera.lookAt( 0, 0, 20 );
 
 				// controls
 
@@ -82,7 +84,7 @@
 				// -----------------------
 				// stencil material
 
-				const stencilMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+				const stencilMaterial = new THREE.MeshBasicMaterial();
 				stencilMaterial.colorWrite = false;	// disable color buffer
 				stencilMaterial.stencilWrite = true;	// enable stencil buffer
 				stencilMaterial.stencilRef = 1;			// value written to the stencil buffer
@@ -100,13 +102,17 @@
 				const stencilPlaneWireFrameGeometry = new THREE.WireframeGeometry( stencilPlaneGeometry );
   				const stencilPlaneWireFrameMesh = new THREE.LineSegments( stencilPlaneWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0x000000, depthTest: false, opacity:0.25, transparent:true } ) );
 
+				stencilGroup = new THREE.Group();
+
 				// plane group
-				const stencilPlaneGroup = new THREE.Group();
+				stencilPlaneGroup = new THREE.Group();
 				stencilPlaneGroup.add(stencilPlaneMesh);
 				stencilPlaneGroup.add(stencilPlaneWireFrameMesh);
 				stencilPlaneGroup.position.set(20, 0, 0);
 				stencilPlaneGroup.rotation.set(0, THREE.MathUtils.degToRad(90), 0);
-				scene.add( stencilPlaneGroup );	
+				
+				stencilGroup.add(stencilPlaneGroup);
+				// scene.add( stencilPlaneGroup );	
 
 				// -----------------------
 				// stencil box
@@ -120,11 +126,15 @@
 				const stencilBoxWireFrameMesh = new THREE.LineSegments( stencilBoxWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0x000000, depthTest: false, opacity:0.25, transparent:true } ) );
 
 				// box group
-				const stencilBoxGroup = new THREE.Group();
+				stencilBoxGroup = new THREE.Group();
 				stencilBoxGroup.add(stencilBoxMesh);
 				stencilBoxGroup.add(stencilBoxWireFrameMesh);
 				stencilBoxGroup.position.set(0, 0, 0);
-				scene.add( stencilBoxGroup );	
+				stencilGroup.add(stencilBoxGroup);
+				
+				// -----------------------
+
+				scene.add( stencilGroup );	
 
 				// -----------------------
 				// the clipped sphere
@@ -164,6 +174,9 @@
 			function animate() {
 
 				controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
+
+				stencilBoxGroup.rotation.x += 0.01;
+				stencilBoxGroup.rotation.y += 0.02;
 
 				render();
 

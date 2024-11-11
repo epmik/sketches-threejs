@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - orbit controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<script type="text/javascript" src="/js/date-extensions.js"></script>
+		<script src='https://unpkg.com/three-rt-helper'></script>
+	</head>
+
+	<body>
+        <div id="sketch-container"></div>
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "../scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
+				}
+			}
+		</script>
+
+        <script type="module">
+
+            import * as THREE from 'three';
+			import * as Scrblr from 'scrblr';
+			// import { Sketch } from './js/sketch.js';
+			import { RandomGenerator } from './js/RandomGenerator.js';
+			import { LinearGradient } from './js/LinearGradient.js';
+			import { MathUtility } from './js/MathUtility.js';
+			import { Color } from './js/Color.js';
+			import Stats from 'three/addons/libs/stats.module.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm'
+			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+			import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
+			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+			import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
+            import { Line2 } from "three/addons/lines/Line2.js";
+            import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+            import { LineMaterial } from "three/addons/lines/LineMaterial.js";
+            import { LineGeometry } from "three/addons/lines/LineGeometry.js";
+            import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
+            import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
+            import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
+            import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+
+            let _screenCapturePrefix = "20241107-001-dynamic-adding-triangles-to-geometry-buffer-and-flushing-geometry";
+            // let _effectsComposer, _useEffectsComposer = false; 
+            let _settings = null;
+            let _scene, _renderer, _camera, _stats, _controls;
+            let _composer, _composerClearPass, _composerMaskPass, _composerClearMaskPass; 
+            let _canvasWidth = 800, _canvasHeight = 800;
+            let _near = 1, _far = 8000, _fov = 60;
+            let _clock, _deltaTime, _time;
+
+            let _randomGenerator;       
+
+            let _triangleGeometryBufferElementTotal = 1024 * 256;
+            let _triangleGeometryBufferElementCount = 0;
+            let _triangleGeometryBuffer;
+            let _triangleGeometryBufferMesh;
+            let _mask, _maskBox, _maskScene, _maskMesh;
+
+            // class Mask
+            // {
+            //     constructor()
+            //     {
+            //         this._group = new THREE.Group();
+
+            //         this._material = new THREE.MeshBasicMaterial();
+
+            //         this._material.colorWrite = false;	// disable color buffer
+            //         this._material.stencilWrite = true;	// enable stencil buffer
+            //         this._material.stencilRef = 1;			// value written to the stencil buffer
+            //         this._material.stencilFunc = THREE.AlwaysStencilFunc;	// always write to stencil buffer
+            //         this._material.stencilZPass = THREE.ReplaceStencilOp;	// ?  
+                    
+            //         this._enabled = false;
+            //     }
+
+            //     Add(mesh)
+            //     {
+            //         mesh.material = this._material;
+            //         this._enabled = true;
+            //     }
+
+            //     Apply(mesh)
+            //     {
+            //         mesh.material.stencilWrite = true;	// enable stencil buffer
+            //         mesh.material.stencilRef = 0;		// value written to the stencil buffer
+            //         mesh.material.stencilFunc = THREE.LessStencilFunc;	// pass when the value in the stencil buffer matches the write value
+            //     }
+            // }
+
+            init(); 
+
+            async function init() {
+
+                const container = document.getElementById( 'sketch-container' );
+
+				_settings = 
+                {
+					downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
+					downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(4); },
+                    saveTransparentBackground: true,
+                    enableMask: true
+				};
+
+                // _randomGenerator = new RandomGenerator();
+
+                _canvasWidth = _canvasWidth === undefined ? window.innerWidth : _canvasWidth;
+                _canvasHeight = _canvasHeight === undefined ? window.innerHeight : _canvasHeight;
+
+                // --------------------
+
+                _renderer = new THREE.WebGLRenderer( { antialias: true, samples: 4, stencil: true, alpha: true } );
+                _renderer.setPixelRatio( window.devicePixelRatio );
+                _renderer.setSize( _canvasWidth, _canvasHeight );
+                _renderer.setClearColor( 0xffffff, 1 );
+                // _renderer.shadowMap.enabled = true;
+                _renderer.autoClear = false;
+
+                container.appendChild( _renderer.domElement );
+
+                // --------------------
+
+                _camera = new THREE.OrthographicCamera( -1, 1, 1, -1, _near, _far);
+                _camera.position.set( 0, 0, 10);
+                _camera.lookAt( 0, 0, 0 );
+
+                // _camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
+				// _camera.position.z = 10;
+
+                // controls = new OrbitControls( camera, renderer.domElement );
+				// controls.minDistance = 2;
+				// controls.maxDistance = 12;
+				// controls.maxPolarAngle = Math.PI / 2;
+				// controls.target.set( 0, 1, 0 );
+				// controls.update();                
+
+                // scene
+	            _scene = new THREE.Scene();
+
+                // ----------------------
+
+                _maskScene = new THREE.Scene();
+
+                const geometry = new THREE.PlaneGeometry(1, 1, 5, 5);
+
+                _maskMesh = new THREE.Mesh( geometry );
+                // _maskMesh.position.z = 0.55;
+
+                _maskScene.add(_maskMesh);
+
+                const stencilBoxWireFrameGeometry = new THREE.WireframeGeometry( geometry );
+			    const stencilBoxWireFrameMesh = new THREE.LineSegments( stencilBoxWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0x000000, depthTest: false, opacity:0.25, transparent:false } ) );
+
+                _scene.add(stencilBoxWireFrameMesh);
+
+                // ----------------------
+
+				_composerClearPass = new ClearPass(0xffffff, _settings.saveTransparentBackground == true ? 0.0 : 1.0);
+				
+				_composerMaskPass = new MaskPass( _maskScene, _camera );
+				_composerMaskPass.inverse = false;
+                _composerMaskPass.enabled = _settings.enableMask;
+				
+				var renderPass = new RenderPass(_scene, _camera );
+				renderPass.clear = false;
+				
+				_composerClearMaskPass = new ClearMaskPass();
+                _composerClearMaskPass.enabled = _settings.enableMask;
+				
+                var outputPass = new ShaderPass( CopyShader );
+				
+				var parameters = {
+						minFilter: THREE.LinearFilter,
+						magFilter: THREE.LinearFilter,
+						format: THREE.RGBAFormat,
+						stencilBuffer: true,	// important!
+                        alpha: true
+					};
+
+				var renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters );
+
+				_composer = new EffectComposer( _renderer, renderTarget );
+				_composer.addPass( _composerClearPass );
+				_composer.addPass( _composerMaskPass );
+				_composer.addPass( renderPass );
+				_composer.addPass( _composerClearMaskPass );
+				_composer.addPass( outputPass );
+
+                // --------------------
+
+                _triangleGeometryBuffer = new THREE.BufferGeometry();
+
+                _triangleGeometryBuffer.setAttribute('position', new THREE.Float32BufferAttribute( new Float32Array( _triangleGeometryBufferElementTotal * 3 ), 3));
+                _triangleGeometryBuffer.setAttribute('color', new THREE.Float32BufferAttribute( new Float32Array( _triangleGeometryBufferElementTotal * 4), 4));
+
+                _triangleGeometryBuffer.attributes.position.usage = THREE.DynamicDrawUsage;
+                _triangleGeometryBuffer.attributes.color.usage = THREE.DynamicDrawUsage;
+                
+                const triangleMaterial = new THREE.MeshBasicMaterial({ wireframe: false, side: THREE.DoubleSide, vertexColors: true });
+
+				_triangleGeometryBufferMesh = new THREE.Mesh( _triangleGeometryBuffer, triangleMaterial );
+
+                // _mask.Apply(_triangleGeometryBufferMesh);
+				
+                _scene.add( _triangleGeometryBufferMesh );            
+
+                // ----------------------
+             
+                const n = 2;
+
+                InsertTriangle(
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff0000,
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xffff00,
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
+
+                InsertTriangle(
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x0000ff,
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x00ffff,
+                    (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
+             
+                // ----------------------
+
+                InsertQuad(
+                    0, 0, 0xffff00, 
+                    0.95, 0, 0xffff00, 
+                    0, 0.95, 0xffff00,
+                    0.75, 0.75, 0xffff00);
+
+                InsertQuad(
+                    -Math.random(), 0, 0xffff00, 
+                    -0.25 - Math.random(), 0, 0xffff00, 
+                    0, -0.25 - Math.random(), 0xffff00,
+                    -0.25 - Math.random(), -0.25 - Math.random(), 0xffff00);
+
+                // ----------------------
+
+                InsertLine(
+                    0, 0, 0xff0000, 0.250, 
+                    0.75, -0.5, 0x00ff00, 0.25);
+
+                InsertLine(
+                    Math.random(), Math.random(), 0xff0000, 0.05,
+                    -Math.random(), -Math.random(), 0xffff00, 0.01);
+
+                InsertLine(
+                    -Math.random(), -Math.random(), 0xff00ff, 0.05,
+                    Math.random(), Math.random(), 0x00ff00, 0.01);
+
+                // ----------------------
+
+                InsertCircle2(-0.5, 0.5, 0.25, 0x000000);
+                InsertCircle2(0.5, 0.5, 0.25, 0x000000, 12);
+
+                // ----------------------
+
+                createGui();
+
+
+                _clock = new THREE.Clock();
+
+
+
+                _renderer.setAnimationLoop( update );
+
+
+
+                _stats = new Stats();
+                container.appendChild( _stats.dom );
+
+                _renderer.domElement.addEventListener("keydown", onKeyDown, false);
+                _renderer.domElement.addEventListener("keyup", onKeyUp, false);
+                _renderer.domElement.addEventListener("mousemove", onMouseMove, false);
+                _renderer.domElement.addEventListener("mousedown", onMouseDown, false);
+                _renderer.domElement.addEventListener("mouseup", onMouseUp, false);
+
+                window.addEventListener( 'resize', onWindowResize );
+
+            }
+
+            function InsertTriangle(
+                x0, y0, c0,
+                x1, y1, c1,
+                x2, y2, c2)
+            {
+                _triangleGeometryBuffer.attributes.position.needsUpdate = true;                        
+                _triangleGeometryBuffer.attributes.color.needsUpdate = true;
+
+                const co0 = new THREE.Color(c0);
+
+                _triangleGeometryBuffer.attributes.position.setXYZ(_triangleGeometryBufferElementCount, x0, y0, 0);                    
+                _triangleGeometryBuffer.attributes.color.setXYZW(_triangleGeometryBufferElementCount, co0.r, co0.g, co0.b, 1);
+                _triangleGeometryBufferElementCount++;
+
+                const co1 = new THREE.Color(c1);
+
+                _triangleGeometryBuffer.attributes.position.setXYZ(_triangleGeometryBufferElementCount, x1, y1, 0);                    
+                _triangleGeometryBuffer.attributes.color.setXYZW(_triangleGeometryBufferElementCount, co1.r, co1.g, co1.b, 1);
+                _triangleGeometryBufferElementCount++;
+
+                const co2 = new THREE.Color(c2);
+
+                _triangleGeometryBuffer.attributes.position.setXYZ(_triangleGeometryBufferElementCount, x2, y2, 0);                    
+                _triangleGeometryBuffer.attributes.color.setXYZW(_triangleGeometryBufferElementCount, co2.r, co2.g, co2.b, 1);
+                _triangleGeometryBufferElementCount++;
+
+                _triangleGeometryBuffer.setDrawRange(0, _triangleGeometryBufferElementCount);
+
+                return _triangleGeometryBufferElementCount;
+            }
+
+            function InsertQuad(
+                x0, y0, c0,
+                x1, y1, c1,
+                x2, y2, c2,
+                x3, y3, c3)
+            {
+                // triangle 1
+                InsertTriangle(
+                    x0, y0, c0,
+                    x1, y1, c1,
+                    x2, y2, c2);
+
+                // triangle 2
+                return InsertTriangle(
+                    x1, y1, c1,
+                    x2, y2, c2,
+                    x3, y3, c3);
+            }
+
+            function InsertLine(
+                x0, y0, c0, w0,
+                x1, y1, c1, w1)
+            {
+                const wh0 = w0 * 0.5;
+                const wh1 = w1 * 0.5;
+
+                const p = PerpendicularVector2(new THREE.Vector2(x1 - x0, y1 - y0)).normalize();
+
+                InsertCircle(x0, y0, c0, wh0, p);
+                InsertCircle(x1, y1, c1, wh1, p);
+
+                return InsertQuad(
+                    x0 + p.x * wh0, y0 + p.y * wh0, c0, 
+                    x0 - p.x * wh0, y0 - p.y * wh0, c0, 
+                    x1 + p.x * wh1, y1 + p.y * wh1, c1, 
+                    x1 - p.x * wh1, y1 - p.y * wh1, c1);
+            }
+
+            function InsertCircle(x0, y0, c0, radius, p)
+            {
+                let p00 = TransformVectorToScreenSpace(new THREE.Vector3(x0 + p.x * radius, y0 + p.y * radius, 0), _camera);
+                let p01 = TransformVectorToScreenSpace(new THREE.Vector3(x0 - p.x * radius, y0 - p.y * radius, 0), _camera);
+
+                const circumference = p01.sub(p00).length() * Math.PI;
+
+                const segments = Math.ceil(circumference * 0.25);
+
+                const step = 2 * Math.PI / segments;
+
+                for(var i = 0, a = 0; i < segments; i++, a += step)
+                {
+                    const s0x = x0 + (radius * Math.cos(a));
+                    const s0y = y0 + (radius * Math.sin(a));
+
+                    const s1x = x0 + (radius * Math.cos(a + step));
+                    const s1y = y0 + (radius * Math.sin(a + step));
+
+                    InsertTriangle(x0, y0, c0, s0x, s0y, c0, s1x, s1y, c0);
+                }
+            }
+
+            function InsertCircle2(x, y, radius, color, segments)
+            {
+                if(radius === undefined)
+                {
+                    radius = 1;
+                }
+                
+                if(color === undefined)
+                {
+                    color = 0x000000;
+                }
+                
+                if(segments === undefined)
+                {
+                    segments = CalculateCircleSegments(x, y, radius);
+                }
+
+                // let p00 = TransformVectorToScreenSpace(new THREE.Vector3(x + segments.x * radius, y + segments.y * radius, 0), _camera);
+                // let p01 = TransformVectorToScreenSpace(new THREE.Vector3(x - segments.x * radius, y - segments.y * radius, 0), _camera);
+
+                // const circumference = p01.sub(p00).length() * Math.PI;
+
+                // const segments = Math.ceil(circumference * 0.25);
+
+                const step = 2 * Math.PI / segments;
+
+                for(var i = 0, a = 0; i < segments; i++, a += step)
+                {
+                    const s0x = x + (radius * Math.cos(a));
+                    const s0y = y + (radius * Math.sin(a));
+
+                    const s1x = x + (radius * Math.cos(a + step));
+                    const s1y = y + (radius * Math.sin(a + step));
+
+                    InsertTriangle(x, y, color, s0x, s0y, color, s1x, s1y, color);
+                }
+            }
+
+            function CalculateCircleSegments(x, y, radius)
+            {
+                const p00 = TransformVectorToScreenSpace(new THREE.Vector3(x, y, 0), _camera);
+                const p01 = TransformVectorToScreenSpace(new THREE.Vector3(x, y + radius, 0), _camera);
+
+                const circumference = p01.sub(p00).length() * Math.PI;
+
+                return Math.ceil(circumference * 0.25);
+            }
+
+            function PerpendicularVector2(vector)
+            {
+                return new THREE.Vector2(vector.y, -vector.x);
+            }
+
+            function TransformVectorToScreenSpace(vector, camera)
+            {
+                vector.project(camera);
+
+                const r = _renderer.domElement.getBoundingClientRect();
+
+                let hw = r.width * 0.5;
+                let hh = r.height * 0.5;
+
+                return new THREE.Vector2((vector.x * hw) + hw, (vector.y * hh) + hh);
+            }
+
+            function TransformObjectToScreenSpace(object, camera)
+            {
+                return TransformVectorToScreenSpace(new THREE.Vector3().setFromMatrixPosition(object.matrixWorld), camera);
+            }
+
+            function Render()
+            {
+                // _renderer.clear();
+    			_composer.render();
+
+                // _renderer.render(_scene, _camera);
+            }
+
+            function update() 
+            {
+				_deltaTime = _clock.getDelta();
+
+				_time += _deltaTime;
+
+				const time = Date.now() * 0.001;
+
+                // _maskMesh.rotation.x += 0.01;
+				_maskMesh.rotation.z += 0.02;
+           
+                Render();
+
+                _stats.update();
+            }
+
+            // function render()
+            // {
+            //     if(_useEffectsComposer)
+            //     {
+            //         _effectsComposer.render();
+            //     }
+            //     else
+            //     {
+            //         // _renderer.autoClear = false;
+            //         _renderer.render( _scene, _camera );
+            //     }
+            //     // _renderer.autoClear = true;
+            // }
+
+            function onKeyDown(event) 
+            {
+                event.preventDefault();
+
+                var keyCode = event.which;
+
+                switch(keyCode)
+                {
+                    default: 
+                        break;
+                }
+            };            
+
+            function onKeyUp(event) 
+            {
+                event.preventDefault();
+            };            
+
+            function onMouseDown(event) 
+            {
+                event.preventDefault();
+
+                switch(event.button)
+                {
+                    case 0:
+                        updateLineSegmentPositions();
+                        break;
+                }
+
+                // console.log(event.button);
+                // console.log(event.buttons);
+            }; 
+
+            function onMouseUp(event) 
+            {
+                event.preventDefault();
+            };  
+
+            function onMouseMove(event) 
+            {
+                event.preventDefault();
+
+                // event.clientX    // The X coordinate of the mouse pointer in viewport coordinates.
+                // event.clientY    // The Y coordinate of the mouse pointer in viewport coordinates.
+                // event.altKey     // Returns true if the alt key was down when the mouse event was fired.
+                // event.ctrlKey    // Returns true if the ctrl key was down when the mouse event was fired.
+                // event.shiftKey   // Returns true if the shift key was down when the mouse event was fired.
+                // event.button     // The button number that was pressed (if applicable) when the mouse event was fired.
+                // event.buttons    // The buttons being pressed (if any) when the mouse event was fired.
+                // event.movementX  // The X coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.movementY  // The Y coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.screenX    // The X coordinate of the mouse pointer in screen coordinates.
+                // event.screenY    // The Y coordinate of the mouse pointer in screen coordinates.
+            };            
+
+            function createGui() {
+
+                const panel = new GUI( { width: 310, closeFolders: true } );
+
+                // const folderAnimation = panel.addFolder( 'Animation' );
+                // const folderLighting = panel.addFolder( 'Lighting' );
+                // const folderShading = panel.addFolder( 'Shading' );
+                // const folderModels = panel.addFolder( 'Models' );
+
+                // folderAnimation.add( settings, 'deactivate/activate animation');
+				// folderAnimation.add( settings, 'pause/continue animation' );
+
+                // crossFadeControls.push( folderAnimation.add( settings, 'from walk to idle' ) );
+                // crossFadeControls.push( folderAnimation.add( settings, 'from idle to walk' ) );
+                // crossFadeControls.push( folderAnimation.add( settings, 'from walk to run' ) );
+                // crossFadeControls.push( folderAnimation.add( settings, 'from run to walk' ) );
+
+                // folderAnimation.add( settings, 'duration', 0, 4, 0.025 );
+
+                // folderLighting.addColor( settings, 'color' ).onChange( function ( val ) { spotLight.color.setHex( val ); } );
+
+                // folderLighting.add( settings, 'intensity', 0, 500 ).onChange( function ( val ) { spotLight.intensity = val; } );
+
+                // folderLighting.add( settings, 'distance', 0, 20 ).onChange( function ( val ) { spotLight.distance = val; } );
+
+                // folderLighting.add( settings, 'angle', 0, Math.PI / 3 ).onChange( function ( val ) { spotLight.angle = val; } );
+
+                // folderLighting.add( settings, 'penumbra', 0, 1 ).onChange( function ( val ) { spotLight.penumbra = val; } );
+
+                // folderLighting.add( settings, 'decay', 1, 2 ).onChange( function ( val ) { spotLight.decay = val; } );
+
+                // folderLighting.add( settings, 'shadows' ).onChange( function ( val ) 
+                // { 
+                //     renderer.shadowMap.enabled = val; 
+
+                //     scene.traverse( function ( child ) 
+                //     {
+                //         if ( child.material ) 
+                //         {
+                //             child.material.needsUpdate = true;
+                //         }
+
+                //     } );
+                // } );
+
+                // folderShading.add( settings, 'materialIndex', [ 'default', 'wireframe', 'flat', 'smooth', 'glossy', 'textured', 'reflective' ] ).name( 'Shading' ).onChange( function(val) 
+                // {
+                //     let material = settings.materials[settings.materialIndex];
+                //     let model = settings.models[settings.modelIndex];
+
+                //     model.traverse( function ( child ) 
+                //     {
+                //         if ( child.material && child.isMesh) 
+                //         {
+                //             child.material = material === null ? child.userData.defaultMaterial : material;
+                //             child.material.needsUpdate = true;
+                //         }
+
+                //     } );
+                // } );
+
+                // folderModels.add( settings, 'modelIndex', [ 'marine', 'forest house' , 'little tokyo' ] ).name( 'Model' ).onChange( function(val) 
+                // {
+                //     for (let m in settings.models) 
+                //     {
+                //         settings.models[m].visible = false;
+                //     }
+
+                //     let model = settings.models[settings.modelIndex];
+
+                //     model.visible = true;
+                // } );
+
+                panel.add(_settings, 'downloadWebGLRendererAction').name('Save screen');
+                panel.add(_settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
+                panel.add(_settings, 'saveTransparentBackground').name('Save transparent background').onChange( function ( val ) { _composerClearPass.clearAlpha = (val == true ? 0.0 : 1.0); } );
+                panel.add(_settings, 'enableMask').name('Enable Mask').onChange(function(val) { _composerMaskPass.enabled = val; _composerClearMaskPass.enabled = val; });
+
+                // folderAnimation.close();
+                // folderLighting.close();
+                // folderShading.close();
+                // folderModels.close();
+            }
+
+            function onWindowResize() 
+            {
+                _camera.aspect = _canvasWidth / _canvasHeight;
+                _camera.updateProjectionMatrix();
+
+                _renderer.setSize( _canvasWidth, _canvasHeight );
+                _composer.setSize( _canvasWidth, _canvasHeight );
+            }
+
+			function _downloadWebGLRenderer(hiresScale)
+			{
+                hiresScale = (hiresScale === undefined || hiresScale === null || hiresScale == 0 ? 1 : hiresScale);
+
+                const width = Math.round(_canvasWidth * hiresScale);
+                const height = Math.round(_canvasHeight * hiresScale);
+
+				const maxW = 2400;
+				const maxH = 2400;
+
+				const d = new Date();
+				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
+
+				for (let y = 0; y < height; y += maxH)
+				{
+					for (let x = 0; x < width; x += maxW)
+					{
+						let w = Math.min(width - x, maxW);
+						let h = Math.min(height - y, maxH);
+
+						// console.log(prefix + '-' + x + '-' + y + '.png');
+
+						_renderer.setSize( w, h );
+                        _composer.setSize( w, h );
+
+						_camera.setViewOffset(width, height, x, y, w, h);
+
+                        Render();
+					
+                        _downloadCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
+					}
+				}
+
+                _renderer.setSize( _canvasWidth, _canvasHeight );
+                _composer.setSize( _canvasWidth, _canvasHeight );
+
+                _camera.clearViewOffset();
+			}
+
+			// function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
+			// {
+			// 	let buffer = new Uint8ClampedArray(4 * webGLRenderTarget.width * webGLRenderTarget.height)
+
+			// 	webGLRenderer.readRenderTargetPixels(webGLRenderTarget, 0, 0, webGLRenderTarget.width, webGLRenderTarget.height, buffer);
+
+			// 	var canvas = document.createElement('canvas');
+
+			// 	canvas.width = webGLRenderTarget.width;
+			// 	canvas.height = webGLRenderTarget.height;
+
+			// 	var context = canvas.getContext('2d');
+
+			// 	context.putImageData(new ImageData( buffer, webGLRenderTarget.width, webGLRenderTarget.height ), 0, 0);
+
+			// 	_downloadCanvasAsPng(canvas);
+			// }
+
+			function _downloadCanvasAsPng(canvas, name)
+			{
+				if(name === null || name === undefined || name === "")
+				{
+					var d = new Date();
+
+					name = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
+				}
+
+				canvas.toBlob(function (blob) {
+					var a = document.createElement('a');
+					var url = URL.createObjectURL(blob);
+					a.href = url;
+					a.download = name;
+					a.click();
+				}, 'image/png', 1.0); 
+			}
+
+        </script>
+    </body>
+</html>        

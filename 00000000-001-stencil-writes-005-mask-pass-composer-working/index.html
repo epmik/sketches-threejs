@@ -32,41 +32,47 @@
 		import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 
 		let camera, scene, sceneMask, renderer, composer, box;
+		let _maskMesh;
 
 		init();
 		animate();
 
 		function init() {
 
-			camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 10 );
-			camera.position.z = 1;
+			camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 100 );
+			camera.position.x = -0.75;
+			camera.position.z = 0.75;
 				
 				scene = new THREE.Scene();
 				sceneMask = new THREE.Scene();
 				
-				const texture = new THREE.TextureLoader().load( 'mask.jpeg' );
+		// const texture = new THREE.TextureLoader().load( 'mask.jpeg' );
+			// const material = new THREE.MeshBasicMaterial( { alphaMap: texture, alphaTest: 1 } );
 
-			const geometry = new THREE.PlaneGeometry();
-			const material = new THREE.MeshBasicMaterial( { alphaMap: texture, alphaTest: 1 } );
+			const geometry = new THREE.PlaneGeometry(1, 1, 5, 5);
 
-			const mesh = new THREE.Mesh( geometry, material );
-			sceneMask.add( mesh );
+			_maskMesh = new THREE.Mesh( geometry );
+
+			const stencilBoxWireFrameGeometry = new THREE.WireframeGeometry( geometry );
+			const stencilBoxWireFrameMesh = new THREE.LineSegments( stencilBoxWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0x000000, depthTest: false, opacity:0.25, transparent:false } ) );
+
+			sceneMask.add( _maskMesh );
 				
 				// box
 				
-				const boxGeometry = new THREE.BoxGeometry( 0.2, 0.2, 0.2 );
-			const boxMaterial = new THREE.MeshNormalMaterial();
+				const boxGeometry = new THREE.BoxGeometry( 1, 1, 1 );
+				const boxMaterial = new THREE.MeshBasicMaterial({ color:0xfffff });
 				
 				box = new THREE.Mesh( boxGeometry, boxMaterial );
-				box.position.z = - 1;
+				box.position.z = -1;
 				scene.add( box );
+				scene.add(stencilBoxWireFrameMesh);
 				
 				//
 
-
 			renderer = new THREE.WebGLRenderer();
 			renderer.setSize( window.innerWidth, window.innerHeight );
-				renderer.setClearColor(  0xffff00 );
+				renderer.setClearColor(  0xe0e0e0 );
 				renderer.autoClear = false;
 			document.body.appendChild( renderer.domElement );
 				
@@ -77,7 +83,7 @@
 				var clearPass = new ClearPass();
 				
 				var maskPass = new MaskPass( sceneMask, camera );
-				maskPass.inverse = true;
+				maskPass.inverse = false;
 				
 				var renderPass = new RenderPass( scene, camera );
 				renderPass.clear = false;
@@ -89,7 +95,7 @@
 						minFilter: THREE.LinearFilter,
 						magFilter: THREE.LinearFilter,
 						format: THREE.RGBFormat,
-						stencilBuffer: true
+						stencilBuffer: true	// important!
 					};
 
 				var renderTarget = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight, parameters );
