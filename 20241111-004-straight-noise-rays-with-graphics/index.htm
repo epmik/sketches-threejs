@@ -56,7 +56,8 @@
             import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 
             let _screenCapturePrefix = "20241111-001-geometry-gradient-background";
-            let _scene, _renderer, _camera, _stats, _orbitControls;
+            let _backgroundScene, _backgroundCubeMesh;
+            let _renderer, _camera, _stats, _orbitControls;
             let _composer, _composerClearPass, _composerMaskPass, _composerClearMaskPass; 
             let _canvasWidth = 800, _canvasHeight = 800;
             let _near = 1, _far = 8000, _fov = 60;
@@ -65,11 +66,6 @@
             let _randomGenerator;       
             let _noiseGenerator;       
 
-            // let _triangleGeometryBufferElementTotal = 1024 * 256;
-            // let _triangleGeometryBufferElementCount = 0;
-            // let _triangleGeometryBuffer;
-            // let _triangleGeometryBufferMesh;
-            let _maskBox, _maskScene, _maskMesh;
             let _linearGradient;
             let _graphics, _maskGraphics;
 
@@ -78,39 +74,8 @@
                 downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
                 downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(4); },
                 saveTransparentBackground: true,
-                enableMask: false
+                enableMask: true
             };
-
-            // class Mask
-            // {
-            //     constructor()
-            //     {
-            //         this._group = new THREE.Group();
-
-            //         this._material = new THREE.MeshBasicMaterial();
-
-            //         this._material.colorWrite = false;	// disable color buffer
-            //         this._material.stencilWrite = true;	// enable stencil buffer
-            //         this._material.stencilRef = 1;			// value written to the stencil buffer
-            //         this._material.stencilFunc = THREE.AlwaysStencilFunc;	// always write to stencil buffer
-            //         this._material.stencilZPass = THREE.ReplaceStencilOp;	// ?  
-                    
-            //         this._enabled = false;
-            //     }
-
-            //     Add(mesh)
-            //     {
-            //         mesh.material = this._material;
-            //         this._enabled = true;
-            //     }
-
-            //     Apply(mesh)
-            //     {
-            //         mesh.material.stencilWrite = true;	// enable stencil buffer
-            //         mesh.material.stencilRef = 0;		// value written to the stencil buffer
-            //         mesh.material.stencilFunc = THREE.LessStencilFunc;	// pass when the value in the stencil buffer matches the write value
-            //     }
-            // }
 
             init(); 
 
@@ -154,41 +119,48 @@
                 _graphics = new Graphics(_camera, _renderer);
                 _maskGraphics = new Graphics(_camera, _renderer);
 
-                // scene
-	            _scene = new THREE.Scene();
-
                 // ----------------------
 
-                _maskScene = new THREE.Scene();
+	            _backgroundScene = new THREE.Scene();
 
-                const geometry = new THREE.PlaneGeometry(1, 1, 5, 5);
+                const _backgroundLights = [];
+                _backgroundLights[ 0 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+                _backgroundLights[ 1 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+                _backgroundLights[ 2 ] = new THREE.DirectionalLight( 0xffffff, 3 );
 
-                _maskMesh = new THREE.Mesh( geometry );
+                _backgroundLights[ 0 ].position.set( 0, 200, 0 );
+                _backgroundLights[ 1 ].position.set( 100, 200, 100 );
+                _backgroundLights[ 2 ].position.set( - 100, - 200, - 100 );
 
-                _maskGraphics.AddMesh(_maskMesh);
+                _backgroundScene.add( _backgroundLights[ 0 ] );
+                _backgroundScene.add( _backgroundLights[ 1 ] );
+                _backgroundScene.add( _backgroundLights[ 2 ] );                
 
-                _maskScene.add(_maskMesh);
+                _backgroundCubeMesh = new THREE.Mesh( 
+                    new THREE.BoxGeometry( 0.25, 0.75, 0.25 ), 
+                    new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } )); 
+                
+                _backgroundScene.add( _backgroundCubeMesh );                
 
                 // ----------------------
 
 				_composerClearPass = new ClearPass(0xffffff, _settings.saveTransparentBackground == true ? 0.0 : 1.0);
 				
-				_composerMaskPass = new MaskPass( _maskGraphics.Scene(), _camera );
+				var backgroundRenderPass = new RenderPass(_backgroundScene, _camera );
+				backgroundRenderPass.clear = false;
+				
+				_composerMaskPass = new MaskPass( _maskGraphics.scene, _camera );
 				_composerMaskPass.inverse = false;
                 _composerMaskPass.enabled = _settings.enableMask;
+				_composerMaskPass.clear = false;
 				
-				var renderPass = new RenderPass(_graphics.Scene(), _camera );
+				var renderPass = new RenderPass(_graphics.scene, _camera );
 				renderPass.clear = false;
 				
 				_composerClearMaskPass = new ClearMaskPass();
                 _composerClearMaskPass.enabled = _settings.enableMask;
 				
                 var outputPass = new ShaderPass( CopyShader );
-				
-                // var fxaaPass = new ShaderPass( FXAAShader );
-
-                // fxaaPass.material.uniforms[ 'resolution' ].value.x = 1 / _canvasWidth * 0.90;
-				// fxaaPass.material.uniforms[ 'resolution' ].value.y = 1 / _canvasHeight * 0.90;
 
 				var parameters = {
 						minFilter: THREE.LinearFilter,
@@ -203,6 +175,7 @@
 
 				_composer = new EffectComposer( _renderer, renderTarget );
 				_composer.addPass( _composerClearPass );
+				_composer.addPass( backgroundRenderPass );
 				_composer.addPass( _composerMaskPass );
 				_composer.addPass( renderPass );
 				_composer.addPass( _composerClearMaskPass );
@@ -210,15 +183,61 @@
 
                 // --------------------
 
+                GenerateGradients();
+
+                RenderGradient();
+
+                // ----------------------
+
+                const rayCount = 4;
+
+                for(let c = 0; c < rayCount; c++)
+                {
+                    RenderRay(0, 0, _randomGenerator.Int(0, 360), _maskGraphics);
+                }
+
+                // ----------------------
+
+                createGui();
+
+                // ----------------------
+
+                _stats = new Stats();
+                container.appendChild( _stats.dom );
+
+                // ----------------------
+
+                _renderer.domElement.addEventListener("keydown", onKeyDown, false);
+                _renderer.domElement.addEventListener("keyup", onKeyUp, false);
+                _renderer.domElement.addEventListener("mousemove", onMouseMove, false);
+                _renderer.domElement.addEventListener("mousedown", onMouseDown, false);
+                _renderer.domElement.addEventListener("mouseup", onMouseUp, false);
+
+                window.addEventListener( 'resize', onWindowResize );
+
+                _renderer.setAnimationLoop( update );
+
+                // ----------------------
+
+                _clock = new THREE.Clock();
+
+                // ----------------------
+            }
+
+            function GenerateGradients()
+            {
                 _linearGradient = new LinearGradient();
                 _linearGradient.Insert(0, 1, 0, 0);
                 _linearGradient.Insert(0.25, 1, 1, 0);
                 _linearGradient.Insert(0.75, 0, 1, 1);
                 _linearGradient.Insert(1, 0, 0, 1);
+            }
+
+            function RenderGradient()
+            {
+                let entries = _linearGradient.Entries();
 
                 const _linearGradientGeometryHeight = 1;
-
-                let entries = _linearGradient.Entries();
 
                 for(var i = 0; i < entries.length - 1; i++)
                 {
@@ -234,87 +253,6 @@
                         -1, hh, cc.ToInt(),
                         1, hh, cc.ToInt());
                 }
-
-                // ----------------------
-             
-                // const n = 2;
-
-                // InsertTriangle(
-                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff0000,
-                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xffff00,
-                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
-
-                // InsertTriangle(
-                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x0000ff,
-                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0x00ffff,
-                //     (Math.random() - 0.5) * n, (Math.random() - 0.5) * n, 0xff00ff);
-             
-                // ----------------------
-
-                // InsertQuad(
-                //     0, 0, 0xffff00, 
-                //     0.95, 0, 0xffff00, 
-                //     0, 0.95, 0xffff00,
-                //     0.75, 0.75, 0xffff00);
-
-                // InsertQuad(
-                //     -Math.random(), 0, 0xffff00, 
-                //     -0.25 - Math.random(), 0, 0xffff00, 
-                //     0, -0.25 - Math.random(), 0xffff00,
-                //     -0.25 - Math.random(), -0.25 - Math.random(), 0xffff00);
-
-                // ----------------------
-
-                // InsertLine(
-                //     0, 0, 0xff0000, 0.250, 
-                //     0.75, -0.5, 0x00ff00, 0.25);
-
-                // InsertLine(
-                //     Math.random(), Math.random(), 0xff0000, 0.05,
-                //     -Math.random(), -Math.random(), 0xffff00, 0.01);
-
-                // InsertLine(
-                //     -Math.random(), -Math.random(), 0xff00ff, 0.05,
-                //     Math.random(), Math.random(), 0x00ff00, 0.01);
-
-                // ----------------------
-
-                // InsertCircle(-0.5, 0.5, 0.25, 0x000000);
-                // InsertCircle(0.5, 0.5, 0.25, 0x000000, 12);
-
-                // ----------------------
-
-                const rayCount = 4;
-
-                for(let c = 0; c < rayCount; c++)
-                {
-                    RenderRay(0, 0, _randomGenerator.Int(0, 360), _graphics);
-                }
-
-                // ----------------------
-
-                createGui();
-
-
-                _clock = new THREE.Clock();
-
-
-
-                _renderer.setAnimationLoop( update );
-
-
-
-                _stats = new Stats();
-                container.appendChild( _stats.dom );
-
-                _renderer.domElement.addEventListener("keydown", onKeyDown, false);
-                _renderer.domElement.addEventListener("keyup", onKeyUp, false);
-                _renderer.domElement.addEventListener("mousemove", onMouseMove, false);
-                _renderer.domElement.addEventListener("mousedown", onMouseDown, false);
-                _renderer.domElement.addEventListener("mouseup", onMouseUp, false);
-
-                window.addEventListener( 'resize', onWindowResize );
-
             }
 
             function RenderRay(x, y, angle, graphics)
@@ -352,7 +290,8 @@
 
 				_time += _deltaTime;
 
-                _maskMesh.rotation.z += 0.01;
+                _backgroundCubeMesh.rotation.x += 0.005;
+                _backgroundCubeMesh.rotation.z += 0.01;
            
                 Render();
 

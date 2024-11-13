@@ -16,17 +16,17 @@ class Graphics
         this._triangleGeometryMaterial = undefined;
         this._triangleGeometryBufferMesh = undefined;
 
-        this._geometryScene = new THREE.Scene();
+        this.scene = new THREE.Scene();
     }
 
-    Scene()
-    {
-        return this._geometryScene;
-    }
+    // Scene()
+    // {
+    //     return this._geometryScene;
+    // }
 
     AddMesh(mesh)
     {
-        this._geometryScene.add(mesh);
+        this.scene.add(mesh);
     }
 
     Triangle(
@@ -46,7 +46,7 @@ class Graphics
     
             this._triangleGeometryBufferMesh = new THREE.Mesh( this._triangleGeometryBuffer, this._triangleGeometryMaterial);
 
-            this._geometryScene.add(this._triangleGeometryBufferMesh);
+            this.scene.add(this._triangleGeometryBufferMesh);
         }
 
         this._triangleGeometryBuffer.attributes.position.needsUpdate = true;                        
