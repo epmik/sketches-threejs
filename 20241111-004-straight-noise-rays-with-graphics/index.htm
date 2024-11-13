@@ -7,6 +7,7 @@
 		<link type="text/css" rel="stylesheet" href="main.css">
 		<script type="text/javascript" src="/js/date-extensions.js"></script>
 		<script src='https://unpkg.com/three-rt-helper'></script>
+        <script src="https://cdn.jsdelivr.net/npm/pngjs-image@0.11.7/index.min.js"></script>        
 	</head>
 
 	<body>
@@ -35,6 +36,7 @@
 			import { LinearGradient } from '/js/LinearGradient.js';
 			import { MathUtility } from '/js/MathUtility.js';
 			import { Color } from '/js/Color.js';
+			import { ClearDepthPass } from '/js/ClearDepthPass.js';
 			import Stats from 'three/addons/libs/stats.module.js';
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -54,20 +56,22 @@
             import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
             import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
             import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+            import { PNG } from 'pngjs';
 
             let _screenCapturePrefix = "20241111-001-geometry-gradient-background";
-            let _backgroundScene, _backgroundCubeMesh;
             let _renderer, _camera, _stats, _orbitControls;
             let _composer, _composerClearPass, _composerMaskPass, _composerClearMaskPass; 
             let _canvasWidth = 800, _canvasHeight = 800;
             let _near = 1, _far = 8000, _fov = 60;
-            let _clock, _deltaTime, _time;
+            let _clock, _deltaTimeSeconds;
+            let _frameCount = 0;
 
             let _randomGenerator;       
             let _noiseGenerator;       
 
-            let _linearGradient;
-            let _graphics, _maskGraphics;
+            let _backgroundLinearGradient, _sunLinearGradient;
+            let _graphics, _maskGraphics, _backgroundGraphics;
+            const _sunRayCount = 720;
 
             let _settings = 
             {
@@ -118,35 +122,36 @@
                
                 _graphics = new Graphics(_camera, _renderer);
                 _maskGraphics = new Graphics(_camera, _renderer);
+                _backgroundGraphics = new Graphics(_camera, _renderer);
 
                 // ----------------------
 
-	            _backgroundScene = new THREE.Scene();
+	            // _backgroundScene = new THREE.Scene();
 
-                const _backgroundLights = [];
-                _backgroundLights[ 0 ] = new THREE.DirectionalLight( 0xffffff, 3 );
-                _backgroundLights[ 1 ] = new THREE.DirectionalLight( 0xffffff, 3 );
-                _backgroundLights[ 2 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+                // const _backgroundLights = [];
+                // _backgroundLights[ 0 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+                // _backgroundLights[ 1 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+                // _backgroundLights[ 2 ] = new THREE.DirectionalLight( 0xffffff, 3 );
 
-                _backgroundLights[ 0 ].position.set( 0, 200, 0 );
-                _backgroundLights[ 1 ].position.set( 100, 200, 100 );
-                _backgroundLights[ 2 ].position.set( - 100, - 200, - 100 );
+                // _backgroundLights[ 0 ].position.set( 0, 200, 0 );
+                // _backgroundLights[ 1 ].position.set( 100, 200, 100 );
+                // _backgroundLights[ 2 ].position.set( - 100, - 200, - 100 );
 
-                _backgroundScene.add( _backgroundLights[ 0 ] );
-                _backgroundScene.add( _backgroundLights[ 1 ] );
-                _backgroundScene.add( _backgroundLights[ 2 ] );                
+                // _backgroundScene.add( _backgroundLights[ 0 ] );
+                // _backgroundScene.add( _backgroundLights[ 1 ] );
+                // _backgroundScene.add( _backgroundLights[ 2 ] );                
 
-                _backgroundCubeMesh = new THREE.Mesh( 
-                    new THREE.BoxGeometry( 0.25, 0.75, 0.25 ), 
-                    new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } )); 
+                // _backgroundCubeMesh = new THREE.Mesh( 
+                //     new THREE.BoxGeometry( 0.25, 0.75, 0.25 ), 
+                //     new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } )); 
                 
-                _backgroundScene.add( _backgroundCubeMesh );                
+                // _backgroundScene.add( _backgroundCubeMesh );                
 
                 // ----------------------
 
 				_composerClearPass = new ClearPass(0xffffff, _settings.saveTransparentBackground == true ? 0.0 : 1.0);
 				
-				var backgroundRenderPass = new RenderPass(_backgroundScene, _camera );
+				var backgroundRenderPass = new RenderPass(_backgroundGraphics.scene, _camera );
 				backgroundRenderPass.clear = false;
 				
 				_composerMaskPass = new MaskPass( _maskGraphics.scene, _camera );
@@ -156,7 +161,10 @@
 				
 				var renderPass = new RenderPass(_graphics.scene, _camera );
 				renderPass.clear = false;
-				
+				// renderPass.clearColor = false;
+				// renderPass.clearDepth = true;
+				// renderPass.clearStencil = false;
+
 				_composerClearMaskPass = new ClearMaskPass();
                 _composerClearMaskPass.enabled = _settings.enableMask;
 				
@@ -177,6 +185,7 @@
 				_composer.addPass( _composerClearPass );
 				_composer.addPass( backgroundRenderPass );
 				_composer.addPass( _composerMaskPass );
+				_composer.addPass( new ClearDepthPass());
 				_composer.addPass( renderPass );
 				_composer.addPass( _composerClearMaskPass );
 				_composer.addPass( outputPass );
@@ -185,13 +194,13 @@
 
                 GenerateGradients();
 
-                RenderGradient();
+                RenderGradient(_backgroundLinearGradient, _backgroundGraphics);
+
+                RenderGradient(_sunLinearGradient, _graphics);
 
                 // ----------------------
 
-                const rayCount = 4;
-
-                for(let c = 0; c < rayCount; c++)
+                for(let c = 0; c < _sunRayCount; c++)
                 {
                     RenderRay(0, 0, _randomGenerator.Int(0, 360), _maskGraphics);
                 }
@@ -226,16 +235,19 @@
 
             function GenerateGradients()
             {
-                _linearGradient = new LinearGradient();
-                _linearGradient.Insert(0, 1, 0, 0);
-                _linearGradient.Insert(0.25, 1, 1, 0);
-                _linearGradient.Insert(0.75, 0, 1, 1);
-                _linearGradient.Insert(1, 0, 0, 1);
+                _backgroundLinearGradient = new LinearGradient();
+                _backgroundLinearGradient.Insert(0, 1, 0, 0);
+                _backgroundLinearGradient.Insert(0.25, 1, 1, 0);
+                _backgroundLinearGradient.Insert(0.75, 0, 1, 1);
+                _backgroundLinearGradient.Insert(1, 0, 0, 1);
+
+                _sunLinearGradient = new LinearGradient(_backgroundLinearGradient);
+                _sunLinearGradient.Invert();
             }
 
-            function RenderGradient()
+            function RenderGradient(gradient, graphics)
             {
-                let entries = _linearGradient.Entries();
+                let entries = gradient.Entries();
 
                 const _linearGradientGeometryHeight = 1;
 
@@ -247,7 +259,7 @@
                     let c = entries[i].Color;
                     let cc = entries[i+1].Color;
 
-                    _graphics.Quad(
+                    graphics.Quad(
                         -1, h, c.ToInt(), 
                         1, h, c.ToInt(), 
                         -1, hh, cc.ToInt(),
@@ -286,16 +298,18 @@
 
             function update() 
             {
-				_deltaTime = _clock.getDelta();
+				_deltaTimeSeconds = _clock.getDelta();
 
-				_time += _deltaTime;
+                // console.log(_deltaTime);
 
-                _backgroundCubeMesh.rotation.x += 0.005;
-                _backgroundCubeMesh.rotation.z += 0.01;
+                // _backgroundCubeMesh.rotation.x += 0.005;
+                // _backgroundCubeMesh.rotation.z += 0.01;
            
                 Render();
 
                 _stats.update();
+
+                _frameCount++;
             }
 
             function onKeyDown(event) 
@@ -465,8 +479,6 @@
 						let w = Math.min(width - x, maxW);
 						let h = Math.min(height - y, maxH);
 
-						// console.log(prefix + '-' + x + '-' + y + '.png');
-
 						_renderer.setSize( w, h );
                         _composer.setSize( w, h );
 
@@ -511,7 +523,24 @@
 					name = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
 				}
 
-				canvas.toBlob(function (blob) {
+				canvas.toBlob(function (blob) 
+                {
+                    // console.log(URL.createObjectURL(blob));
+
+                    // PNGImage.readImage(URL.createObjectURL(blob), function (err, image) {
+                    //     if (err) console.log(err);
+
+                    //     // The image is in the 'image' variable if everything went well
+                    // });                    
+
+                    // blob.arrayBuffer().then((arrayBuffer) => 
+                    // {
+                    //     new PNG({ filterType: 4 }).parse(arrayBuffer, function (error, data) 
+                    //     {
+                    //         console.log(error, data);
+                    //     });
+                    // });
+
 					var a = document.createElement('a');
 					var url = URL.createObjectURL(blob);
 					a.href = url;
