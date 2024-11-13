@@ -8,9 +8,28 @@ class LinearGradient
 {
     constructor(min, max, seed) 
     {
+        this._minTime = 0;
+        this._maxTime = 0;
+       
+        this._entryArray = [];
+
         if (min === undefined)
         {
             min = 0;
+        }
+        else if (min instanceof LinearGradient)
+        {
+            this._minTime = min._minTime;
+            this._maxTime = min._maxTime;
+
+            for (var i = 0; i < min._entryArray.length; i++)
+            {
+                const e = min._entryArray[i];
+
+                this._entryArray[i] = new LinearGradientEntry(e.Time, e.Color.R(), e.Color.G(), e.Color.B(), e.Color.A());
+            }
+
+            return;
         }
 
         if (max === undefined)
@@ -18,15 +37,17 @@ class LinearGradient
             max = 1;
         }
 
-        this._minTime = 0;
-        this._maxTime = 0;
-
-        this.RandomGenerator = new RandomGenerator(seed);
-       
-        this._entryArray = [];
-
         this.Insert(min, 1, 1, 1, 1);
         this.Insert(max, 0, 0, 0, 1);
+    }
+
+    Invert()
+    {
+        for (var i = 0; i < this._entryArray.length; i++)
+        {
+            this._entryArray[i].Time = this._maxTime - this._entryArray[i].Time;
+        }
+        this._entryArray.sort((i, j) => i.Time - j.Time);
     }
     
     Insert(time, r, g, b, a)
@@ -37,8 +58,6 @@ class LinearGradient
         this._maxTime = time > this._maxTime ? time : this._maxTime;
 
         this._entryArray.push(new LinearGradientEntry(time, r, g, b, a));
-
-        // this._entryArray.sort((i, j) -> i.Time <= j.Time ? -1 : 0);
 
         this._entryArray.sort((i, j) => i.Time - j.Time);
     }
