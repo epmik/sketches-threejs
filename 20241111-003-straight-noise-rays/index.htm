@@ -303,7 +303,7 @@
 
                 // ----------------------
 
-                const rayCount = 720;
+                const rayCount = 4;
 
                 for(let c = 0; c < rayCount; c++)
                 {
@@ -338,12 +338,17 @@
 
             function RenderRay(x, y, angle)
             {
-                const thickness = 0.025;
-                const minLength = 0.1;
+                const minMinWidth = 0.001;
+                const maxMinWidth = 0.005;
+                const minMaxWidth = 0.010;
+                const maxMaxWidth = 0.025;
                 const maxLength = 0.95;
+                const minLength = 0.1;
                 const angleDeviation = MathUtility.ToRadians(8);
 
                 const length = _randomGenerator.Value(minLength, maxLength);
+                const minWidth = _randomGenerator.Value(minMinWidth, maxMinWidth);
+                const maxWidth = _randomGenerator.Value(minMaxWidth, maxMaxWidth);
 
                 angle = MathUtility.ToRadians(angle);
 
@@ -357,7 +362,7 @@
                 const xx = x + Math.sin(angle) * length;
                 const yy = x + Math.cos(angle) * length;
 
-                InsertLine(x, y, 0xff0000, thickness, xx, yy, 0x000000, thickness);
+                InsertLine(x, y, 0xff0000, minWidth, xx, yy, 0x000000, maxWidth);
             }
 
             function InsertTriangle(
