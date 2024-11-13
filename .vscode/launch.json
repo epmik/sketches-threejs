@@ -15,7 +15,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Launch Chrome localhost:3000 (npx serve)",
-            "url": "http://localhost:3000/20241111-003-straight-noise-rays/index.htm",
+            "url": "http://localhost:3000/20241111-004-straight-noise-rays-with-graphics/index.htm",
             "webRoot": "${workspaceFolder}"
         }
     ]
