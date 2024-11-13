@@ -86,7 +86,7 @@ class Color
           this._r = MathUtility.Clamp(a);
       }
 
-      CalculateHsb();
+      this.CalculateHsb();
 
       return this._r;
   }
@@ -98,7 +98,7 @@ class Color
           this._g = MathUtility.Clamp(a);
       }
 
-      CalculateHsb();
+      this.CalculateHsb();
 
       return this._g;
   }
@@ -110,7 +110,7 @@ class Color
           this._b = MathUtility.Clamp(a);
       }
 
-      CalculateHsb();
+      this.CalculateHsb();
 
       return this._b;
   }
@@ -122,7 +122,7 @@ class Color
             this._a = MathUtility.Clamp(a);
         }
 
-        CalculateHsb();
+        this.CalculateHsb();
 
         return this._a;
     }
