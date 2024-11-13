@@ -71,14 +71,14 @@
 
             let _backgroundLinearGradient, _sunLinearGradient;
             let _graphics, _maskGraphics, _backgroundGraphics;
-            const _sunRayCount = 720;
 
             let _settings = 
             {
                 downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
                 downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(4); },
                 saveTransparentBackground: true,
-                enableMask: true
+                enableMask: true,
+                sunRayCount: 720
             };
 
             init(); 
@@ -200,7 +200,7 @@
 
                 // ----------------------
 
-                for(let c = 0; c < _sunRayCount; c++)
+                for(let c = 0; c < settings.sunRayCount; c++)
                 {
                     RenderRay(0, 0, _randomGenerator.Int(0, 360), _maskGraphics);
                 }
