@@ -7,7 +7,6 @@
 		<link type="text/css" rel="stylesheet" href="main.css">
 		<script type="text/javascript" src="/js/date-extensions.js"></script>
 		<script src='https://unpkg.com/three-rt-helper'></script>
-        <script src="https://cdn.jsdelivr.net/npm/pngjs-image@0.11.7/index.min.js"></script>        
 	</head>
 
 	<body>
@@ -200,7 +199,7 @@
 
                 // ----------------------
 
-                for(let c = 0; c < settings.sunRayCount; c++)
+                for(let c = 0; c < _settings.sunRayCount; c++)
                 {
                     RenderRay(0, 0, _randomGenerator.Int(0, 360), _maskGraphics);
                 }
