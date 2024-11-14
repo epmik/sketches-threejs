@@ -19,7 +19,7 @@ class Sketch
 		// super();
 
 		this._renderer = renderer;
-		this._scene = new Scene();
+		this._scene = new THREE.Scene();
 		// this._scene.background = new THREE.Color(1, 1, 1, 0);
 		this.pixelBufferGeometry = null;
 		this.pixelPointsMaterial = null;
