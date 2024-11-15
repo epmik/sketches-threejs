@@ -24,5 +24,8 @@ https://github.com/mattdesl/three-shader-fxaa
 Radial blur
 https://github.com/ycw/three-radial-blur
 
+Kawase blur
+https://github.com/ycw/three-kawase-blur
+
 Postprocessing collection
 https://github.com/pmndrs/postprocessing
