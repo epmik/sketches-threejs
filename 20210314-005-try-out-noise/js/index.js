@@ -1,9 +1,11 @@
 
-import * as THREE from '/node_modules/three/build/three.module.js';
-import { OrbitControls } from '/node_modules/three/examples/jsm/controls/OrbitControls.js';
-import { FirstPersonControls } from '/node_modules/three/examples/jsm/controls/FirstPersonControls.js';
-import Stats from '/node_modules/three/examples/jsm/libs/stats.module.js';
-import { GUI } from "/node_modules/dat.gui/build/dat.gui.module.js";
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import Stats from 'three/addons/libs/stats.module.js';
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import glNoise from 'https://cdn.jsdelivr.net/npm/gl-noise@1.6.1/+esm'
+import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.3/+esm'
+import * as alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm';
 
 let camera, scene, renderer, stats;
 let landscapeGeometry;
@@ -36,7 +38,7 @@ animate();
 function init() 
 {
 	// var noise = new Noise(Math.random());
-	simplexNoiseJonasWagner = new SimplexNoise();
+	simplexNoiseJonasWagner = createNoise2D();
 
 	renderer = new THREE.WebGLRenderer( { antialias: true } );
 	renderer.setPixelRatio( window.devicePixelRatio );
@@ -116,7 +118,7 @@ function NoiseValue(x, z)
 		case noiseOptions.SimplexStefanGustavson:
 			return noise.simplex2(x, z);
 		case noiseOptions.SimplexJonasWagner:
-			return simplexNoiseJonasWagner.noise2D(x, z);
+			return simplexNoiseJonasWagner(x, z);
 		default:
 			throw 'unknown currentNoiseOptionType in NoiseValue(): ' + noiseSettings.CurrentNoiseOption;
 	}
