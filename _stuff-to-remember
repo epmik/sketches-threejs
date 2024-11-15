@@ -8,3 +8,21 @@ uses a right handed coordinate system
 front faces have a counter-clockwise winding order
 
 GL.TriangleStrip and GL.TriangleFan aren't supported anymore (since version 112)
+
+
+SHADERS
+
+20-something shaders: https://github.com/MasatoMakino/threejs-shader-materials
+demo: https://masatomakino.github.io/threejs-shader-materials/demo/
+
+Mesh replacement for THREE.Line Instead of using GL_LINE, it uses a strip of triangles billboarded.
+https://github.com/spite/THREE.MeshLine
+
+FXAA shader
+https://github.com/mattdesl/three-shader-fxaa
+
+Radial blur
+https://github.com/ycw/three-radial-blur
+
+Postprocessing collection
+https://github.com/pmndrs/postprocessing
