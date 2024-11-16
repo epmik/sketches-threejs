@@ -8,6 +8,8 @@ const VariableColorShader =
 {
 	name: 'VariableColorShader',
 
+	isRaw: false,
+	
 	uniforms:
 	{
 		u_color: { value: new Vector3(1, 0, 0) },
@@ -33,10 +35,10 @@ const VariableColorShader =
 		}
 		`,
 
-	// update(elapsed, time)
-	// {
-	// 	this.uniforms.u_color = new Vector3(1 + Math.sin(time) * 0.5, 1 + Math.cos(time), 1 + Math.sin(time));
-	// },
+	updateUniforms(elapsed, time)
+	{
+		this.uniforms.u_color.value = new Vector3(1 + Math.sin(time) * 0.5, 1 + Math.cos(time), 1 + Math.sin(time));
+	},
 };			
 
 export { VariableColorShader };

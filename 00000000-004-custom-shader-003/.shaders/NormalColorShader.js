@@ -7,6 +7,8 @@ const NormalColorShader =
 {
 	name: 'NormalColorShader',
 
+	isRaw: false,
+
 	uniforms:
 	{
 		seed: { value: 0.0 },
