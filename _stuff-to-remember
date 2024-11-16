@@ -12,6 +12,18 @@ GL.TriangleStrip and GL.TriangleFan aren't supported anymore (since version 112)
 
 SHADERS
 
+LYGIA Shader Library
+https://lygia.xyz/
+https://github.com/patriciogonzalezvivo/lygia/tree/main
+
+https://github.com/stegu/webgl-noise
+Noise lib for GLSL 1.20
+
+https://thebookofshaders.com/11/
+
+Generic 1,2,3 Noise shaders
+https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+
 20-something shaders: https://github.com/MasatoMakino/threejs-shader-materials
 demo: https://masatomakino.github.io/threejs-shader-materials/demo/
 
