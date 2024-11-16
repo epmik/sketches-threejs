@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - orbit controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<script type="text/javascript" src="/js/date-extensions.js"></script>
+		<script src='https://unpkg.com/three-rt-helper'></script>
+	</head>
+
+	<body>
+        <div id="container"></div>
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "/scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
+				}
+			}
+		</script>
+
+        <script type="module">
+
+            import * as THREE from 'three';
+			import * as Scrblr from 'scrblr';
+			import Stats from 'three/addons/libs/stats.module.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+            import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+            import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import * as alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm';
+			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+			import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
+			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+			import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
+			import { HueSaturationShader } from 'three/addons/shaders/HueSaturationShader.js';
+			import { HueSaturationSpecleShader } from './.shaders/HueSaturationSpecleShader.js';
+			import { SpecleShader } from './.shaders/SpecleShader.js';
+
+            let _screenCapturePrefix = "00000000.000.Template-with-animated-model-and-lighting";
+            let _effectsComposer, _useEffectsComposer = true;
+            let scene, renderer, camera, stats, controls;
+            let modelMarine, modelForestHouse, skeletonMarine, mixerMarine;
+            let spotLight, spotLightHelper;
+            //let _canvasWidth, _canvasHeight;
+            let _canvasWidth = 800, _canvasHeight = 800;
+            let _near = 1, _far = 1000, _fov = 60;
+            let _clock, _deltaTime, _time;
+
+            const crossFadeControls = [];
+
+            let idleAction, walkAction, runAction;
+            let idleWeight, walkWeight, runWeight;
+            let actions, settings;
+            let textureMap, textureCube;
+
+            let singleStepMode = false;
+            let sizeOfNextStep = 0;
+
+            let hueSaturationSpecleShader;
+
+            init();
+
+            async function init() {
+
+                const container = document.getElementById( 'container' );
+
+                _canvasWidth = _canvasWidth === undefined ? window.innerWidth : _canvasWidth;
+                _canvasHeight = _canvasHeight === undefined ? window.innerHeight : _canvasHeight;
+
+                renderer = new THREE.WebGLRenderer( { antialias: true, stencil: true, alpha: true } );
+                renderer.setPixelRatio( window.devicePixelRatio );
+                renderer.setSize( _canvasWidth, _canvasHeight );
+                renderer.shadowMap.enabled = true;
+                container.appendChild( renderer.domElement );
+
+                camera = new THREE.PerspectiveCamera( _fov, _canvasWidth /_canvasHeight, _near, _far );
+                camera.position.set( 1, 2, - 3 );
+                camera.lookAt( 0, 1, 0 );
+
+                controls = new OrbitControls( camera, renderer.domElement );
+				controls.minDistance = 2;
+				controls.maxDistance = 6;
+				controls.maxPolarAngle = Math.PI / 2;
+				controls.target.set( 0, 1, 0 );
+				controls.update();                
+
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color( 0x6fb1cd );
+                scene.fog = new THREE.Fog( 0x6fb1cd, 10, 50 );
+
+                const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x8d8d8d, 3 );
+                hemiLight.position.set( 0, 20, 0 );
+                scene.add( hemiLight );
+
+                const dirLight = new THREE.DirectionalLight( 0xffffff, 3 );
+                dirLight.position.set( - 3, 10, - 10 );
+                dirLight.castShadow = true;
+                dirLight.shadow.camera.top = 2;
+                dirLight.shadow.camera.bottom = - 2;
+                dirLight.shadow.camera.left = - 2;
+                dirLight.shadow.camera.right = 2;
+                dirLight.shadow.camera.near = 0.1;
+                dirLight.shadow.camera.far = 40;
+                // scene.add( dirLight );
+
+				spotLight = new THREE.SpotLight( 0xfeb416, 100 );
+				spotLight.position.set( 2.5, 3, 2.5 );
+				spotLight.angle = Math.PI / 6;
+				spotLight.penumbra = 1;
+				spotLight.decay = 1.3;
+				spotLight.distance = 0;
+                spotLight.intensity = 25;
+
+				spotLight.castShadow = true;
+				spotLight.shadow.mapSize.width = 1024;
+				spotLight.shadow.mapSize.height = 1024;
+				spotLight.shadow.camera.near = 1;
+				spotLight.shadow.camera.far = 10;
+				spotLight.shadow.focus = 1;
+				scene.add( spotLight );
+
+				spotLightHelper = new THREE.SpotLightHelper( spotLight );
+				scene.add( spotLightHelper );                
+
+                // TEXTURE MAP
+				textureMap = new THREE.TextureLoader().load( '../media/textures/uv_grid_opengl.jpg' );
+				textureMap.wrapS = textureMap.wrapT = THREE.RepeatWrapping;
+				textureMap.anisotropy = 16;
+				textureMap.colorSpace = THREE.SRGBColorSpace;
+
+                // REFLECTION MAP
+                const path = '../media/textures/cube/pisa/';
+				const urls = [ 'px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png' ];
+
+				textureCube = new THREE.CubeTextureLoader().setPath( path ).load( urls );
+
+                settings = {
+					'deactivate all': deactivateAllActions,
+					'activate all': activateAllActions,
+					'pause/continue': pauseContinue,
+                    'from walk to idle': function () { prepareCrossFade( walkAction, idleAction, 1.0 ); },
+                    'from idle to walk': function () { prepareCrossFade( idleAction, walkAction, 0.5 ); },
+                    'from walk to run': function () { prepareCrossFade( walkAction, runAction, 2.5 ); },
+                    'from run to walk': function () { prepareCrossFade( runAction, walkAction, 5.0 ); },
+                    'duration': 0.5,
+                    'modify idle weight': 0.0,
+                    'modify walk weight': 1.0,
+                    'modify run weight': 0.0,
+                    'color': spotLight.color.getHex(),
+					'intensity': spotLight.intensity,
+					'distance': spotLight.distance,
+					'angle': spotLight.angle,
+					'penumbra': spotLight.penumbra,
+					'decay': spotLight.decay,
+					'shadows': true,
+                    'downloadWebGLRendererAction': function () { _downloadWebGLRenderer(1); },
+                    'downloadWebGLRendererHiresAction': function () { _downloadWebGLRenderer(4); },
+                    'materialIndex': 'default',
+                    'materials': [],
+                    'modelIndex': 'marine',
+                    'models': [],
+                    'hueSaturationSpecleShaderSeed' : new Date().now,
+                    'hueSaturationSpecleShaderHue' : 1.0,
+                    'hueSaturationSpecleShaderSaturation' : -0.25,
+                    'hueSaturationSpecleShaderCoverPercentage' : 0.5
+                };
+
+				settings.materials[ 'default' ] = null;
+				settings.materials[ 'wireframe' ] = new THREE.MeshBasicMaterial( { wireframe: true } );
+				settings.materials[ 'flat' ] = new THREE.MeshPhongMaterial( { specular: 0x000000, flatShading: true, side: THREE.DoubleSide } );
+				settings.materials[ 'smooth' ] = new THREE.MeshLambertMaterial( { side: THREE.DoubleSide } );
+				settings.materials[ 'glossy' ] = new THREE.MeshPhongMaterial( { side: THREE.DoubleSide } );
+				settings.materials[ 'textured' ] = new THREE.MeshPhongMaterial( { map: textureMap, side: THREE.DoubleSide } );
+				settings.materials[ 'reflective' ] = new THREE.MeshPhongMaterial( { envMap: textureCube, side: THREE.DoubleSide } );                
+                
+				settings.models[ 'marine' ] = null;                
+				settings.models[ 'forest house' ] = null;                
+
+                // ground
+
+                const mesh = new THREE.Mesh( new THREE.PlaneGeometry( 100, 100 ), new THREE.MeshPhongMaterial( { color: 0x61ae5b, depthWrite: false } ) );
+                mesh.rotation.x = - Math.PI / 2;
+                mesh.receiveShadow = true;
+                scene.add( mesh );
+
+                const loader = new GLTFLoader();
+                loader.setPath( '../media/models/gltf/' );     
+                
+                await loader.loadAsync('Soldier.glb').then((gltf) => 
+                {
+                    settings.models[ 'marine' ] = modelMarine = gltf.scene;
+                    scene.add( modelMarine );
+
+                    modelMarine.traverse( function ( object ) {
+
+                        if ( object.isMesh ) 
+                        { 
+                            object.castShadow = true ; 
+                            object.userData.defaultMaterial = object.material;
+                        }
+                    } );
+
+                    //
+
+                    skeletonMarine = new THREE.SkeletonHelper( modelMarine );
+                    skeletonMarine.visible = false;
+                    scene.add( skeletonMarine );
+
+                    const animations = gltf.animations;
+
+                    mixerMarine = new THREE.AnimationMixer( modelMarine );
+
+                    idleAction = mixerMarine.clipAction( animations[ 0 ] );
+                    walkAction = mixerMarine.clipAction( animations[ 3 ] );
+                    runAction = mixerMarine.clipAction( animations[ 1 ] );
+
+                    actions = [ idleAction, walkAction, runAction ];
+
+                    activateAllActions();
+
+                });   
+
+                const dracoLoader = new DRACOLoader();
+				dracoLoader.setDecoderPath( '../jsm/libs/draco/gltf/' );
+				loader.setDRACOLoader( dracoLoader );
+
+                await loader.loadAsync( 'AVIFTest/forest_house.glb').then((gltf) => 
+                {
+                    settings.models[ 'forest house' ] = modelForestHouse = gltf.scene;
+                    modelForestHouse.rotation.y = Math.PI;
+                    modelForestHouse.visible = false;
+
+                    scene.add( modelForestHouse );    
+
+                    modelForestHouse.traverse( function ( object ) 
+                    {
+                        if ( object.isMesh ) 
+                        { 
+                            object.castShadow = true ; 
+                            object.userData.defaultMaterial = object.material;
+                        }
+                    });
+                });               
+
+                //
+
+                if(_useEffectsComposer)
+                {
+                    _effectsComposer = new EffectComposer( renderer );
+
+                    const renderPass = new RenderPass( scene, camera );
+                    _effectsComposer.addPass( renderPass );
+
+                    // const glitchPass = new GlitchPass();
+                    // _effectsComposer.addPass( glitchPass );
+
+                    // const specleShaderPass = new ShaderPass( SpecleShader );
+                    // specleShaderPass.uniforms.seed.value = 3;
+                    // specleShaderPass.uniforms.grayscale.value = true;
+                    // // specleShaderPass.uniforms.specleColor = new THREE.Color(1, 0, 0);
+                    // _effectsComposer.addPass( specleShaderPass );
+
+                    hueSaturationSpecleShader = new ShaderPass( HueSaturationSpecleShader );
+                    _effectsComposer.addPass( hueSaturationSpecleShader );
+
+                    const outputPass = new OutputPass();
+                    _effectsComposer.addPass( outputPass );
+
+                    console.log("Using Effects Composer");
+                }
+                else
+                {
+                    console.log("Not using Effects Composer");
+                }
+
+                //
+
+                createGui();
+
+                //
+
+                stats = new Stats();
+                container.appendChild( stats.dom );
+
+                //
+
+                _clock = new THREE.Clock();
+
+                //
+
+                window.addEventListener( 'resize', onWindowResize );
+
+                //
+
+                renderer.setAnimationLoop( update );
+
+            }
+
+            function createGui() {
+
+                const panel = new GUI( { width: 310, closeFolders: true } );
+
+                const folderAnimation = panel.addFolder( 'Animation' );
+                const folderLighting = panel.addFolder( 'Lighting' );
+                const folderShading = panel.addFolder( 'Shading' );
+                const folderModels = panel.addFolder( 'Models' );
+                const folderHueSaturation = panel.addFolder( 'Hue/Saturation' );
+
+                folderAnimation.add( settings, 'deactivate all' );
+				folderAnimation.add( settings, 'activate all' );
+				folderAnimation.add( settings, 'pause/continue' );
+
+                crossFadeControls.push( folderAnimation.add( settings, 'from walk to idle' ) );
+                crossFadeControls.push( folderAnimation.add( settings, 'from idle to walk' ) );
+                crossFadeControls.push( folderAnimation.add( settings, 'from walk to run' ) );
+                crossFadeControls.push( folderAnimation.add( settings, 'from run to walk' ) );
+
+                folderAnimation.add( settings, 'duration', 0, 4, 0.025 );
+
+                folderLighting.addColor( settings, 'color' ).onChange( function ( val ) { spotLight.color.setHex( val ); } );
+
+                folderLighting.add( settings, 'intensity', 0, 500 ).onChange( function ( val ) { spotLight.intensity = val; } );
+
+                folderLighting.add( settings, 'distance', 0, 20 ).onChange( function ( val ) { spotLight.distance = val; } );
+
+                folderLighting.add( settings, 'angle', 0, Math.PI / 3 ).onChange( function ( val ) { spotLight.angle = val; } );
+
+                folderLighting.add( settings, 'penumbra', 0, 1 ).onChange( function ( val ) { spotLight.penumbra = val; } );
+
+                folderLighting.add( settings, 'decay', 1, 2 ).onChange( function ( val ) { spotLight.decay = val; } );
+
+                folderLighting.add( settings, 'shadows' ).onChange( function ( val ) 
+                { 
+                    renderer.shadowMap.enabled = val; 
+
+                    scene.traverse( function ( child ) 
+                    {
+                        if ( child.material ) 
+                        {
+                            child.material.needsUpdate = true;
+                        }
+
+                    } );
+                } );
+
+                folderShading.add( settings, 'materialIndex', [ 'default', 'wireframe', 'flat', 'smooth', 'glossy', 'textured', 'reflective' ] ).name( 'Shading' ).onChange( function(val) 
+                {
+                    let material = settings.materials[settings.materialIndex];
+                    let model = settings.models[settings.modelIndex];
+
+                    model.traverse( function ( child ) 
+                    {
+                        if ( child.material && child.isMesh) 
+                        {
+                            child.material = material === null ? child.userData.defaultMaterial : material;
+                            child.material.needsUpdate = true;
+                        }
+
+                    } );
+                } );
+
+                folderModels.add( settings, 'modelIndex', [ 'marine', 'forest house' ] ).name( 'Model' ).onChange( function(val) 
+                {
+                    for (let m in settings.models) 
+                    {
+                        settings.models[m].visible = false;
+                    }
+
+                    let model = settings.models[settings.modelIndex];
+
+                    model.visible = true;
+                } );
+
+
+                // folderHueSaturation.add( settings, 'hueSaturationSpecleShaderSeed', 0, 1024, 1).onChange( function ( val ) { hueSaturationSpecleShader.uniforms.seed.value = val; } );
+                folderHueSaturation.add( settings, 'hueSaturationSpecleShaderHue', -1, 1, 0.1 ).onChange( function ( val ) { hueSaturationSpecleShader.uniforms.hue.value = val; } );
+                folderHueSaturation.add( settings, 'hueSaturationSpecleShaderSaturation', -1, 1, 0.1 ).onChange( function ( val ) { hueSaturationSpecleShader.uniforms.saturation.value = val; } );
+                folderHueSaturation.add( settings, 'hueSaturationSpecleShaderCoverPercentage', 0, 1, 0.01 ).onChange( function ( val ) { hueSaturationSpecleShader.uniforms.coverPercentage.value = val; } );
+
+
+                panel.add(settings, 'downloadWebGLRendererAction').name('Save screen');
+                panel.add(settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
+
+
+                folderAnimation.close();
+                folderLighting.close();
+                folderShading.close();
+                folderModels.close();
+                // folderHueSaturation.close();
+            }
+
+            function deactivateAllActions() {
+
+                actions.forEach( function ( action ) {
+
+                    action.stop();
+
+                } );
+
+            }
+
+            function activateAllActions() {
+
+                setWeight( idleAction, settings[ 'modify idle weight' ] );
+                setWeight( walkAction, settings[ 'modify walk weight' ] );
+                setWeight( runAction, settings[ 'modify run weight' ] );
+
+                actions.forEach( function ( action ) {
+
+                    action.play();
+
+                } );
+
+            }
+
+			function pauseContinue() 
+            {
+                if ( idleAction.paused ) 
+                {
+                    unPauseAllActions();
+                } 
+                else 
+                {
+                    pauseAllActions();
+                }
+            }
+
+			function pauseAllActions() 
+            {
+                actions.forEach( function ( action ) {
+
+                    action.paused = true;
+
+                } );
+            }
+
+            function unPauseAllActions() 
+            {
+                actions.forEach( function ( action ) {
+
+                    action.paused = false;
+
+                } );
+            }
+
+            function prepareCrossFade( startAction, endAction, defaultDuration ) {
+
+                // Switch default / custom crossfade duration (according to the user's choice)
+
+                const duration = setCrossFadeDuration( defaultDuration );
+
+                // Make sure that we don't go on in singleStepMode, and that all actions are unpaused
+
+                singleStepMode = false;
+                unPauseAllActions();
+
+                // If the current action is 'idle' (duration 4 sec), execute the crossfade immediately;
+                // else wait until the current action has finished its current loop
+
+                if ( startAction === idleAction ) {
+
+                    executeCrossFade( startAction, endAction, duration );
+
+                } else {
+
+                    synchronizeCrossFade( startAction, endAction, duration );
+
+                }
+
+            }
+
+            function setCrossFadeDuration( defaultDuration ) {
+
+                // Switch default crossfade duration <-> custom crossfade duration
+
+                // if ( settings[ 'use default duration' ] ) {
+
+                //     return defaultDuration;
+
+                // } else {
+
+                    return settings[ 'duration' ];
+
+                // }
+
+            }
+
+            function synchronizeCrossFade( startAction, endAction, duration ) {
+
+                mixerMarine.addEventListener( 'loop', onLoopFinished );
+
+                function onLoopFinished( event ) {
+
+                    if ( event.action === startAction ) {
+
+                        mixerMarine.removeEventListener( 'loop', onLoopFinished );
+
+                        executeCrossFade( startAction, endAction, duration );
+
+                    }
+
+                }
+
+            }
+
+            function executeCrossFade( startAction, endAction, duration ) {
+
+                // Not only the start action, but also the end action must get a weight of 1 before fading
+                // (concerning the start action this is already guaranteed in this place)
+
+                setWeight( endAction, 1 );
+                endAction.time = 0;
+
+                // Crossfade with warping - you can also try without warping by setting the third parameter to false
+
+                startAction.crossFadeTo( endAction, duration, true );
+
+            }
+
+            // This function is needed, since animationAction.crossFadeTo() disables its start action and sets
+            // the start action's timeScale to ((start animation's duration) / (end animation's duration))
+
+            function setWeight( action, weight ) {
+
+                action.enabled = true;
+                action.setEffectiveTimeScale( 1 );
+                action.setEffectiveWeight( weight );
+
+            }
+
+            // Called by the render loop
+
+            function updateCrossFadeControls() {
+
+                if ( idleWeight === 1 && walkWeight === 0 && runWeight === 0 ) {
+
+                    crossFadeControls[ 0 ].disable();
+                    crossFadeControls[ 1 ].enable();
+                    crossFadeControls[ 2 ].disable();
+                    crossFadeControls[ 3 ].disable();
+
+                }
+
+                if ( idleWeight === 0 && walkWeight === 1 && runWeight === 0 ) {
+
+                    crossFadeControls[ 0 ].enable();
+                    crossFadeControls[ 1 ].disable();
+                    crossFadeControls[ 2 ].enable();
+                    crossFadeControls[ 3 ].disable();
+
+                }
+
+                if ( idleWeight === 0 && walkWeight === 0 && runWeight === 1 ) {
+
+                    crossFadeControls[ 0 ].disable();
+                    crossFadeControls[ 1 ].disable();
+                    crossFadeControls[ 2 ].disable();
+                    crossFadeControls[ 3 ].enable();
+
+                }
+
+            }
+
+            function onWindowResize() 
+            {
+                camera.aspect = _canvasWidth / _canvasHeight;
+                camera.updateProjectionMatrix();
+
+                renderer.setSize( _canvasWidth, _canvasHeight );
+
+                if(_useEffectsComposer)
+                {
+                    _effectsComposer.setSize( _canvasWidth, _canvasHeight );
+                }
+            }
+
+            function update() 
+            {
+				_deltaTime = _clock.getDelta();
+
+				_time += _deltaTime;
+
+                idleWeight = idleAction.getEffectiveWeight();
+                walkWeight = walkAction.getEffectiveWeight();
+                runWeight = runAction.getEffectiveWeight();
+
+                // Enable/disable crossfade controls according to current weight values
+
+                updateCrossFadeControls();
+
+                // Update the animation mixer, the stats panel, and render this frame
+
+                mixerMarine.update( _deltaTime );
+
+                const time = performance.now() / 3000;
+
+				spotLight.position.x = Math.cos( time ) * 2.5;
+				spotLight.position.z = Math.sin( time ) * 2.5;
+
+				spotLightHelper.update();
+
+                if(_useEffectsComposer)
+                {
+                    _effectsComposer.render();
+                }
+                else
+                {
+                    renderer.render( scene, camera );
+                }
+
+                stats.update();
+
+            }
+
+			function _downloadWebGLRenderer(hiresScale)
+			{
+                _downloadScaledWebGLRenderer(hiresScale === undefined ? 1 : hiresScale);
+			}
+
+			function _downloadScaledWebGLRenderer(hiresScale)
+			{
+                const width = Math.round(_canvasWidth * hiresScale);
+                const height = Math.round(_canvasHeight * hiresScale);
+
+				const maxW = 2400;
+				const maxH = 2400;
+
+				const d = new Date();
+				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
+
+				for (let y = 0; y < height; y += maxH)
+				{
+					for (let x = 0; x < width; x += maxW)
+					{
+						let w = Math.min(width - x, maxW);
+						let h = Math.min(height - y, maxH);
+
+						// console.log(prefix + '-' + x + '-' + y + '.png');
+
+						renderer.setSize( w, h );
+                        if(_useEffectsComposer)
+                        {
+                            _effectsComposer.setSize(w, h);
+                        }
+
+						camera.setViewOffset(width, height, x, y, w, h);
+						
+                        if(_useEffectsComposer)
+                        {
+                            _effectsComposer.render();
+                        }
+                        else
+                        {
+                            renderer.render(scene, camera);
+                        }
+
+                        _downloadCanvasAsPng(renderer.domElement, prefix + '-' + x + '-' + y + '.png');
+					}
+				}
+
+                renderer.setSize( _canvasWidth, _canvasHeight );
+
+                if(_useEffectsComposer)
+                {
+                    _effectsComposer.setSize(_canvasWidth, _canvasHeight);
+                }
+
+                camera.clearViewOffset();
+			}
+
+			function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
+			{
+				let buffer = new Uint8ClampedArray(4 * webGLRenderTarget.width * webGLRenderTarget.height)
+
+				webGLRenderer.readRenderTargetPixels(webGLRenderTarget, 0, 0, webGLRenderTarget.width, webGLRenderTarget.height, buffer);
+
+				var canvas = document.createElement('canvas');
+
+				canvas.width = webGLRenderTarget.width;
+				canvas.height = webGLRenderTarget.height;
+
+				var context = canvas.getContext('2d');
+
+				context.putImageData(new ImageData( buffer, webGLRenderTarget.width, webGLRenderTarget.height ), 0, 0);
+
+				_downloadCanvasAsPng(canvas);
+			}
+
+			function _downloadCanvasAsPng(canvas, name)
+			{
+				if(name === null || name === undefined || name === "")
+				{
+					var d = new Date();
+
+					name = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
+				}
+
+				canvas.toBlob(function (blob) {
+					var a = document.createElement('a');
+					var url = URL.createObjectURL(blob);
+					a.href = url;
+					a.download = name;
+					a.click();
+				}, 'image/png', 1.0); 
+			}
+
+        </script>
+    </body>
+</html>        
