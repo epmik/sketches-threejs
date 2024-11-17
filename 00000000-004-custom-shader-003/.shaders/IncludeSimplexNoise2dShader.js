@@ -17,10 +17,11 @@ const IncludeSimplexNoise2dShader =
 
 	vertexShader: `
 
-		varying vec4 v_position;
+		varying vec3 v_position;
 
 		void main()
 		{
+			v_position = position;
 			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
 		}
 	`,
@@ -33,12 +34,12 @@ const IncludeSimplexNoise2dShader =
 		uniform float u_time;
 		uniform float u_noiseInputMuliplier;
 
-		varying vec4 v_position;
+		varying vec3 v_position;
 
 		void main()
 		{
 			vec3 color = vec3(snoise(gl_FragCoord.xy * u_noiseInputMuliplier) * 0.5 + 0.5);
-			//vec3 color = vec3(snoise(v_position * u_noiseInputMuliplier) * 0.5 + 0.5);
+			// vec3 color = vec3(snoise(v_position * u_noiseInputMuliplier) * 0.5 + 0.5);
 
 			gl_FragColor = vec4(color,1.0);
 		}

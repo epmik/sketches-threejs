@@ -39,6 +39,16 @@
 			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 			import * as Shaders from './.shaders/Export.module.js';
 
+			import { ShaderChunk } from 'three';
+
+			import noise2D_glsl from './.shaders/noise2D.glsl.js';
+			import noise3D_glsl from './.shaders/noise3D.glsl.js';
+			import noise4D_glsl from './.shaders/noise4D.glsl.js';
+
+			ShaderChunk['noise2D_glsl'] = noise2D_glsl;
+			ShaderChunk['noise3D_glsl'] = noise3D_glsl;
+			ShaderChunk['noise4D_glsl'] = noise4D_glsl;
+
 			let _screenCapturePrefix = "00000000-004-custom-shader-000";
 			let _camera, _controls, _scene, _renderer;
 			let _effectsComposer;
@@ -59,6 +69,7 @@
 				Shaders.VariableColorShader, 
 				Shaders.SimplexNoise2dShader, 
 				Shaders.IncludeSimplexNoise2dShader,
+				Shaders.NoisePixelDisplaceShader,
 			];
 
 			// --------------------
