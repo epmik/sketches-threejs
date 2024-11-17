@@ -6,4 +6,5 @@ libs
 */__node_modules
 */_screens
 */data
-00000000-004-custom-shader-003/.shaders/lygia
+.glsl
+lygia
