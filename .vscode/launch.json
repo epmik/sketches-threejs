@@ -15,7 +15,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Launch Chrome localhost:3000 (npx serve)",
-            "url": "http://localhost:3000/00000000-004-custom-shader-003/index.htm",
+            "url": "http://localhost:3000/00000000-005-custom-postprocessing-003/index.htm",
             "webRoot": "${workspaceFolder}"
         }
     ]
