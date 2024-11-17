@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - orbit controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+		<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+		<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+		<link rel="manifest" href="/site.webmanifest">		
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<script type="text/javascript" src="/js/date-extensions.js"></script>
+		<script src='https://unpkg.com/three-rt-helper'></script>
+	</head>
+
+	<body>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "/scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import Stats from 'three/addons/libs/stats.module.js';
+			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+			import * as Shaders from './.shaders/Export.module.js';
+			import * as Postprocessing from './.postprocessing/Export.module.js';
+
+			import { ShaderChunk } from 'three';
+
+			import noise2D_glsl from './.shaders/noise2D.glsl.js';
+			import noise3D_glsl from './.shaders/noise3D.glsl.js';
+			import noise4D_glsl from './.shaders/noise4D.glsl.js';
+
+			ShaderChunk['noise2D_glsl'] = noise2D_glsl;
+			ShaderChunk['noise3D_glsl'] = noise3D_glsl;
+			ShaderChunk['noise4D_glsl'] = noise4D_glsl;
+
+			let _screenCapturePrefix = "00000000-005-custom-postprocessing-003";
+			let _camera, _controls, _scene, _renderer;
+			let _effectsComposer;
+			let _canvasWidth = 800, _canvasHeight = 800;
+			let _sceneWidth = 1, _sceneHeight = 1;
+			let _near = 1, _far = 1000, _fov = 60;
+			let _gui, _guiActions;
+			let _clock, _deltaTime;
+			let _meshes = [];
+			let _postprocessingPassesLiteral;			
+
+			// --------------------
+
+			init();
+
+			function init() 
+			{
+				_renderer = new THREE.WebGLRenderer( { antialias: true, stencil: true, alpha: true } );
+				_renderer.setPixelRatio( window.devicePixelRatio );
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+				_renderer.setAnimationLoop( update );
+				_renderer.setClearColor(0xFFFFFF, 0);
+				_renderer.shadowMap.enabled = true;
+    			_renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+				document.body.appendChild( _renderer.domElement );
+
+				_postprocessingPassesLiteral = 
+				{
+					NoisePixelDisplacePassContainer: 
+					{
+						pass: null,
+						init: function()
+						{
+							const self = this;
+
+							this.pass = new Postprocessing.NoisePixelDisplacePass();
+
+							const settings = {
+								minXOffset: -10,
+								maxXOffset: 10,
+								minYOffset: -10,
+								maxYOffset: 10,
+								enabled: true,
+							};
+
+							function updateUniforms()
+							{
+								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
+								self.pass.uniforms.minXOffset.value = settings.minXOffset;
+								self.pass.uniforms.maxXOffset.value = settings.maxXOffset;
+								self.pass.uniforms.minYOffset.value = settings.minYOffset;
+								self.pass.uniforms.maxYOffset.value = settings.maxYOffset;
+								self.pass.enabled = settings.enabled;
+							}
+
+							const folder = _gui.addFolder('NoisePixelDisplacePass');
+
+							folder.add(settings, 'minXOffset', -100, 0, 1.0).name('Min X-Offset').onChange(updateUniforms);
+							folder.add(settings, 'maxXOffset', 0, 100, 1.0).name('Max X-Offset').onChange(updateUniforms);
+							folder.add(settings, 'minYOffset', -100, 0, 1.0).name('Min Y-Offset').onChange(updateUniforms);
+							folder.add(settings, 'maxYOffset', 0, 100, 1.0).name('Max Y-Offset').onChange(updateUniforms);
+							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+
+							updateUniforms();
+						},
+					},
+
+					RandomPixelDisplacePassContainer: 
+					{
+						pass: null,
+						init: function()
+						{
+							const self = this;
+
+							this.pass = new Postprocessing.RandomPixelDisplacePass();
+
+							const settings = {
+								minXOffset: -20,
+								maxXOffset: 20,
+								minYOffset: -20,
+								maxYOffset: 20,
+								enabled: false,
+							};
+
+							function updateUniforms()
+							{
+								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
+								self.pass.uniforms.minXOffset.value = settings.minXOffset;
+								self.pass.uniforms.maxXOffset.value = settings.maxXOffset;
+								self.pass.uniforms.minYOffset.value = settings.minYOffset;
+								self.pass.uniforms.maxYOffset.value = settings.maxYOffset;
+								self.pass.enabled = settings.enabled;
+							}
+
+							const folder = _gui.addFolder('RandomPixelDisplacePass');
+
+							folder.add(settings, 'minXOffset', -400, 0, 1.0).name('Min X-Offset').onChange(updateUniforms);
+							folder.add(settings, 'maxXOffset', 0, 400, 1.0).name('Max X-Offset').onChange(updateUniforms);
+							folder.add(settings, 'minYOffset', -400, 0, 1.0).name('Min Y-Offset').onChange(updateUniforms);
+							folder.add(settings, 'maxYOffset', 0, 400, 1.0).name('Max Y-Offset').onChange(updateUniforms);
+							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+
+							updateUniforms();
+						},
+					},
+
+					UvVisualizerPassContainer: 
+					{
+						pass: null,
+						init: function()
+						{
+							const self = this;
+
+							this.pass = new Postprocessing.UvVisualizerPass();
+
+							const settings = {
+								visualizeX: true,
+								enabled: false,
+							};
+
+							function updateUniforms()
+							{
+								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
+								self.pass.uniforms.visualizeX.value = settings.visualizeX;
+								self.pass.enabled = settings.enabled;
+							}
+
+							const folder = _gui.addFolder('UvVisualizerPass');
+
+							folder.add(settings, 'visualizeX').name('Visualize X').onChange(updateUniforms);
+							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+
+							updateUniforms();
+						},
+					},
+
+					MondriaanLinesPassContainer: 
+					{
+						pass: null,
+						init: function()
+						{
+							const self = this;
+
+							this.pass = new Postprocessing.MondriaanLinesPass();
+
+							const settings = {
+								minOffset: -0.1,
+								maxOffset: 0.1,
+								enabled: false,
+							};
+
+							function updateUniforms()
+							{
+								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
+								self.pass.uniforms.minOffset.value = settings.minOffset;
+								self.pass.uniforms.maxOffset.value = settings.maxOffset;
+								self.pass.enabled = settings.enabled;
+							}
+
+							const folder = _gui.addFolder('MondriaanLinesPass');
+
+							folder.add(settings, 'minOffset', -0.25, 0, 0.001).name('Min Offset').onChange(updateUniforms);
+							folder.add(settings, 'maxOffset',  0, 0.25, 0.001).name('Max Offset').onChange(updateUniforms);
+							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+
+							updateUniforms();
+						},
+					},
+
+					RandomPixelStretchPassContainer: 
+					{
+						pass: null,
+						init: function()
+						{
+							const self = this;
+
+							this.pass = new Postprocessing.RandomPixelStretchPass();
+
+							const settings = {
+								minOffset: -0.1,
+								maxOffset: 0.1,
+								enabled: false,
+							};
+
+							function updateUniforms()
+							{
+								self.pass.uniforms.minOffset.value = settings.minOffset;
+								self.pass.uniforms.maxOffset.value = settings.maxOffset;
+								self.pass.enabled = settings.enabled;
+							}
+
+							const folder = _gui.addFolder('RandomPixelStretchPass');
+
+							folder.add(settings, 'minOffset', -0.25, 0, 0.001).name('Min Offset').onChange(updateUniforms);
+							folder.add(settings, 'maxOffset',  0, 0.25, 0.001).name('Max Offset').onChange(updateUniforms);
+							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+
+							updateUniforms();
+						},
+					}
+				};
+
+				_camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
+				_camera.position.set(0, 2.5, 7.5 );
+				_camera.lookAt(0, 0, 0 );
+
+				_scene = new THREE.Scene();
+
+				const loader = new THREE.CubeTextureLoader();
+				const texture = loader.load([
+					'/media/textures/cube/park2/posx.jpg',
+					'/media/textures/cube/park2/negx.jpg',
+					'/media/textures/cube/park2/posy.jpg',
+					'/media/textures/cube/park2/negy.jpg',
+					'/media/textures/cube/park2/posz.jpg',
+					'/media/textures/cube/park2/negz.jpg',
+				]);
+				_scene.background = texture;				
+				// _scene.background = new THREE.Color( 0xffffff );
+
+				const lights = [];
+
+				for(var i = 0; i < 3; i++)
+				{
+					lights[ i ] = new THREE.DirectionalLight( 0xffffff, 3 );
+
+					lights[ i ].castShadow = true;
+					lights[ i ].shadow.bias = -0.001;
+					lights[ i ].shadow.mapSize.width = 2048;
+					lights[ i ].shadow.mapSize.height = 2048;
+					lights[ i ].shadow.camera.near = 0.1;
+					lights[ i ].shadow.camera.far = 500.0;
+					lights[ i ].shadow.camera.near = 0.5;
+					lights[ i ].shadow.camera.far = 500.0;
+					lights[ i ].shadow.camera.left = 100;
+					lights[ i ].shadow.camera.right = -100;
+					lights[ i ].shadow.camera.top = 100;
+					lights[ i ].shadow.camera.bottom = -100;
+
+					_scene.add( lights[ i ] );
+				}
+
+				lights[ 0 ].position.set( 0, 200, 0 );
+				lights[ 1 ].position.set( 100, 200, 100 );
+				lights[ 2 ].position.set( - 100, - 200, - 100 );
+
+
+				const controls = new OrbitControls(_camera, _renderer.domElement);
+    			controls.update();
+
+				const plane = new THREE.Mesh(
+					new THREE.PlaneGeometry(10, 10, 10, 10),
+					new THREE.MeshStandardMaterial({
+						color: 0xFFFF00,
+					}));
+				plane.castShadow = false;
+				plane.receiveShadow = true;
+				plane.position.y = -1;
+				plane.rotation.x = -Math.PI / 2;
+				_scene.add(plane);				
+			
+				// -----------------------
+	
+			let mesh = new THREE.Mesh( 
+				new THREE.SphereGeometry( 1, 16, 8 ), 
+				new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } ) );
+			mesh.castShadow = true;
+			mesh.position.x = 0;
+			mesh.position.y = 0.5;
+			mesh.position.z = -3;
+			// mesh.receiveShadow = true;
+			_meshes.push(mesh);
+			_scene.add(mesh);
+
+			mesh = new THREE.Mesh( 
+				new THREE.BoxGeometry( 1, 1, 1 ), 
+				new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } ) );
+			mesh.castShadow = true;
+			mesh.position.x = -2;
+			mesh.position.y = 0.5;
+			mesh.position.z = -3;
+			// mesh.receiveShadow = true;
+			_meshes.push(mesh);
+			_scene.add(mesh);			
+
+			mesh = new THREE.Mesh( 
+				new THREE.TorusGeometry( 0.5, 0.25, 16, 100 ), 
+				new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } ) );
+			mesh.castShadow = true;
+			mesh.position.x = 2;
+			mesh.position.y = 0.5;
+			mesh.position.z = -3;
+			// mesh.receiveShadow = true;
+			_meshes.push(mesh);
+			_scene.add(mesh);	
+
+			mesh = new THREE.Mesh( 
+				new THREE.CapsuleGeometry( 0.5, 0.5, 4, 8 ), 
+				new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } ) );
+			mesh.castShadow = true;
+			mesh.position.x = 2;
+			mesh.position.y = 0.5;
+			mesh.position.z = 0;
+			// mesh.receiveShadow = true;
+			_meshes.push(mesh);
+			_scene.add(mesh);	
+		
+				// -----------------------
+
+				_gui = new GUI();
+
+				// -----------------------
+
+				_effectsComposer = new EffectComposer( _renderer );
+
+				const renderPass = new RenderPass( _scene, _camera );
+				_effectsComposer.addPass( renderPass );
+
+				Object.keys(_postprocessingPassesLiteral).forEach(function(key, index) 
+				{
+					_postprocessingPassesLiteral[key].init();
+					_effectsComposer.addPass(_postprocessingPassesLiteral[key].pass);
+				});				
+
+				const outputPass = new OutputPass();
+				_effectsComposer.addPass( outputPass );				
+
+				// -----------------------
+
+				window.addEventListener( 'resize', onWindowResize );
+
+				_clock = new THREE.Clock();
+			}
+
+			function onWindowResize() {
+
+				_camera.aspect = _canvasWidth / _canvasHeight;
+				_camera.updateProjectionMatrix();
+
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+				_effectsComposer.setSize( _canvasWidth, _canvasHeight );
+			}
+
+			function update() 
+			{
+				const elapsed = _clock.getDelta();
+				const time = _clock.elapsedTime;
+
+				_meshes.forEach(m => {
+					m.rotation.y += 0.01;
+				});
+
+				render();
+			}
+
+			function render() 
+			{
+				_effectsComposer.render();
+			}
+
+			function _downloadWebGLRenderer()
+			{
+				const maxHiresW = 3200;
+				const maxHiresH = 3200;
+
+				if(_canvasWidth > maxHiresW || _canvasHeight > maxHiresH)
+				{
+					_downloadWebGLRendererHires();
+
+					return;
+				}
+				else
+				{
+					_renderer.render(_scene, _camera);
+
+					_downloadCanvasAsPng(_renderer.domElement);
+				}
+
+			}
+
+			function _downloadWebGLRendererHires()
+			{
+				const maxW = 1600;
+				const maxH = 1600;
+
+				const d = new Date();
+				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
+
+				for (let y = 0; y < _canvasHeight; y += maxH)
+				{
+					for (let x = 0; x < _canvasWidth; x += maxW)
+					{
+						let w = Math.min(_canvasWidth - x, maxW);
+						let h = Math.min(_canvasHeight - y, maxH);
+
+						// console.log(prefix + '-' + x + '-' + y + '.png');
+
+						_renderer.setSize( w, h );
+
+						_camera.setViewOffset(_canvasWidth, _canvasHeight, x, y, w, h);
+						
+						_renderer.render(_scene, _camera);
+
+						_downloadCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
+					}
+				}
+
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+
+				_camera.clearViewOffset();
+			}
+
+			function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
+			{
+				let buffer = new Uint8ClampedArray(4 * webGLRenderTarget.width * webGLRenderTarget.height)
+
+				webGLRenderer.readRenderTargetPixels(webGLRenderTarget, 0, 0, webGLRenderTarget.width, webGLRenderTarget.height, buffer);
+
+				var canvas = document.createElement('canvas');
+
+				canvas.width = webGLRenderTarget.width;
+				canvas.height = webGLRenderTarget.height;
+
+				var context = canvas.getContext('2d');
+
+				context.putImageData(new ImageData( buffer, webGLRenderTarget.width, webGLRenderTarget.height ), 0, 0);
+
+				_downloadCanvasAsPng(canvas);
+			}
+
+			function _downloadCanvasAsPng(canvas, name)
+			{
+				if(name === null || name === undefined || name === "")
+				{
+					var d = new Date();
+
+					name = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
+				}
+
+				canvas.toBlob(function (blob) {
+					var a = document.createElement('a');
+					var url = URL.createObjectURL(blob);
+					a.href = url;
+					a.download = name;
+					a.click();
+				}, 'image/png', 1.0); 
+			}
+
+		</script>
+
+	</body>
+</html>
