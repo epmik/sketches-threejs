@@ -40,15 +40,6 @@
 			import * as Shaders from './.shaders/Export.module.js';
 			import * as Postprocessing from './.postprocessing/Export.module.js';
 
-			import { ShaderChunk } from 'three';
-
-			import noise2D_glsl from './.shaders/noise2D.glsl.js';
-			import noise3D_glsl from './.shaders/noise3D.glsl.js';
-			import noise4D_glsl from './.shaders/noise4D.glsl.js';
-
-			ShaderChunk['noise2D_glsl'] = noise2D_glsl;
-			ShaderChunk['noise3D_glsl'] = noise3D_glsl;
-			ShaderChunk['noise4D_glsl'] = noise4D_glsl;
 
 			let _screenCapturePrefix = "00000000-005-custom-postprocessing-003";
 			let _camera, _controls, _scene, _renderer;
@@ -79,6 +70,39 @@
 
 				_postprocessingPassesLiteral = 
 				{
+					VisualizeRandomShaderPassContainer: 
+					{
+						pass: null,
+						init: function()
+						{
+							const self = this;
+
+							this.pass = new ShaderPass(Shaders.VisualizeRandomShader);
+
+							const settings = {
+								bias: 0.0,
+								visualizeX: true,
+								enabled: true,
+							};
+
+							function updateUniforms()
+							{
+								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
+								self.pass.uniforms.bias.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
+								self.pass.uniforms.visualizeX.value = settings.visualizeX;
+								self.pass.enabled = settings.enabled;
+							}
+
+							const folder = _gui.addFolder('VisualizeRandomShader');
+
+							folder.add(settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
+							folder.add(settings, 'visualizeX').name('Visualize X').onChange(updateUniforms);
+							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+
+							updateUniforms();
+						},
+					},
+
 					NoisePixelDisplacePassContainer: 
 					{
 						pass: null,
@@ -93,7 +117,7 @@
 								maxXOffset: 10,
 								minYOffset: -10,
 								maxYOffset: 10,
-								enabled: true,
+								enabled: false,
 							};
 
 							function updateUniforms()

@@ -1,11 +1,14 @@
 
-const RandomPixelStretchShader = {
+import { Vector2 } from "three";
+
+const VisualizeRandomShader = {
 
 	uniforms:
 	{
 		'tDiffuse': { value: null }, //diffuse texture
-		'minOffset': { value: -0.1 }, 
-		'maxOffset': { value:  0.1 }, 
+		'resolution': { value: new Vector2(800, 800) }, 
+		'bias': { value: 0.0 }, 
+		'visualizeX': { value: true }, 
 	},
 
 	vertexShader: /* glsl */`
@@ -20,10 +23,12 @@ const RandomPixelStretchShader = {
 	fragmentShader: /* glsl */`
 
 		uniform sampler2D tDiffuse;
-		uniform float minOffset;
-		uniform float maxOffset;
+		uniform float bias;
+		uniform vec2 resolution;
+		uniform bool visualizeX;
 
 		varying vec2 v_Uv;
+
 
 		// A single iteration of Bob Jenkins' One-At-A-Time hashing algorithm.
 		uint hash( uint x ) {
@@ -69,26 +74,29 @@ const RandomPixelStretchShader = {
 		float random( vec3 v, float min, float max ) { return min + ((max - min) * random(v)); }
 		float random( vec4 v, float min, float max ) { return min + ((max - min) * random(v)); }
 
+		// -------------------
+
+		// taken from https://youtu.be/lctXaT9pxA0?t=458
+
+		float biasValue(float x, float bias)
+		{
+			float k = pow(1.0 - bias, 3.0);
+			
+			return (x * k) / (x * k - x + 1.0);
+		}
+
+		// -------------------
+
 		void main()
 		{
-			float x = v_Uv.x + random(v_Uv.x, minOffset, maxOffset);
-			float y = v_Uv.y + random(v_Uv.y, minOffset, maxOffset);
+			// for an explanation about gl_FragCoord, see https://computergraphics.stackexchange.com/a/5725
+			vec2 p = gl_FragCoord.xy / resolution.xy;
 
-			if(x < 0.0)
-				x += maxOffset;
-			else if(x > 1.0)
-				x -= maxOffset;
-
-			if(y < 0.0)
-				y += maxOffset;
-			else if(y > 1.0)
-				y -= maxOffset;
+			float v = biasValue(random(gl_FragCoord.xy), 0.5);
 	
-			// texture1D, texture12D & texture3D are deprecated, see p99 https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.3.30.pdf
-			// gl_FragColor = texture2D(tDiffuse, vec2(x, y));
-			gl_FragColor = texture(tDiffuse, vec2(x, y));
+			gl_FragColor = vec4(v, v, v, 1.0);
 		}`
 
 };
 
-export { RandomPixelStretchShader };
+export { VisualizeRandomShader };
