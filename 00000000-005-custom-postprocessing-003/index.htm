@@ -70,34 +70,80 @@
 
 				_postprocessingPassesLiteral = 
 				{
+					VisualizeNoiseShaderPassContainer: 
+					{
+						pass: null,
+						settings: null,
+						folder: null,
+						enabled: false,
+						init: function()
+						{
+							const self = this;
+
+							this.pass = new ShaderPass(Shaders.VisualizeNoiseShader);
+
+							this.settings = {
+								bias: 0.0,
+								noiseFuncionType: 0,
+								blackAndWhite: false,
+								multiplier: 0.01,
+							};
+
+							function updateUniforms()
+							{
+								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
+								self.pass.uniforms.bias.value = self.settings.bias;
+								self.pass.uniforms.noiseFuncionType.value = self.settings.noiseFuncionType;
+								self.pass.uniforms.blackAndWhite.value = self.settings.blackAndWhite;
+								self.pass.uniforms.multiplier.value = new THREE.Vector3(self.settings.multiplier, self.settings.multiplier, self.settings.multiplier);
+								self.pass.enabled = self.enabled;
+							}
+
+							this.folder = _gui.addFolder('VisualizeNoiseShader');
+
+							this.folder.add(this.settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
+							this.folder.add(this.settings, 'noiseFuncionType', 0, 3, 1).name('Noise Implementation').onChange(updateUniforms);
+							this.folder.add(this.settings, 'blackAndWhite').name('B & W').onChange(updateUniforms);
+							this.folder.add(this.settings, 'multiplier', 0, 0.25, 0.0005).name('Noise Multiplier').onChange(updateUniforms);
+							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
+
+							updateUniforms();
+						},
+					},
+
 					VisualizeRandomShaderPassContainer: 
 					{
 						pass: null,
+						settings: null,
+						folder: null,
+						enabled: false,
 						init: function()
 						{
 							const self = this;
 
 							this.pass = new ShaderPass(Shaders.VisualizeRandomShader);
 
-							const settings = {
+							this.settings = {
 								bias: 0.0,
-								visualizeX: true,
-								enabled: true,
+								randomFuncionType: 0,
+								blackAndWhite: false,
 							};
 
 							function updateUniforms()
 							{
 								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
-								self.pass.uniforms.bias.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
-								self.pass.uniforms.visualizeX.value = settings.visualizeX;
-								self.pass.enabled = settings.enabled;
+								self.pass.uniforms.bias.value = self.settings.bias;
+								self.pass.uniforms.randomFuncionType.value = self.settings.randomFuncionType;
+								self.pass.uniforms.blackAndWhite.value = self.settings.blackAndWhite;
+								self.pass.enabled = self.enabled;
 							}
 
-							const folder = _gui.addFolder('VisualizeRandomShader');
+							this.folder = _gui.addFolder('VisualizeRandomShader');
 
-							folder.add(settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
-							folder.add(settings, 'visualizeX').name('Visualize X').onChange(updateUniforms);
-							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+							this.folder.add(this.settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
+							this.folder.add(this.settings, 'randomFuncionType', 0, 3, 1).name('Random Mode').onChange(updateUniforms);
+							this.folder.add(this.settings, 'blackAndWhite').name('B & W').onChange(updateUniforms);
+							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
 
 							updateUniforms();
 						},
@@ -106,37 +152,39 @@
 					NoisePixelDisplacePassContainer: 
 					{
 						pass: null,
+						settings: null,
+						folder: null,
+						enabled: false,
 						init: function()
 						{
 							const self = this;
 
 							this.pass = new Postprocessing.NoisePixelDisplacePass();
 
-							const settings = {
+							this.settings = {
 								minXOffset: -10,
 								maxXOffset: 10,
 								minYOffset: -10,
 								maxYOffset: 10,
-								enabled: false,
 							};
 
 							function updateUniforms()
 							{
 								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
-								self.pass.uniforms.minXOffset.value = settings.minXOffset;
-								self.pass.uniforms.maxXOffset.value = settings.maxXOffset;
-								self.pass.uniforms.minYOffset.value = settings.minYOffset;
-								self.pass.uniforms.maxYOffset.value = settings.maxYOffset;
-								self.pass.enabled = settings.enabled;
+								self.pass.uniforms.minXOffset.value = self.settings.minXOffset;
+								self.pass.uniforms.maxXOffset.value = self.settings.maxXOffset;
+								self.pass.uniforms.minYOffset.value = self.settings.minYOffset;
+								self.pass.uniforms.maxYOffset.value = self.settings.maxYOffset;
+								self.pass.enabled = self.enabled;
 							}
 
-							const folder = _gui.addFolder('NoisePixelDisplacePass');
+							this.folder = _gui.addFolder('NoisePixelDisplacePass');
 
-							folder.add(settings, 'minXOffset', -100, 0, 1.0).name('Min X-Offset').onChange(updateUniforms);
-							folder.add(settings, 'maxXOffset', 0, 100, 1.0).name('Max X-Offset').onChange(updateUniforms);
-							folder.add(settings, 'minYOffset', -100, 0, 1.0).name('Min Y-Offset').onChange(updateUniforms);
-							folder.add(settings, 'maxYOffset', 0, 100, 1.0).name('Max Y-Offset').onChange(updateUniforms);
-							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+							this.folder.add(this.settings, 'minXOffset', -100, 0, 1.0).name('Min X-Offset').onChange(updateUniforms);
+							this.folder.add(this.settings, 'maxXOffset', 0, 100, 1.0).name('Max X-Offset').onChange(updateUniforms);
+							this.folder.add(this.settings, 'minYOffset', -100, 0, 1.0).name('Min Y-Offset').onChange(updateUniforms);
+							this.folder.add(this.settings, 'maxYOffset', 0, 100, 1.0).name('Max Y-Offset').onChange(updateUniforms);
+							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
 
 							updateUniforms();
 						},
@@ -145,37 +193,39 @@
 					RandomPixelDisplacePassContainer: 
 					{
 						pass: null,
+						settings: null,
+						folder: null,
+						enabled: false,
 						init: function()
 						{
 							const self = this;
 
 							this.pass = new Postprocessing.RandomPixelDisplacePass();
 
-							const settings = {
+							this.settings = {
 								minXOffset: -20,
 								maxXOffset: 20,
 								minYOffset: -20,
 								maxYOffset: 20,
-								enabled: false,
 							};
 
 							function updateUniforms()
 							{
 								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
-								self.pass.uniforms.minXOffset.value = settings.minXOffset;
-								self.pass.uniforms.maxXOffset.value = settings.maxXOffset;
-								self.pass.uniforms.minYOffset.value = settings.minYOffset;
-								self.pass.uniforms.maxYOffset.value = settings.maxYOffset;
-								self.pass.enabled = settings.enabled;
+								self.pass.uniforms.minXOffset.value = self.settings.minXOffset;
+								self.pass.uniforms.maxXOffset.value = self.settings.maxXOffset;
+								self.pass.uniforms.minYOffset.value = self.settings.minYOffset;
+								self.pass.uniforms.maxYOffset.value = self.settings.maxYOffset;
+								self.pass.enabled = self.enabled;
 							}
 
-							const folder = _gui.addFolder('RandomPixelDisplacePass');
+							this.folder = _gui.addFolder('RandomPixelDisplacePass');
 
-							folder.add(settings, 'minXOffset', -400, 0, 1.0).name('Min X-Offset').onChange(updateUniforms);
-							folder.add(settings, 'maxXOffset', 0, 400, 1.0).name('Max X-Offset').onChange(updateUniforms);
-							folder.add(settings, 'minYOffset', -400, 0, 1.0).name('Min Y-Offset').onChange(updateUniforms);
-							folder.add(settings, 'maxYOffset', 0, 400, 1.0).name('Max Y-Offset').onChange(updateUniforms);
-							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+							this.folder.add(this.settings, 'minXOffset', -400, 0, 1.0).name('Min X-Offset').onChange(updateUniforms);
+							this.folder.add(this.settings, 'maxXOffset', 0, 400, 1.0).name('Max X-Offset').onChange(updateUniforms);
+							this.folder.add(this.settings, 'minYOffset', -400, 0, 1.0).name('Min Y-Offset').onChange(updateUniforms);
+							this.folder.add(this.settings, 'maxYOffset', 0, 400, 1.0).name('Max Y-Offset').onChange(updateUniforms);
+							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
 
 							updateUniforms();
 						},
@@ -184,28 +234,30 @@
 					UvVisualizerPassContainer: 
 					{
 						pass: null,
+						settings: null,
+						folder: null,
+						enabled: false,
 						init: function()
 						{
 							const self = this;
 
 							this.pass = new Postprocessing.UvVisualizerPass();
 
-							const settings = {
+							this.settings = {
 								visualizeX: true,
-								enabled: false,
 							};
 
 							function updateUniforms()
 							{
 								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
-								self.pass.uniforms.visualizeX.value = settings.visualizeX;
-								self.pass.enabled = settings.enabled;
+								self.pass.uniforms.visualizeX.value = self.settings.visualizeX;
+								self.pass.enabled = self.enabled;
 							}
 
-							const folder = _gui.addFolder('UvVisualizerPass');
+							this.folder = _gui.addFolder('UvVisualizerPass');
 
-							folder.add(settings, 'visualizeX').name('Visualize X').onChange(updateUniforms);
-							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+							this.folder.add(this.settings, 'visualizeX').name('Visualize X').onChange(updateUniforms);
+							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
 
 							updateUniforms();
 						},
@@ -214,31 +266,33 @@
 					MondriaanLinesPassContainer: 
 					{
 						pass: null,
+						settings: null,
+						folder: null,
+						enabled: false,
 						init: function()
 						{
 							const self = this;
 
 							this.pass = new Postprocessing.MondriaanLinesPass();
 
-							const settings = {
+							this.settings = {
 								minOffset: -0.1,
 								maxOffset: 0.1,
-								enabled: false,
 							};
 
 							function updateUniforms()
 							{
 								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
-								self.pass.uniforms.minOffset.value = settings.minOffset;
-								self.pass.uniforms.maxOffset.value = settings.maxOffset;
-								self.pass.enabled = settings.enabled;
+								self.pass.uniforms.minOffset.value = self.settings.minOffset;
+								self.pass.uniforms.maxOffset.value = self.settings.maxOffset;
+								self.pass.enabled = self.enabled;
 							}
 
-							const folder = _gui.addFolder('MondriaanLinesPass');
+							this.folder = _gui.addFolder('MondriaanLinesPass');
 
-							folder.add(settings, 'minOffset', -0.25, 0, 0.001).name('Min Offset').onChange(updateUniforms);
-							folder.add(settings, 'maxOffset',  0, 0.25, 0.001).name('Max Offset').onChange(updateUniforms);
-							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+							this.folder.add(this.settings, 'minOffset', -0.25, 0, 0.001).name('Min Offset').onChange(updateUniforms);
+							this.folder.add(this.settings, 'maxOffset',  0, 0.25, 0.001).name('Max Offset').onChange(updateUniforms);
+							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
 
 							updateUniforms();
 						},
@@ -247,30 +301,32 @@
 					RandomPixelStretchPassContainer: 
 					{
 						pass: null,
+						settings: null,
+						folder: null,
+						enabled: false,
 						init: function()
 						{
 							const self = this;
 
 							this.pass = new Postprocessing.RandomPixelStretchPass();
 
-							const settings = {
+							this.settings = {
 								minOffset: -0.1,
 								maxOffset: 0.1,
-								enabled: false,
 							};
 
 							function updateUniforms()
 							{
-								self.pass.uniforms.minOffset.value = settings.minOffset;
-								self.pass.uniforms.maxOffset.value = settings.maxOffset;
-								self.pass.enabled = settings.enabled;
+								self.pass.uniforms.minOffset.value = self.settings.minOffset;
+								self.pass.uniforms.maxOffset.value = self.settings.maxOffset;
+								self.pass.enabled = self.enabled;
 							}
 
-							const folder = _gui.addFolder('RandomPixelStretchPass');
+							this.folder = _gui.addFolder('RandomPixelStretchPass');
 
-							folder.add(settings, 'minOffset', -0.25, 0, 0.001).name('Min Offset').onChange(updateUniforms);
-							folder.add(settings, 'maxOffset',  0, 0.25, 0.001).name('Max Offset').onChange(updateUniforms);
-							folder.add(settings, 'enabled').name('Enable/disable').onChange(updateUniforms);
+							this.folder.add(this.settings, 'minOffset', -0.25, 0, 0.001).name('Min Offset').onChange(updateUniforms);
+							this.folder.add(this.settings, 'maxOffset',  0, 0.25, 0.001).name('Max Offset').onChange(updateUniforms);
+							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
 
 							updateUniforms();
 						},
@@ -393,11 +449,37 @@
 				const renderPass = new RenderPass( _scene, _camera );
 				_effectsComposer.addPass( renderPass );
 
+				let shaderEnabled = false;
+
 				Object.keys(_postprocessingPassesLiteral).forEach(function(key, index) 
 				{
 					_postprocessingPassesLiteral[key].init();
+					_postprocessingPassesLiteral[key].folder.close();
 					_effectsComposer.addPass(_postprocessingPassesLiteral[key].pass);
 				});				
+
+				Object.keys(_postprocessingPassesLiteral).forEach(function(key, index) 
+				{
+					if(!shaderEnabled && _postprocessingPassesLiteral[key].enabled)
+					{
+						_postprocessingPassesLiteral[key].folder.open();
+						shaderEnabled = true;
+					}
+				});				
+
+				if(!shaderEnabled)
+				{
+					Object.keys(_postprocessingPassesLiteral).forEach(function(key, index) 
+					{
+						if(!shaderEnabled)
+						{
+							_postprocessingPassesLiteral[key].enabled = true;
+							_postprocessingPassesLiteral[key].folder.open();
+							shaderEnabled = true;							
+						}
+					});				
+				}
+
 
 				const outputPass = new OutputPass();
 				_effectsComposer.addPass( outputPass );				

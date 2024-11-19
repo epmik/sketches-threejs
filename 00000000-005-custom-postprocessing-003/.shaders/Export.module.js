@@ -4,6 +4,7 @@ export { MondriaanLinesShader } from '../.shaders/MondriaanLinesShader.js';
 export { UvVisualizerShader } from '../.shaders/UvVisualizerShader.js';
 export { RandomPixelDisplaceShader } from '../.shaders/RandomPixelDisplaceShader.js';
 export { VisualizeRandomShader } from '../.shaders/VisualizeRandomShader.js';
+export { VisualizeNoiseShader } from '../.shaders/VisualizeNoiseShader.js';
 
 import { ShaderChunk } from 'three';
 
