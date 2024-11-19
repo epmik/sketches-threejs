@@ -5,6 +5,7 @@ export { UvVisualizerShader } from '../.shaders/UvVisualizerShader.js';
 export { RandomPixelDisplaceShader } from '../.shaders/RandomPixelDisplaceShader.js';
 export { VisualizeRandomShader } from '../.shaders/VisualizeRandomShader.js';
 export { VisualizeNoiseShader } from '../.shaders/VisualizeNoiseShader.js';
+export { OvercastSkyShader } from '../.shaders/OvercastSkyShader.js';
 
 import { ShaderChunk } from 'three';
 

@@ -39,7 +39,7 @@
 			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 			import * as Shaders from './.shaders/Export.module.js';
 			import * as Postprocessing from './.postprocessing/Export.module.js';
-			import resolveLygia from "https://lygia.xyz/resolve.esm.js";
+			// import resolveLygia from "https://lygia.xyz/resolve.esm.js";
 
 			let _screenCapturePrefix = "00000000-005-custom-postprocessing-003";
 			let _camera, _controls, _scene, _renderer;
@@ -55,8 +55,8 @@
 			// --------------------
 
 			// ASync resolver, all includes in parallel calls
-			let vertSource = resolveLygia('#include lygia/generative/fbm.glsl');
-    		let fragSource = resolveLygia('#include lygia/generative/fbm.glsl');
+			// let vertSource = resolveLygia('#include lygia/generative/fbm.glsl');
+    		// let fragSource = resolveLygia('#include lygia/generative/fbm.glsl');
 
 			// --------------------
 
@@ -76,6 +76,55 @@
 
 				_postprocessingPassesLiteral = 
 				{
+					OvercastSkyShaderPassContainer: 
+					{
+						pass: null,
+						settings: null,
+						folder: null,
+						enabled: true,
+						update: function()
+						{
+							this.pass.uniforms.time.value = this.settings.time += this.settings.timeSpeed;
+						},
+						init: function()
+						{
+							const self = this;
+
+							this.pass = new ShaderPass(Shaders.OvercastSkyShader);
+
+							this.settings = {
+								bias: 0.0,
+								noiseFuncionType: 0,
+								blackAndWhite: false,
+								multiplier: 1,
+								time: 0.0,
+								timeSpeed: 0.01,
+							};
+
+							function updateUniforms()
+							{
+								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
+								self.pass.uniforms.bias.value = self.settings.bias;
+								self.pass.uniforms.noiseFuncionType.value = self.settings.noiseFuncionType;
+								self.pass.uniforms.blackAndWhite.value = self.settings.blackAndWhite;
+								self.pass.uniforms.multiplier.value = new THREE.Vector3(self.settings.multiplier, self.settings.multiplier, self.settings.multiplier);
+								self.pass.uniforms.time.value = self.settings.time;
+								self.pass.enabled = self.enabled;
+							}
+
+							this.folder = _gui.addFolder('VisualizeNoiseShader');
+
+							this.folder.add(this.settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
+							this.folder.add(this.settings, 'noiseFuncionType', { 'Classic': 0, 'Ken Perlin': 1, 'Simplex': 2, 'Gradient': 3, 'Fbm': 4, 'Voronoi': 4 }).name('Noise Implementation').onChange(updateUniforms);
+							this.folder.add(this.settings, 'blackAndWhite').name('B & W').onChange(updateUniforms);
+							this.folder.add(this.settings, 'multiplier', 0, 4.0, 0.05).name('Noise Multiplier').onChange(updateUniforms);
+							this.folder.add(this.settings, 'timeSpeed', 0, 1.0, 0.01).name('Time Speed');
+							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
+
+							updateUniforms();
+						},
+					},
+
 					VisualizeNoiseShaderPassContainer: 
 					{
 						pass: null,
@@ -108,7 +157,7 @@
 							this.folder = _gui.addFolder('VisualizeNoiseShader');
 
 							this.folder.add(this.settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
-							this.folder.add(this.settings, 'noiseFuncionType', 0, 3, 1).name('Noise Implementation').onChange(updateUniforms);
+							this.folder.add(this.settings, 'noiseFuncionType', { 'Classic': 0, 'Ken Perlin': 1, 'Simplex': 2, 'Gradient': 3, 'Fbm': 4, 'Voronoi': 4 }).name('Noise Implementation').onChange(updateUniforms);
 							this.folder.add(this.settings, 'blackAndWhite').name('B & W').onChange(updateUniforms);
 							this.folder.add(this.settings, 'multiplier', 0, 0.25, 0.0005).name('Noise Multiplier').onChange(updateUniforms);
 							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
@@ -147,7 +196,7 @@
 							this.folder = _gui.addFolder('VisualizeRandomShader');
 
 							this.folder.add(this.settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
-							this.folder.add(this.settings, 'randomFuncionType', 0, 3, 1).name('Random Mode').onChange(updateUniforms);
+							this.folder.add(this.settings, 'randomFuncionType', { 'Lygia': 0, '1-liner': 1, 'Golden Ratio': 2, 'Improved 1-liner': 3, 'Int Hash': 4 }).name('Random Implementation').onChange(updateUniforms);
 							this.folder.add(this.settings, 'blackAndWhite').name('B & W').onChange(updateUniforms);
 							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
 
@@ -514,6 +563,15 @@
 				_meshes.forEach(m => {
 					m.rotation.y += 0.01;
 				});
+
+			
+				Object.keys(_postprocessingPassesLiteral).forEach(function(key, index) 
+				{
+					if(_postprocessingPassesLiteral[key].update !== undefined)
+					{
+						_postprocessingPassesLiteral[key].update();
+					}
+				});		
 
 				render();
 			}
