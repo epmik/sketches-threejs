@@ -39,7 +39,7 @@
 			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 			import * as Shaders from './.shaders/Export.module.js';
 			import * as Postprocessing from './.postprocessing/Export.module.js';
-
+			import resolveLygia from "https://lygia.xyz/resolve.esm.js";
 
 			let _screenCapturePrefix = "00000000-005-custom-postprocessing-003";
 			let _camera, _controls, _scene, _renderer;
@@ -51,6 +51,12 @@
 			let _clock, _deltaTime;
 			let _meshes = [];
 			let _postprocessingPassesLiteral;			
+
+			// --------------------
+
+			// ASync resolver, all includes in parallel calls
+			let vertSource = resolveLygia('#include lygia/generative/fbm.glsl');
+    		let fragSource = resolveLygia('#include lygia/generative/fbm.glsl');
 
 			// --------------------
 
