@@ -81,7 +81,7 @@
 						pass: null,
 						settings: null,
 						folder: null,
-						enabled: true,
+						enabled: false,
 						update: function()
 						{
 							this.pass.uniforms.time.value = this.settings.time += this.settings.timeSpeed;
@@ -112,7 +112,7 @@
 								self.pass.enabled = self.enabled;
 							}
 
-							this.folder = _gui.addFolder('VisualizeNoiseShader');
+							this.folder = _gui.addFolder('OvercastSkyShader');
 
 							this.folder.add(this.settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
 							this.folder.add(this.settings, 'noiseFuncionType', { 'Classic': 0, 'Ken Perlin': 1, 'Simplex': 2, 'Gradient': 3, 'Fbm': 4, 'Voronoi': 4 }).name('Noise Implementation').onChange(updateUniforms);
@@ -130,7 +130,7 @@
 						pass: null,
 						settings: null,
 						folder: null,
-						enabled: false,
+						enabled: true,
 						init: function()
 						{
 							const self = this;
@@ -141,7 +141,13 @@
 								bias: 0.0,
 								noiseFuncionType: 0,
 								blackAndWhite: false,
-								multiplier: 0.01,
+								multiplierX: 0.01,
+								multiplierY: 0.01,
+								octaves: 4,
+								amplitude: 1.0,
+								frequency: 1.00,
+								lacunarity: 2.00,
+								persistence: 0.50,
 							};
 
 							function updateUniforms()
@@ -150,16 +156,27 @@
 								self.pass.uniforms.bias.value = self.settings.bias;
 								self.pass.uniforms.noiseFuncionType.value = self.settings.noiseFuncionType;
 								self.pass.uniforms.blackAndWhite.value = self.settings.blackAndWhite;
-								self.pass.uniforms.multiplier.value = new THREE.Vector3(self.settings.multiplier, self.settings.multiplier, self.settings.multiplier);
+								self.pass.uniforms.multiplier.value = new THREE.Vector3(self.settings.multiplierX, self.settings.multiplierY, 1.0);
 								self.pass.enabled = self.enabled;
+								self.pass.uniforms.octaves.value = self.settings.octaves;
+								self.pass.uniforms.amplitude.value = self.settings.amplitude;
+								self.pass.uniforms.frequency.value = self.settings.frequency;
+								self.pass.uniforms.lacunarity.value = self.settings.lacunarity;
+								self.pass.uniforms.persistence.value = self.settings.persistence;
 							}
 
 							this.folder = _gui.addFolder('VisualizeNoiseShader');
 
 							this.folder.add(this.settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
-							this.folder.add(this.settings, 'noiseFuncionType', { 'Classic': 0, 'Ken Perlin': 1, 'Simplex': 2, 'Gradient': 3, 'Fbm': 4, 'Voronoi': 4 }).name('Noise Implementation').onChange(updateUniforms);
+							this.folder.add(this.settings, 'noiseFuncionType', { 'Classic': 0, 'Ken Perlin': 1, 'Simplex': 2, 'Gradient': 3, 'Fbm': 4, 'Summed Simplex': 5 }).name('Noise Implementation').onChange(updateUniforms);
 							this.folder.add(this.settings, 'blackAndWhite').name('B & W').onChange(updateUniforms);
-							this.folder.add(this.settings, 'multiplier', 0, 0.25, 0.0005).name('Noise Multiplier').onChange(updateUniforms);
+							this.folder.add(this.settings, 'multiplierX', 0, 0.25, 0.0005).name('Noise X Multiplier').onChange(updateUniforms);
+							this.folder.add(this.settings, 'multiplierY', 0, 0.25, 0.0005).name('Noise Y Multiplier').onChange(updateUniforms);
+							this.folder.add(this.settings, 'octaves', 1, 12, 1).name('Noise Octaves').onChange(updateUniforms);
+							this.folder.add(this.settings, 'amplitude', 0.01, 2.00, 0.01).name('Noise Amplitude').onChange(updateUniforms);
+							this.folder.add(this.settings, 'frequency', 0.25, 2.00, 0.05).name('Noise Frequency').onChange(updateUniforms);
+							this.folder.add(this.settings, 'lacunarity', 0.20, 4.00, 0.1).name('Noise Lacunarity').onChange(updateUniforms);
+							this.folder.add(this.settings, 'persistence', 0.20, 4.00, 0.1).name('Noise Persistence').onChange(updateUniforms);
 							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
 
 							updateUniforms();
