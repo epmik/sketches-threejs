@@ -42,7 +42,7 @@ class Graphics
             this._triangleGeometryBuffer.attributes.position.usage = THREE.DynamicDrawUsage;
             this._triangleGeometryBuffer.attributes.color.usage = THREE.DynamicDrawUsage;
     
-            this._triangleGeometryMaterial = new THREE.MeshBasicMaterial({ wireframe: false, side: THREE.DoubleSide, vertexColors: true });
+            this._triangleGeometryMaterial = new THREE.MeshBasicMaterial({ wireframe: false, side: THREE.DoubleSide, vertexColors: true, transparent: false, opacity: 0.5 });
     
             this._triangleGeometryBufferMesh = new THREE.Mesh( this._triangleGeometryBuffer, this._triangleGeometryMaterial);
 
@@ -55,19 +55,19 @@ class Graphics
         const co0 = new THREE.Color(c0);
 
         this._triangleGeometryBuffer.attributes.position.setXYZ(this._triangleGeometryBufferElementCount, x0, y0, 0);                    
-        this._triangleGeometryBuffer.attributes.color.setXYZW(this._triangleGeometryBufferElementCount, co0.r, co0.g, co0.b, 1);
+        this._triangleGeometryBuffer.attributes.color.setXYZW(this._triangleGeometryBufferElementCount, co0.r, co0.g, co0.b, co0.a);
         this._triangleGeometryBufferElementCount++;
 
         const co1 = new THREE.Color(c1);
 
         this._triangleGeometryBuffer.attributes.position.setXYZ(this._triangleGeometryBufferElementCount, x1, y1, 0);                    
-        this._triangleGeometryBuffer.attributes.color.setXYZW(this._triangleGeometryBufferElementCount, co1.r, co1.g, co1.b, 1);
+        this._triangleGeometryBuffer.attributes.color.setXYZW(this._triangleGeometryBufferElementCount, co1.r, co1.g, co1.b, co1.a);
         this._triangleGeometryBufferElementCount++;
 
         const co2 = new THREE.Color(c2);
 
         this._triangleGeometryBuffer.attributes.position.setXYZ(this._triangleGeometryBufferElementCount, x2, y2, 0);                    
-        this._triangleGeometryBuffer.attributes.color.setXYZW(this._triangleGeometryBufferElementCount, co2.r, co2.g, co2.b, 1);
+        this._triangleGeometryBuffer.attributes.color.setXYZW(this._triangleGeometryBufferElementCount, co2.r, co2.g, co2.b, co2.a);
         this._triangleGeometryBufferElementCount++;
 
         this._triangleGeometryBuffer.setDrawRange(0, this._triangleGeometryBufferElementCount);
