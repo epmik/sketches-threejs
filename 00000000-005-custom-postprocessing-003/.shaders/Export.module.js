@@ -6,6 +6,7 @@ export { RandomPixelDisplaceShader } from '../.shaders/RandomPixelDisplaceShader
 export { VisualizeRandomShader } from '../.shaders/VisualizeRandomShader.js';
 export { VisualizeNoiseShader } from '../.shaders/VisualizeNoiseShader.js';
 export { OvercastSkyShader } from '../.shaders/OvercastSkyShader.js';
+export { ColorAdjustShader } from '../.shaders/ColorAdjustShader.js';
 
 import { ShaderChunk } from 'three';
 

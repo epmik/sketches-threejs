@@ -76,6 +76,53 @@
 
 				_postprocessingPassesLiteral = 
 				{
+					ColorAdjustShaderPassContainer: 
+					{
+						pass: null,
+						settings: null,
+						folder: null,
+						enabled: true,
+						// update: function()
+						// {
+						// 	this.pass.uniforms.time.value = this.settings.time += this.settings.timeSpeed;
+						// },
+						init: function()
+						{
+							const self = this;
+
+							this.pass = new ShaderPass(Shaders.ColorAdjustShader);
+
+							this.settings = {
+								hue: 0.0,
+								saturation: 0.0,
+								brightness: 0.0,
+								contrast: 0.0,
+								coverPercentage: 1.0,
+							};
+
+							function updateUniforms()
+							{
+								self.pass.uniforms.hue.value = self.settings.hue;
+								self.pass.uniforms.saturation.value = self.settings.saturation;
+								self.pass.uniforms.brightness.value = self.settings.brightness;
+								self.pass.uniforms.contrast.value = self.settings.contrast;
+								self.pass.uniforms.coverPercentage.value = self.settings.coverPercentage;
+								self.pass.enabled = self.enabled;
+							}
+
+							this.folder = _gui.addFolder('ColorAdjustShader');
+
+							this.folder.add(this.settings, 'hue', -1.0, 1.0, 0.02).name('Hue').onChange(updateUniforms);
+							this.folder.add(this.settings, 'saturation', -1.0, 1.0, 0.02).name('Saturation').onChange(updateUniforms);
+							this.folder.add(this.settings, 'brightness', -1.0, 1.0, 0.02).name('Brightness').onChange(updateUniforms);
+							this.folder.add(this.settings, 'contrast', -1.0, 1.0, 0.02).name('Contrast').onChange(updateUniforms);
+							this.folder.add(this.settings, 'coverPercentage', 0.0, 1.0, 0.01).name('Cover Percentage').onChange(updateUniforms);
+							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
+
+							updateUniforms();
+						},
+					},
+
 					OvercastSkyShaderPassContainer: 
 					{
 						pass: null,
@@ -226,7 +273,7 @@
 						pass: null,
 						settings: null,
 						folder: null,
-						enabled: true,
+						enabled: false,
 						init: function()
 						{
 							const self = this;
