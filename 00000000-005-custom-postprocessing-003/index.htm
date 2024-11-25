@@ -354,19 +354,27 @@
 							this.pass = new Postprocessing.UvVisualizerPass();
 
 							this.settings = {
-								visualizeX: true,
+								visualizeXaxis: true,
+								visualizeType: 0,
 							};
 
 							function updateUniforms()
 							{
 								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
-								self.pass.uniforms.visualizeX.value = self.settings.visualizeX;
+								self.pass.uniforms.visualizeXaxis.value = self.settings.visualizeXaxis;
+								self.pass.uniforms.visualizeType.value = self.settings.visualizeType;
 								self.pass.enabled = self.enabled;
 							}
 
 							this.folder = _gui.addFolder('UvVisualizerPass');
 
-							this.folder.add(this.settings, 'visualizeX').name('Visualize X').onChange(updateUniforms);
+							this.folder.add(this.settings, 'visualizeXaxis').name('Visualize X-axis').onChange(updateUniforms);
+							this.folder.add(this.settings, 'visualizeType', 
+								{ 
+									"Uv's": 0, 
+									"gl_FragCoord.xy / resolution.xy": 1,
+							 	})
+								.name('Visualize Types').onChange(updateUniforms);
 							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
 
 							updateUniforms();

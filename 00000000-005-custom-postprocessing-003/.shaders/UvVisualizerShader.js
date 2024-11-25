@@ -7,7 +7,8 @@ const UvVisualizerShader = {
 	{
 		'tDiffuse': { value: null }, //diffuse texture
 		'resolution': { value: new Vector2(800, 800) }, 
-		'visualizeX': { value: true }, 
+		'visualizeXaxis': { value: true }, 
+		'visualizeType': { value: 0 }, 
 	},
 
 	vertexShader: /* glsl */`
@@ -23,16 +24,29 @@ const UvVisualizerShader = {
 
 		uniform sampler2D tDiffuse;
 		uniform vec2 resolution;
-		uniform bool visualizeX;
+		uniform bool visualizeXaxis;
+		uniform int visualizeType;
 
 		varying vec2 v_Uv;
 
 		void main()
 		{
-			// for an explanation about gl_FragCoord, see https://computergraphics.stackexchange.com/a/5725
+			// gl_FragCoord.xy are screen space coordinates of current pixel based on viewport size. So if viewport width is 5, then
+			// gl_FragCoord.x runs from 0.5 to 4.5
+
+			// divide by resolution to get a value in the range 0 to 1
 			vec2 p = gl_FragCoord.xy / resolution.xy;
+
+			vec2 v = v_Uv;
+
+			if(visualizeType == 1)
+			{
+				v = p.xy;
+			}
+
+			float c = visualizeXaxis ? v.x : v.y;
 	
-			gl_FragColor = visualizeX ? vec4(v_Uv.x, v_Uv.x, v_Uv.x, 1.0) : vec4(v_Uv.y, v_Uv.y, v_Uv.y, 1.0);
+			gl_FragColor = vec4(c, c, c, 1.0);
 		}`
 
 };

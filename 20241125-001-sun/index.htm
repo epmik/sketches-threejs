@@ -35,7 +35,6 @@
 			import { LinearGradient } from '/js/LinearGradient.js';
 			import { MathUtility } from '/js/MathUtility.js';
 			import { Color } from '/js/Color.js';
-			import { ClearDepthPass } from '/js/ClearDepthPass.js';
 			import Stats from 'three/addons/libs/stats.module.js';
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -177,8 +176,6 @@
                 let randomPixelDisplaceShaderPass = new ShaderPass(Shaders.RandomPixelDisplaceShader);
 				Shaders.RandomPixelDisplaceShader.addGuiFolder(_gui, randomPixelDisplaceShaderPass);
 				
-                var outputPass = new ShaderPass( CopyShader );
-
 				var parameters = {
 						minFilter: THREE.LinearFilter,
 						magFilter: THREE.LinearFilter,
@@ -194,11 +191,16 @@
 				_composer.addPass( _composerClearPass );
 				_composer.addPass( backgroundRenderPass );
 				_composer.addPass( _composerMaskPass );
-				_composer.addPass( new ClearDepthPass());
+				_composer.addPass( new Postprocessing.ClearDepthPass());
 				_composer.addPass( renderPass );
 				_composer.addPass( _composerClearMaskPass );
+                
+                _composer.addPass( new ShaderPass( CopyShader ) );
+
                 _composer.addPass(randomPixelDisplaceShaderPass);
-				_composer.addPass( outputPass );
+
+                _composer.addPass( new OutputPass() );				
+
 
                 // --------------------
 
