@@ -1,39 +1,14 @@
+
 import { Vector2 } from "three";
 
-const RandomPixelDisplaceShader = {
-
-	self: this,
+const MondriaanLinesShader = {
 
 	uniforms:
 	{
 		'tDiffuse': { value: null }, //diffuse texture
 		'resolution': { value: new Vector2(800, 800) }, 
-		'minXOffset': { value: -10 }, 
-		'maxXOffset': { value:  10 }, 
-		'minYOffset': { value: -10 }, 
-		'maxYOffset': { value:  10 }, 
-	},
-
-	addGuiFolder : function (gui, pass, openFolder)
-	{
-		const self = this;
-
-		let folder = gui.addFolder('Random Pixel Displace');
-
-		folder.add(pass.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
-		folder.add(pass.uniforms.resolution.value, 'y', 1, 2048, 1.0).name('Y-resolution');
-		folder.add(pass.uniforms.minXOffset, 'value', -400, 0, 1.0).name('Min X-Offset');
-		folder.add(pass.uniforms.maxXOffset, 'value', 0, 400, 1.0).name('Max X-Offset');
-		folder.add(pass.uniforms.minYOffset, 'value', -400, 0, 1.0).name('Min Y-Offset');
-		folder.add(pass.uniforms.maxYOffset, 'value', 0, 400, 1.0).name('Max Y-Offset');
-		folder.add(pass, 'enabled').name('Enable/disable');
-
-		if((openFolder === undefined && pass.enabled == false) || openFolder == false)
-		{
-			folder.close();
-		}
-
-		return folder;
+		'minOffset': { value: -0.1 }, 
+		'maxOffset': { value:  0.1 }, 
 	},
 
 	vertexShader: /* glsl */`
@@ -49,10 +24,8 @@ const RandomPixelDisplaceShader = {
 
 		uniform sampler2D tDiffuse;
 		uniform vec2 resolution;
-		uniform float minXOffset;
-		uniform float maxXOffset;
-		uniform float minYOffset;
-		uniform float maxYOffset;
+		uniform float minOffset;
+		uniform float maxOffset;
 
 		varying vec2 v_Uv;
 
@@ -95,22 +68,27 @@ const RandomPixelDisplaceShader = {
 		float random( vec3  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
 		float random( vec4  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
 
-		float random( float x, float min, float max ) { return min + ((max - min) * random(x)); }
-		float random( vec2 v, float min, float max ) { return min + ((max - min) * random(v)); }
-		float random( vec3 v, float min, float max ) { return min + ((max - min) * random(v)); }
-		float random( vec4 v, float min, float max ) { return min + ((max - min) * random(v)); }
+		float random( float x, float min, float max ) { return min + (max * random(x)); }
+		float random( vec2 v, float min, float max ) { return min + (max * random(v)); }
+		float random( vec3 v, float min, float max ) { return min + (max * random(v)); }
+		float random( vec4 v, float min, float max ) { return min + (max * random(v)); }
 
 		void main()
 		{
-			vec2 p = vec2(1.0, 1.0) / resolution.xy;
+			// for an explanation about gl_FragCoord, see https://computergraphics.stackexchange.com/a/5725
 
-			float x = v_Uv.x + (p.x * random(v_Uv, minXOffset, maxXOffset));
-			float y = v_Uv.y + (p.y * random(v_Uv, minYOffset, maxYOffset));
+			vec2 p = gl_FragCoord.xy / resolution.xy;
+
+			float x = v_Uv.x + (p.x * random(v_Uv.x, 0.0, 100.0));
+			float y = v_Uv.y + (p.y * random(v_Uv.y, 0.0, 100.0));
+	
+			//gl_FragColor = vec4(p.x, p.x, p.x, 1.0);
 
 			// texture1D, texture12D & texture3D are deprecated, see p99 https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.3.30.pdf
+			// gl_FragColor = texture2D(tDiffuse, vec2(x, y));
 			gl_FragColor = texture(tDiffuse, vec2(x, y));
 		}`
 
 };
 
-export { RandomPixelDisplaceShader };
+export { MondriaanLinesShader };

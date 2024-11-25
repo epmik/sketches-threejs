@@ -81,7 +81,7 @@
 						pass: null,
 						settings: null,
 						folder: null,
-						enabled: true,
+						enabled: false,
 						// update: function()
 						// {
 						// 	this.pass.uniforms.time.value = this.settings.time += this.settings.timeSpeed;
@@ -332,41 +332,12 @@
 					RandomPixelDisplacePassContainer: 
 					{
 						pass: null,
-						settings: null,
 						folder: null,
-						enabled: false,
 						init: function()
 						{
-							const self = this;
-
-							this.pass = new Postprocessing.RandomPixelDisplacePass();
-
-							this.settings = {
-								minXOffset: -20,
-								maxXOffset: 20,
-								minYOffset: -20,
-								maxYOffset: 20,
-							};
-
-							function updateUniforms()
-							{
-								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
-								self.pass.uniforms.minXOffset.value = self.settings.minXOffset;
-								self.pass.uniforms.maxXOffset.value = self.settings.maxXOffset;
-								self.pass.uniforms.minYOffset.value = self.settings.minYOffset;
-								self.pass.uniforms.maxYOffset.value = self.settings.maxYOffset;
-								self.pass.enabled = self.enabled;
-							}
-
-							this.folder = _gui.addFolder('RandomPixelDisplacePass');
-
-							this.folder.add(this.settings, 'minXOffset', -400, 0, 1.0).name('Min X-Offset').onChange(updateUniforms);
-							this.folder.add(this.settings, 'maxXOffset', 0, 400, 1.0).name('Max X-Offset').onChange(updateUniforms);
-							this.folder.add(this.settings, 'minYOffset', -400, 0, 1.0).name('Min Y-Offset').onChange(updateUniforms);
-							this.folder.add(this.settings, 'maxYOffset', 0, 400, 1.0).name('Max Y-Offset').onChange(updateUniforms);
-							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
-
-							updateUniforms();
+							this.pass = new ShaderPass(Shaders.RandomPixelDisplaceShader);
+							this.pass.enabled = false;
+							this.folder = Shaders.RandomPixelDisplaceShader.addGuiFolder(_gui, this.pass);
 						},
 					},
 
@@ -592,8 +563,16 @@
 
 				Object.keys(_postprocessingPassesLiteral).forEach(function(key, index) 
 				{
-					_postprocessingPassesLiteral[key].init();
-					_postprocessingPassesLiteral[key].folder.close();
+					if(_postprocessingPassesLiteral[key].init !== undefined && _postprocessingPassesLiteral[key].init !== null)
+					{
+						_postprocessingPassesLiteral[key].init();
+					}
+					
+					if(_postprocessingPassesLiteral[key].folder !== undefined && _postprocessingPassesLiteral[key].folder !== null)
+					{
+						_postprocessingPassesLiteral[key].folder.close();
+					}
+					
 					_effectsComposer.addPass(_postprocessingPassesLiteral[key].pass);
 				});				
 
