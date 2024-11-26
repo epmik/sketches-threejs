@@ -76,6 +76,18 @@
 
 				_postprocessingPassesLiteral = 
 				{
+					GradientShaderPassContainer: 
+					{
+						pass: null,
+						folder: null,
+						init: function()
+						{
+							this.pass = new ShaderPass(Shaders.GradientShader);
+							this.pass.enabled = true;
+							this.folder = Shaders.GradientShader.addGuiFolder(_gui, this.pass);
+						},
+					},
+
 					ColorAdjustShaderPassContainer: 
 					{
 						pass: null,
