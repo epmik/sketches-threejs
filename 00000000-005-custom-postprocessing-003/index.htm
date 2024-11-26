@@ -42,7 +42,7 @@
 			// import resolveLygia from "https://lygia.xyz/resolve.esm.js";
 
 			let _screenCapturePrefix = "00000000-005-custom-postprocessing-003";
-			let _camera, _controls, _scene, _renderer;
+			let _camera, _controls, _postprocessingScene, _shaderScene, _renderer;
 			let _effectsComposer;
 			let _canvasWidth = 800, _canvasHeight = 800;
 			let _sceneWidth = 1, _sceneHeight = 1;
@@ -467,7 +467,12 @@
 				_camera.position.set(0, 2.5, 7.5 );
 				_camera.lookAt(0, 0, 0 );
 
-				_scene = new THREE.Scene();
+				_postprocessingScene = new THREE.Scene();
+				_postprocessingScene.autoClear = true;
+
+				_shaderScene = new THREE.Scene();
+				_shaderScene.autoClear = false;
+				// _shaderScene.background = new THREE.Color( 0xffffff );
 
 				const loader = new THREE.CubeTextureLoader();
 				const texture = loader.load([
@@ -478,12 +483,11 @@
 					'/media/textures/cube/park2/posz.jpg',
 					'/media/textures/cube/park2/negz.jpg',
 				]);
-				_scene.background = texture;				
-				// _scene.background = new THREE.Color( 0xffffff );
+				_postprocessingScene.background = texture;				
 
 				const lights = [];
 
-				for(var i = 0; i < 3; i++)
+				for(var i = 0; i < 2; i++)
 				{
 					lights[ i ] = new THREE.DirectionalLight( 0xffffff, 3 );
 
@@ -500,12 +504,11 @@
 					lights[ i ].shadow.camera.top = 100;
 					lights[ i ].shadow.camera.bottom = -100;
 
-					_scene.add( lights[ i ] );
+					_shaderScene.add( lights[ i ] );
 				}
 
 				lights[ 0 ].position.set( 0, 200, 0 );
 				lights[ 1 ].position.set( 100, 200, 100 );
-				lights[ 2 ].position.set( - 100, - 200, - 100 );
 
 
 				const controls = new OrbitControls(_camera, _renderer.domElement);
@@ -520,7 +523,7 @@
 				plane.receiveShadow = true;
 				plane.position.y = -1;
 				plane.rotation.x = -Math.PI / 2;
-				_scene.add(plane);				
+				_shaderScene.add(plane);				
 			
 				// -----------------------
 	
@@ -533,18 +536,18 @@
 			mesh.position.z = -3;
 			// mesh.receiveShadow = true;
 			_meshes.push(mesh);
-			_scene.add(mesh);
+			_shaderScene.add(mesh);
 
 			mesh = new THREE.Mesh( 
-				new THREE.BoxGeometry( 1, 1, 1 ), 
-				new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } ) );
+				new THREE.TorusKnotGeometry(0.5, 0.20, 100, 20), 
+				new THREE.MeshPhongMaterial({ color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true }));
 			mesh.castShadow = true;
 			mesh.position.x = -2;
 			mesh.position.y = 0.5;
 			mesh.position.z = -3;
 			// mesh.receiveShadow = true;
 			_meshes.push(mesh);
-			_scene.add(mesh);			
+			_shaderScene.add(mesh);			
 
 			mesh = new THREE.Mesh( 
 				new THREE.TorusGeometry( 0.5, 0.25, 16, 100 ), 
@@ -555,29 +558,23 @@
 			mesh.position.z = -3;
 			// mesh.receiveShadow = true;
 			_meshes.push(mesh);
-			_scene.add(mesh);	
+			_shaderScene.add(mesh);	
 
-			mesh = new THREE.Mesh( 
-				new THREE.CapsuleGeometry( 0.5, 0.5, 4, 8 ), 
-				new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } ) );
-			mesh.castShadow = true;
-			mesh.position.x = 2;
-			mesh.position.y = 0.5;
-			mesh.position.z = 0;
-			// mesh.receiveShadow = true;
-			_meshes.push(mesh);
-			_scene.add(mesh);	
-		
+	
 				// -----------------------
 
 				_gui = new GUI();
 
 				// -----------------------
 
+				var parameters = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, stencilBuffer: false };
+
+				var renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters);
+
 				_effectsComposer = new EffectComposer( _renderer );
 
-				const renderPass = new RenderPass( _scene, _camera );
-				_effectsComposer.addPass( renderPass );
+				const postprocessingPass = new RenderPass( _postprocessingScene, _camera );
+				_effectsComposer.addPass( postprocessingPass );
 
 				let shaderEnabled = false;
 
@@ -618,8 +615,12 @@
 					});				
 				}
 
+				const shaderPass = new RenderPass( _shaderScene, _camera );
+				shaderPass.clear = true;
+				shaderPass.clearDepth = true;
+				_effectsComposer.addPass( shaderPass );
 
-				const outputPass = new OutputPass();
+				const outputPass = new OutputPass();				
 				_effectsComposer.addPass( outputPass );				
 
 				// -----------------------
@@ -677,7 +678,7 @@
 				}
 				else
 				{
-					_renderer.render(_scene, _camera);
+					_renderer.render(_postprocessingScene, _camera);
 
 					_downloadCanvasAsPng(_renderer.domElement);
 				}
@@ -705,7 +706,7 @@
 
 						_camera.setViewOffset(_canvasWidth, _canvasHeight, x, y, w, h);
 						
-						_renderer.render(_scene, _camera);
+						_renderer.render(_postprocessingScene, _camera);
 
 						_downloadCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
 					}
