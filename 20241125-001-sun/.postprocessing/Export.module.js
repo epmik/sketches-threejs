@@ -3,3 +3,5 @@ export { RandomPixelStretchPass } from '../.postprocessing/RandomPixelStretchPas
 export { MondriaanLinesPass } from '../.postprocessing/MondriaanLinesPass.js';
 export { UvVisualizerPass } from '../.postprocessing/UvVisualizerPass.js';
 export { RandomPixelDisplacePass } from '../.postprocessing/RandomPixelDisplacePass.js';
+export { ClearColorPass } from '../.postprocessing/ClearColorPass.js';
+export { ClearDepthPass } from '../.postprocessing/ClearDepthPass.js';

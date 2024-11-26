@@ -5,14 +5,14 @@ class ClearDepthPass extends Pass
 {
     constructor() 
     {
-		  super();
-	  }
+        super();
+    }
 
     render(renderer, writeBuffer, readBuffer /*, deltaTime, maskActive */) 
     {
-		  renderer.setRenderTarget( this.renderToScreen ? null : readBuffer );
-      renderer.clearDepth();
-	  }
+		renderer.setRenderTarget( this.renderToScreen ? null : readBuffer );
+        renderer.clearDepth();
+	}
 }
 
 export { ClearDepthPass };

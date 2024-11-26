@@ -102,10 +102,11 @@ const RandomPixelDisplaceShader = {
 
 		void main()
 		{
-			vec2 p = vec2(1.0, 1.0) / resolution.xy;
+			vec2 offset = vec2(8.4894f, 3.28765);
+			vec2 fraction = vec2(1.0, 1.0) / resolution.xy;
 
-			float x = v_Uv.x + (p.x * random(v_Uv, minXOffset, maxXOffset));
-			float y = v_Uv.y + (p.y * random(v_Uv, minYOffset, maxYOffset));
+			float x = v_Uv.x + (fraction.x * random(v_Uv, minXOffset, maxXOffset));
+			float y = v_Uv.y + (fraction.y * random(v_Uv + offset, minYOffset, maxYOffset));
 
 			// texture1D, texture12D & texture3D are deprecated, see p99 https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.3.30.pdf
 			gl_FragColor = texture(tDiffuse, vec2(x, y));
