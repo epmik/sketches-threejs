@@ -46,6 +46,9 @@
 			import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
 			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+            import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
+            import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
+            import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 			import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
             import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
             import { Line2 } from "three/addons/lines/Line2.js";
@@ -53,9 +56,6 @@
             import { LineMaterial } from "three/addons/lines/LineMaterial.js";
             import { LineGeometry } from "three/addons/lines/LineGeometry.js";
             import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
-            import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
-            import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
-            import { CopyShader } from 'three/addons/shaders/CopyShader.js';
             import { PNG } from 'pngjs';
 
             let _screenCapturePrefix = "20241111-001-geometry-gradient-background";

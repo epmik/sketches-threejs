@@ -37,6 +37,9 @@
 			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+            import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
+            import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
+            import { CopyShader } from 'three/addons/shaders/CopyShader.js';
 			import * as Shaders from './.shaders/Export.module.js';
 			import * as Postprocessing from './.postprocessing/Export.module.js';
 			// import resolveLygia from "https://lygia.xyz/resolve.esm.js";
@@ -50,7 +53,7 @@
 			let _gui, _guiActions;
 			let _clock, _deltaTime;
 			let _meshes = [];
-			let _postprocessingPassesLiteral;			
+			let _postProcessingObject;			
 
 			// --------------------
 
@@ -74,7 +77,7 @@
 
 				document.body.appendChild( _renderer.domElement );
 
-				_postprocessingPassesLiteral = 
+				_postProcessingObject = 
 				{
 					GradientShaderPassContainer: 
 					{
@@ -468,10 +471,8 @@
 				_camera.lookAt(0, 0, 0 );
 
 				_postprocessingScene = new THREE.Scene();
-				_postprocessingScene.autoClear = true;
 
 				_shaderScene = new THREE.Scene();
-				_shaderScene.autoClear = false;
 				// _shaderScene.background = new THREE.Color( 0xffffff );
 
 				const loader = new THREE.CubeTextureLoader();
@@ -514,6 +515,9 @@
 				const controls = new OrbitControls(_camera, _renderer.domElement);
     			controls.update();
 
+				let geometryMaterial = new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } );
+				geometryMaterial = new THREE.ShaderMaterial( { uniforms: Shaders.GradientShader.uniforms, vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
+
 				const plane = new THREE.Mesh(
 					new THREE.PlaneGeometry(10, 10, 10, 10),
 					new THREE.MeshStandardMaterial({
@@ -529,7 +533,7 @@
 	
 			let mesh = new THREE.Mesh( 
 				new THREE.SphereGeometry( 1, 16, 8 ), 
-				new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } ) );
+				geometryMaterial);
 			mesh.castShadow = true;
 			mesh.position.x = 0;
 			mesh.position.y = 0.5;
@@ -540,7 +544,7 @@
 
 			mesh = new THREE.Mesh( 
 				new THREE.TorusKnotGeometry(0.5, 0.20, 100, 20), 
-				new THREE.MeshPhongMaterial({ color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true }));
+				geometryMaterial);
 			mesh.castShadow = true;
 			mesh.position.x = -2;
 			mesh.position.y = 0.5;
@@ -551,7 +555,7 @@
 
 			mesh = new THREE.Mesh( 
 				new THREE.TorusGeometry( 0.5, 0.25, 16, 100 ), 
-				new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } ) );
+				geometryMaterial);
 			mesh.castShadow = true;
 			mesh.position.x = 2;
 			mesh.position.y = 0.5;
@@ -571,54 +575,69 @@
 
 				var renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters);
 
+				_renderer.autoClear = false;
+				_renderer.autoClearColor = false;
+				_renderer.autoClearDepth = true;
+				_renderer.autoClearStencil = false;
+				_postprocessingScene.autoClear = false;
+				_shaderScene.autoClear = false;
+
 				_effectsComposer = new EffectComposer( _renderer );
 
 				const postprocessingPass = new RenderPass( _postprocessingScene, _camera );
+				postprocessingPass.clear = false;
+				// postprocessingPass.clearDepth = false;
+				postprocessingPass.needsSwap = false;
 				_effectsComposer.addPass( postprocessingPass );
+
+				_effectsComposer.addPass( new ClearPass() );
 
 				let shaderEnabled = false;
 
-				Object.keys(_postprocessingPassesLiteral).forEach(function(key, index) 
+				Object.keys(_postProcessingObject).forEach(function(key, index) 
 				{
-					if(_postprocessingPassesLiteral[key].init !== undefined && _postprocessingPassesLiteral[key].init !== null)
+					if(_postProcessingObject[key].init !== undefined && _postProcessingObject[key].init !== null)
 					{
-						_postprocessingPassesLiteral[key].init();
+						_postProcessingObject[key].init();
 					}
 					
-					if(_postprocessingPassesLiteral[key].folder !== undefined && _postprocessingPassesLiteral[key].folder !== null)
+					if(_postProcessingObject[key].folder !== undefined && _postProcessingObject[key].folder !== null)
 					{
-						_postprocessingPassesLiteral[key].folder.close();
+						_postProcessingObject[key].folder.close();
 					}
 					
-					_effectsComposer.addPass(_postprocessingPassesLiteral[key].pass);
+					_effectsComposer.addPass(_postProcessingObject[key].pass);
 				});				
 
-				Object.keys(_postprocessingPassesLiteral).forEach(function(key, index) 
+				Object.keys(_postProcessingObject).forEach(function(key, index) 
 				{
-					if(!shaderEnabled && _postprocessingPassesLiteral[key].enabled)
+					if(!shaderEnabled && _postProcessingObject[key].enabled)
 					{
-						_postprocessingPassesLiteral[key].folder.open();
+						_postProcessingObject[key].folder.open();
 						shaderEnabled = true;
 					}
 				});				
 
 				if(!shaderEnabled)
 				{
-					Object.keys(_postprocessingPassesLiteral).forEach(function(key, index) 
+					Object.keys(_postProcessingObject).forEach(function(key, index) 
 					{
 						if(!shaderEnabled)
 						{
-							_postprocessingPassesLiteral[key].enabled = true;
-							_postprocessingPassesLiteral[key].folder.open();
+							_postProcessingObject[key].enabled = true;
+							_postProcessingObject[key].folder.open();
 							shaderEnabled = true;							
 						}
 					});				
 				}
 
-				const shaderPass = new RenderPass( _shaderScene, _camera );
-				shaderPass.clear = true;
-				shaderPass.clearDepth = true;
-				_effectsComposer.addPass( shaderPass );
+				const shaderGeometryPass = new RenderPass( _shaderScene, _camera );
+				// shaderGeometryPass.clear = false;
+				shaderGeometryPass.clearDepth = true;
+				// shaderGeometryPass.needsSwap = false;
+
+				// shaderGeometryPass.clearDepth = true;
+				_effectsComposer.addPass( shaderGeometryPass );
 
 				const outputPass = new OutputPass();				
 				_effectsComposer.addPass( outputPass );				
@@ -649,11 +668,11 @@
 				});
 
 			
-				Object.keys(_postprocessingPassesLiteral).forEach(function(key, index) 
+				Object.keys(_postProcessingObject).forEach(function(key, index) 
 				{
-					if(_postprocessingPassesLiteral[key].update !== undefined)
+					if(_postProcessingObject[key].update !== undefined)
 					{
-						_postprocessingPassesLiteral[key].update();
+						_postProcessingObject[key].update();
 					}
 				});		
 
