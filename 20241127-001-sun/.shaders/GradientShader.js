@@ -79,7 +79,7 @@ const GradientShader = {
 		{
 			// vec2 p = vec2(1.0, 1.0) / resolution.xy;
 
-			vec2 v = useWindowCoordinates ? (gl_FragCoord.xy / resolution.xy) : v_Uv.xp;
+			vec2 v = useWindowCoordinates ? (gl_FragCoord.xy / resolution.xy) : v_Uv.xy;
 
 			float factor = gradientAngle == 0 ? v.x : 1.0 - v.y;
 
