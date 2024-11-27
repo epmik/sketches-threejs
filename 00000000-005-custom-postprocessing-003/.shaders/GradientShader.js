@@ -11,6 +11,7 @@ const GradientShader = {
 		'gradientType': { value: 0 }, 	// 0 == Linear, 1 == Radial
 		'gradientAngle': { value: 0 }, 	// 0 == Horizontal, 90 == Vertical
 		'colorMixType': { value: 0 }, 	// 0 == RGB, 1 == HSV, 2 == HSL, 3 == LAB
+		'radialCenter': { value: new Vector2(0.5, 0.5) }, 
 		'color1': { value: new Vector4(0, 0, 0, 1) }, 
 		'color2': { value: new Vector4(1, 1, 1, 1) }, 
 	},
@@ -32,6 +33,8 @@ const GradientShader = {
 		folder.add(pass.uniforms.gradientType, 'value', { 'Linear': 0, 'Radial': 1 }).name('Gradient Type');
 		folder.add(pass.uniforms.gradientAngle, 'value', { 'Horizontal': 0, 'Vertical': 1 }).name('Gradient Angle');
 		folder.add(pass.uniforms.colorMixType, 'value', { 'RGB': 0, 'HSV': 1, 'HSL': 2, 'LAB': 3 }).name('Color Mix Type');
+		folder.add(pass.uniforms.radialCenter.value, 'x', 0, 1, 0.01).name('X-radial center');
+		folder.add(pass.uniforms.radialCenter.value, 'y', 0, 1, 0.01).name('Y-radial center');
 		folder.addColor(settings, 'color1').name('color 1').onChange(function(c) { pass.uniforms.color1.value.x = c.r; pass.uniforms.color1.value.y = c.g; pass.uniforms.color1.value.z = c.b; });
 		folder.addColor(settings, 'color2').name('color 2').onChange(function(c) { pass.uniforms.color2.value.x = c.r; pass.uniforms.color2.value.y = c.g; pass.uniforms.color2.value.z = c.b; });
 		folder.add(pass, 'enabled').name('Enable/disable');
@@ -60,6 +63,7 @@ const GradientShader = {
 		uniform int gradientType;
 		uniform int gradientAngle;
 		uniform int colorMixType;
+		uniform vec2 radialCenter;
 		uniform vec4 color1;
 		uniform vec4 color2;
 
@@ -74,10 +78,14 @@ const GradientShader = {
 
 			float factor = gradientAngle == 0 ? v_Uv.x : 1.0 - v_Uv.y;
 
+			if(gradientType == 1)	// radial
+			{
+				factor = distance(v_Uv, radialCenter) * 2.0;
+			}
+
 			vec4 color = mix(color1, color2, factor);
 
 			gl_FragColor = color;
-			// gl_FragColor = vec4(color, 1);
   		}`
 };
 

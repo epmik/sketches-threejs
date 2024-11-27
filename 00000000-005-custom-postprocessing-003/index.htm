@@ -45,7 +45,7 @@
 			// import resolveLygia from "https://lygia.xyz/resolve.esm.js";
 
 			let _screenCapturePrefix = "00000000-005-custom-postprocessing-003";
-			let _camera, _controls, _postprocessingScene, _shaderScene, _renderer;
+			let _camera, _controls, _postprocessingScene, _shaderGeometryScene, _renderer;
 			let _effectsComposer;
 			let _canvasWidth = 800, _canvasHeight = 800;
 			let _sceneWidth = 1, _sceneHeight = 1;
@@ -472,7 +472,7 @@
 
 				_postprocessingScene = new THREE.Scene();
 
-				_shaderScene = new THREE.Scene();
+				_shaderGeometryScene = new THREE.Scene();
 				// _shaderScene.background = new THREE.Color( 0xffffff );
 
 				const loader = new THREE.CubeTextureLoader();
@@ -505,7 +505,7 @@
 					lights[ i ].shadow.camera.top = 100;
 					lights[ i ].shadow.camera.bottom = -100;
 
-					_shaderScene.add( lights[ i ] );
+					_shaderGeometryScene.add( lights[ i ] );
 				}
 
 				lights[ 0 ].position.set( 0, 200, 0 );
@@ -519,7 +519,7 @@
 				geometryMaterial = new THREE.ShaderMaterial( { uniforms: Shaders.GradientShader.uniforms, vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
 
 				const plane = new THREE.Mesh(
-					new THREE.PlaneGeometry(10, 10, 10, 10),
+					new THREE.PlaneGeometry(8, 8, 8, 8),
 					new THREE.MeshStandardMaterial({
 						color: 0xFFFF00,
 					}));
@@ -527,7 +527,7 @@
 				plane.receiveShadow = true;
 				plane.position.y = -1;
 				plane.rotation.x = -Math.PI / 2;
-				_shaderScene.add(plane);				
+				_shaderGeometryScene.add(plane);				
 			
 				// -----------------------
 	
@@ -537,10 +537,10 @@
 			mesh.castShadow = true;
 			mesh.position.x = 0;
 			mesh.position.y = 0.5;
-			mesh.position.z = -3;
+			mesh.position.z = 0;
 			// mesh.receiveShadow = true;
 			_meshes.push(mesh);
-			_shaderScene.add(mesh);
+			_shaderGeometryScene.add(mesh);
 
 			mesh = new THREE.Mesh( 
 				new THREE.TorusKnotGeometry(0.5, 0.20, 100, 20), 
@@ -548,10 +548,10 @@
 			mesh.castShadow = true;
 			mesh.position.x = -2;
 			mesh.position.y = 0.5;
-			mesh.position.z = -3;
+			mesh.position.z = 0;
 			// mesh.receiveShadow = true;
 			_meshes.push(mesh);
-			_shaderScene.add(mesh);			
+			_shaderGeometryScene.add(mesh);			
 
 			mesh = new THREE.Mesh( 
 				new THREE.TorusGeometry( 0.5, 0.25, 16, 100 ), 
@@ -559,10 +559,10 @@
 			mesh.castShadow = true;
 			mesh.position.x = 2;
 			mesh.position.y = 0.5;
-			mesh.position.z = -3;
+			mesh.position.z = 0;
 			// mesh.receiveShadow = true;
 			_meshes.push(mesh);
-			_shaderScene.add(mesh);	
+			_shaderGeometryScene.add(mesh);	
 
 	
 				// -----------------------
@@ -580,17 +580,17 @@
 				_renderer.autoClearDepth = true;
 				_renderer.autoClearStencil = false;
 				_postprocessingScene.autoClear = false;
-				_shaderScene.autoClear = false;
+				_shaderGeometryScene.autoClear = false;
 
 				_effectsComposer = new EffectComposer( _renderer );
+
+				_effectsComposer.addPass( new ClearPass() );
 
 				const postprocessingPass = new RenderPass( _postprocessingScene, _camera );
 				postprocessingPass.clear = false;
 				// postprocessingPass.clearDepth = false;
 				postprocessingPass.needsSwap = false;
 				_effectsComposer.addPass( postprocessingPass );
-
-				_effectsComposer.addPass( new ClearPass() );
 
 				let shaderEnabled = false;
 
@@ -631,7 +631,7 @@
 					});				
 				}
 
-				const shaderGeometryPass = new RenderPass( _shaderScene, _camera );
+				const shaderGeometryPass = new RenderPass( _shaderGeometryScene, _camera );
 				// shaderGeometryPass.clear = false;
 				shaderGeometryPass.clearDepth = true;
 				// shaderGeometryPass.needsSwap = false;

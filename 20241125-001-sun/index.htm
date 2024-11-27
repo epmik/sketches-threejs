@@ -131,29 +131,6 @@
 
                 // ----------------------
 
-	            // _backgroundScene = new THREE.Scene();
-
-                // const _backgroundLights = [];
-                // _backgroundLights[ 0 ] = new THREE.DirectionalLight( 0xffffff, 3 );
-                // _backgroundLights[ 1 ] = new THREE.DirectionalLight( 0xffffff, 3 );
-                // _backgroundLights[ 2 ] = new THREE.DirectionalLight( 0xffffff, 3 );
-
-                // _backgroundLights[ 0 ].position.set( 0, 200, 0 );
-                // _backgroundLights[ 1 ].position.set( 100, 200, 100 );
-                // _backgroundLights[ 2 ].position.set( - 100, - 200, - 100 );
-
-                // _backgroundScene.add( _backgroundLights[ 0 ] );
-                // _backgroundScene.add( _backgroundLights[ 1 ] );
-                // _backgroundScene.add( _backgroundLights[ 2 ] );                
-
-                // _backgroundCubeMesh = new THREE.Mesh( 
-                //     new THREE.BoxGeometry( 0.25, 0.75, 0.25 ), 
-                //     new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } )); 
-                
-                // _backgroundScene.add( _backgroundCubeMesh );                
-
-                // ----------------------
-
 				_composerClearPass = new ClearPass(0xffffff, _settings.saveTransparentBackground == true ? 0.0 : 1.0);
 				
 				var backgroundRenderPass = new RenderPass(_backgroundGraphics.scene, _camera );
