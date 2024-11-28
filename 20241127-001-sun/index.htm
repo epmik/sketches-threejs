@@ -169,7 +169,8 @@
 
                 const _gradientShaderPass = new ShaderPass(Shaders.GradientShader);
                 _gradientShaderPass.uniforms.gradientAngle.value = 90;
-                _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                // _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(6 / 255, 239 / 255, 223 / 255, 1);
                 _gradientShaderPass.uniforms.color2.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
                 Shaders.GradientShader.addGuiFolder(_gui, _gradientShaderPass);
                 _composer.addPass(_gradientShaderPass);
@@ -238,6 +239,8 @@
                 _renderer.domElement.addEventListener("mouseup", onMouseUp, false);
 
                 window.addEventListener( 'resize', onWindowResize );
+                window.addEventListener( 'focus', function() { console.log('window focus') } );
+                window.addEventListener( 'blur', function() { console.log('window blur') } );
 
                 _renderer.setAnimationLoop( update );
 
@@ -261,7 +264,11 @@
 
                 if(_sunScale >= _maxSunScale || _sunScale <= _minSunScale)
                 {
+                    _sunScale = Math.min(_maxSunScale, Math.max(_minSunScale, _sunScale))
                     _sunScaleDirection *= -1;
+                    console.log("change sun scale direction:" + _sunScaleDirection);
+                    console.log("sun scale:" + _sunScale);
+                    console.log("_deltaTimeSeconds:" + _deltaTimeSeconds);
                 }
 
                 _sunMesh.scale.set(_sunScale, _sunScale, 1);
@@ -272,7 +279,11 @@
 
                 if(_sunPixelDisplaceOffset >= _maxPixelDisplaceOffset || _sunPixelDisplaceOffset <= _minPixelDisplaceOffset)
                 {
+                    _sunPixelDisplaceOffset = Math.min(_maxPixelDisplaceOffset, Math.max(_minPixelDisplaceOffset, _sunPixelDisplaceOffset))
                     _sunPixelDisplaceOffsetDirection *= -1;
+                    console.log("change sun offset direction:" + _sunPixelDisplaceOffsetDirection);
+                    console.log("sun offset:" + _sunPixelDisplaceOffset);
+                    console.log("_deltaTimeSeconds:" + _deltaTimeSeconds);
                 }
 
                 // console.log(_sunPixelDisplaceOffset);
