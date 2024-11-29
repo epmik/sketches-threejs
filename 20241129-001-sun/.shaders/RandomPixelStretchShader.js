@@ -1,52 +1,11 @@
-import { Vector2 } from "three";
-import { Pass } from 'three/addons/postprocessing/Pass.js';
 
-const RandomPixelColumnDisplaceShader = {
-
-	self: this,
+const RandomPixelStretchShader = {
 
 	uniforms:
 	{
 		'tDiffuse': { value: null }, //diffuse texture
-		'resolution': { value: new Vector2(800, 800) }, 
-		'minXOffset': { value: -10 }, 
-		'maxXOffset': { value:  10 }, 
-		'minYOffset': { value: -10 }, 
-		'maxYOffset': { value:  10 }, 
-		'xTime': { value:  0 }, 
-		'yTime': { value:  0 }, 
-	},
-
-	addGuiFolder : function (gui, element, name, openFolder)
-	{
-		const self = this;
-
-		const isPass = (element instanceof Pass);
-
-		name = name === undefined ? (isPass ? 'Random Pixel Row/Column Displace Shader Pass' : 'Random Pixel Row/Column Displace Shader Material') : name;
-
-		let folder = gui.addFolder(name);
-
-		folder.add(element.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
-		folder.add(element.uniforms.resolution.value, 'y', 1, 2048, 1.0).name('Y-resolution');
-		folder.add(element.uniforms.minXOffset, 'value', -400, 0, 1.0).name('Min X-Offset');
-		folder.add(element.uniforms.maxXOffset, 'value', 0, 400, 1.0).name('Max X-Offset');
-		folder.add(element.uniforms.minYOffset, 'value', -400, 0, 1.0).name('Min Y-Offset');
-		folder.add(element.uniforms.maxYOffset, 'value', 0, 400, 1.0).name('Max Y-Offset');
-		folder.add(element.uniforms.xTime, 'value', 0, 1000, 0.01).name('X-Time');
-		folder.add(element.uniforms.yTime, 'value', 0, 1000, 0.01).name('Y-Time');
-
-		if(isPass)
-		{
-			folder.add(element, 'enabled').name('Enable/disable');
-		}
-
-		if(openFolder !== false)
-		{
-			folder.close();
-		}	
-
-		return folder;
+		'minOffset': { value: -0.1 }, 
+		'maxOffset': { value:  0.1 }, 
 	},
 
 	vertexShader: /* glsl */`
@@ -61,13 +20,8 @@ const RandomPixelColumnDisplaceShader = {
 	fragmentShader: /* glsl */`
 
 		uniform sampler2D tDiffuse;
-		uniform vec2 resolution;
-		uniform float minXOffset;
-		uniform float maxXOffset;
-		uniform float minYOffset;
-		uniform float maxYOffset;
-		uniform float xTime;
-		uniform float yTime;
+		uniform float minOffset;
+		uniform float maxOffset;
 
 		varying vec2 v_Uv;
 
@@ -81,10 +35,13 @@ const RandomPixelColumnDisplaceShader = {
 			return x;
 		}
 
+
 		// Compound versions of the hashing algorithm I whipped together.
 		uint hash( uvec2 v ) { return hash( v.x ^ hash(v.y)                         ); }
 		uint hash( uvec3 v ) { return hash( v.x ^ hash(v.y) ^ hash(v.z)             ); }
 		uint hash( uvec4 v ) { return hash( v.x ^ hash(v.y) ^ hash(v.z) ^ hash(v.w) ); }
+
+
 
 		// Construct a float with half-open range [0:1] using low 23 bits.
 		// All zeroes yields 0.0, all ones yields the next smallest representable value below 1.0.
@@ -99,6 +56,8 @@ const RandomPixelColumnDisplaceShader = {
 			return f - 1.0;                        // Range [0:1]
 		}
 
+
+
 		// Pseudo-random value in half-open range [0:1].
 		float random( float x ) { return floatConstruct(hash(floatBitsToUint(x))); }
 		float random( vec2  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
@@ -112,14 +71,24 @@ const RandomPixelColumnDisplaceShader = {
 
 		void main()
 		{
-			vec2 fraction = vec2(1.0, 1.0) / resolution.xy;
+			float x = v_Uv.x + random(v_Uv.x, minOffset, maxOffset);
+			float y = v_Uv.y + random(v_Uv.y, minOffset, maxOffset);
 
-			float x = v_Uv.x + (fraction.x * random(v_Uv.y + yTime , minXOffset, maxXOffset));
-			float y = v_Uv.y + (fraction.y * random(v_Uv.x + xTime, minYOffset, maxYOffset));
+			if(x < 0.0)
+				x += maxOffset;
+			else if(x > 1.0)
+				x -= maxOffset;
 
+			if(y < 0.0)
+				y += maxOffset;
+			else if(y > 1.0)
+				y -= maxOffset;
+	
+			// texture1D, texture12D & texture3D are deprecated, see p99 https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.3.30.pdf
+			// gl_FragColor = texture2D(tDiffuse, vec2(x, y));
 			gl_FragColor = texture(tDiffuse, vec2(x, y));
 		}`
 
 };
 
-export { RandomPixelColumnDisplaceShader };
+export { RandomPixelStretchShader };

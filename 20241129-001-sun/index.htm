@@ -74,8 +74,9 @@
             let _backgroundLinearGradient, _sunLinearGradient;
             let _graphics, _maskGraphics, _backgroundGraphics;
 
-            let _minSunScale = 0.50;
-            let _maxSunScale = 0.65;
+            let _sunRadius = 1;
+            let _minSunScale = 0.25;
+            let _maxSunScale = 0.325;
             let _sunScaleSpeed = 0.01;   // per second
             let _sunScale = _minSunScale;
             let _sunScaleDirection = -1;
@@ -87,6 +88,9 @@
             let _sunPixelDisplaceOffsetSpeed = 4;
             let _sunPixelDisplaceOffset = _minPixelDisplaceOffset;
             let _sunPixelDisplaceOffsetDirection = -1;
+
+            let _lineGeometryTotal = 360;
+            let _lineGeometry = [];
 
             let _settings = 
             {
@@ -136,8 +140,6 @@
 				// _orbitControls.update();                
                
                 _graphics = new Graphics(_camera, _renderer);
-                // _maskGraphics = new Graphics(_camera, _renderer);
-                // _backgroundGraphics = new Graphics(_camera, _renderer);
 
                 // ----------------------
 				
@@ -181,12 +183,34 @@
                 
                 // -----
 
+                _minSunScale
                 const _sunMaterial = new THREE.ShaderMaterial( { uniforms: Shaders.GradientShader.uniforms, vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
                 _sunMaterial.uniforms.gradientAngle.value = 90;
                 _sunMaterial.uniforms.useWindowCoordinates.value = true;
-                const sunGeometry = new THREE.CircleGeometry(0.5, 128); 
+                const sunGeometry = new THREE.CircleGeometry(_sunRadius, 128); 
                 _sunMesh = new THREE.Mesh( sunGeometry, _sunMaterial );
                 _graphics.scene.add( _sunMesh );
+
+                // -----
+                // rays/lines
+
+                let c = 0;
+
+                for(; c < _lineGeometryTotal / 2; c++)
+                {
+                    LineGeometry[c] = new Scrblr.QuadGeometry(0.005, _sunRadius * _randomGenerator.Value(1.05, 1.25));
+                    const lineMesh = new THREE.Mesh( LineGeometry[c], _sunMaterial );
+                    lineMesh.rotation.set(0, 0, _randomGenerator.Value(0, 360));
+                    _graphics.scene.add( lineMesh );
+                }
+
+                for(; c < _lineGeometryTotal; c++)
+                {
+                    LineGeometry[c] = new Scrblr.QuadGeometry(0.005, _sunRadius * _randomGenerator.Value(1.55, 1.75));
+                    const lineMesh = new THREE.Mesh( LineGeometry[c], _sunMaterial );
+                    lineMesh.rotation.set(0, 0, _randomGenerator.Value(0, 360));
+                    _graphics.scene.add( lineMesh );
+                }
 
                 var renderSunMeshPass = new RenderPass(_graphics.scene, _camera );
 				renderSunMeshPass.clear = false;
@@ -330,12 +354,12 @@
                 {
                     _sunScale = Math.min(_maxSunScale, Math.max(_minSunScale, _sunScale))
                     _sunScaleDirection *= -1;
-                    console.log("change sun scale direction:" + _sunScaleDirection);
-                    console.log("sun scale:" + _sunScale);
-                    console.log("_deltaTimeSeconds:" + _deltaTimeSeconds);
+                    // console.log("change sun scale direction:" + _sunScaleDirection);
+                    // console.log("sun scale:" + _sunScale);
+                    // console.log("_deltaTimeSeconds:" + _deltaTimeSeconds);
                 }
 
-                _sunMesh.scale.set(_sunScale, _sunScale, 1);
+                _sunMesh.scale.set(_sunScale * _sunRadius, _sunScale * _sunRadius, 1);
 
                 // _randomPixelColumnDisplaceShaderPass1.uniforms.xTime.value += _deltaTimeSeconds * 0.000001;
 
@@ -345,9 +369,9 @@
                 {
                     _sunPixelDisplaceOffset = Math.min(_maxPixelDisplaceOffset, Math.max(_minPixelDisplaceOffset, _sunPixelDisplaceOffset))
                     _sunPixelDisplaceOffsetDirection *= -1;
-                    console.log("change sun offset direction:" + _sunPixelDisplaceOffsetDirection);
-                    console.log("sun offset:" + _sunPixelDisplaceOffset);
-                    console.log("_deltaTimeSeconds:" + _deltaTimeSeconds);
+                    // console.log("change sun offset direction:" + _sunPixelDisplaceOffsetDirection);
+                    // console.log("sun offset:" + _sunPixelDisplaceOffset);
+                    // console.log("_deltaTimeSeconds:" + _deltaTimeSeconds);
                 }
 
                 // console.log(_sunPixelDisplaceOffset);
