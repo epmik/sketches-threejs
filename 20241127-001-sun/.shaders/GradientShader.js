@@ -1,4 +1,5 @@
 import { Vector2, Vector3, Vector4, Color } from "three";
+import { Pass } from 'three/addons/postprocessing/Pass.js';
 
 const GradientShader = {
 
@@ -18,32 +19,40 @@ const GradientShader = {
 		'color2': { value: new Vector4(1, 1, 1, 1) }, 
 	},
 
-	addGuiFolder : function (gui, pass, openFolder)
+	addGuiFolder : function (gui, element, name, openFolder)
 	{
 		const self = this;
 
-		let folder = gui.addFolder('Gradient Shader');
+		const isPass = (element instanceof Pass);
+
+		name = name === undefined ? (isPass ? 'Gradient Shader Pass' : 'Gradient Shader Material') : name;
+
+		let folder = gui.addFolder(name);
 
 		let settings = 
 		{
-			color1: { r: pass.uniforms.color1.value.x, g: pass.uniforms.color1.value.y, b: pass.uniforms.color1.value.z },
-			color2: { r: pass.uniforms.color2.value.x, g: pass.uniforms.color2.value.y, b: pass.uniforms.color2.value.z },
+			color1: { r: element.uniforms.color1.value.x, g: element.uniforms.color1.value.y, b: element.uniforms.color1.value.z },
+			color2: { r: element.uniforms.color2.value.x, g: element.uniforms.color2.value.y, b: element.uniforms.color2.value.z },
 		}
 
-		folder.add(pass.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
-		folder.add(pass.uniforms.resolution.value, 'y', 1, 2048, 1.0).name('Y-resolution');
-		folder.add(pass.uniforms.gradientType, 'value', { 'Linear': 0, 'Radial': 1 }).name('Gradient Type');
-		folder.add(pass.uniforms.gradientAngle, 'value', { 'Horizontal': 0, 'Vertical': 1 }).name('Gradient Angle');
-		folder.add(pass.uniforms.colorMixType, 'value', { 'RGB': 0, 'HSV': 1, 'HSL': 2, 'LAB': 3 }).name('Color Mix Type');
-		folder.add(pass.uniforms.radialCenter.value, 'x', 0, 1, 0.01).name('X-radial Center');
-		folder.add(pass.uniforms.radialCenter.value, 'y', 0, 1, 0.01).name('Y-radial Center');
-		folder.add(pass.uniforms.radialRadius, 'value', 0, 4, 0.01).name('Radial Radius');
-		folder.add(pass.uniforms.useWindowCoordinates, 'value').name('Use Window Coordinates');
-		folder.addColor(settings, 'color1').name('color 1').onChange(function(c) { pass.uniforms.color1.value.x = c.r; pass.uniforms.color1.value.y = c.g; pass.uniforms.color1.value.z = c.b; });
-		folder.addColor(settings, 'color2').name('color 2').onChange(function(c) { pass.uniforms.color2.value.x = c.r; pass.uniforms.color2.value.y = c.g; pass.uniforms.color2.value.z = c.b; });
-		folder.add(pass, 'enabled').name('Enable/disable');
+		folder.add(element.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
+		folder.add(element.uniforms.resolution.value, 'y', 1, 2048, 1.0).name('Y-resolution');
+		folder.add(element.uniforms.gradientType, 'value', { 'Linear': 0, 'Radial': 1 }).name('Gradient Type');
+		folder.add(element.uniforms.gradientAngle, 'value', { 'Horizontal': 0, 'Vertical': 1 }).name('Gradient Angle');
+		folder.add(element.uniforms.colorMixType, 'value', { 'RGB': 0, 'HSV': 1, 'HSL': 2, 'LAB': 3 }).name('Color Mix Type');
+		folder.add(element.uniforms.radialCenter.value, 'x', 0, 1, 0.01).name('X-radial Center');
+		folder.add(element.uniforms.radialCenter.value, 'y', 0, 1, 0.01).name('Y-radial Center');
+		folder.add(element.uniforms.radialRadius, 'value', 0, 4, 0.01).name('Radial Radius');
+		folder.add(element.uniforms.useWindowCoordinates, 'value').name('Use Window Coordinates');
+		folder.addColor(settings, 'color1').name('color 1').onChange(function(c) { element.uniforms.color1.value.x = c.r; element.uniforms.color1.value.y = c.g; element.uniforms.color1.value.z = c.b; });
+		folder.addColor(settings, 'color2').name('color 2').onChange(function(c) { element.uniforms.color2.value.x = c.r; element.uniforms.color2.value.y = c.g; element.uniforms.color2.value.z = c.b; });
+		
+		if(isPass)
+		{
+			folder.add(element, 'enabled').name('Enable/disable');
+		}
 
-		if((openFolder === undefined && pass.enabled == false) || openFolder == false)
+		if(openFolder !== false)
 		{
 			folder.close();
 		}

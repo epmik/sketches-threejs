@@ -190,10 +190,13 @@
                 // -----
 
                 const _sunMaterial = new THREE.ShaderMaterial( { uniforms: Shaders.GradientShader.uniforms, vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
-                _sunMaterial.uniforms.color1.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
-                _sunMaterial.uniforms.color2.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                // _sunMaterial.uniforms.color1.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+                // _sunMaterial.uniforms.color2.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                _sunMaterial.uniforms.color1.value = new THREE.Vector4(150 / 255, 236 / 255, 126 / 255, 1);
+                _sunMaterial.uniforms.color2.value = new THREE.Vector4(251 / 255, 238 / 255, 218 / 255, 1);
                 _sunMaterial.uniforms.gradientAngle.value = 90;
                 _sunMaterial.uniforms.useWindowCoordinates.value = true;
+                Shaders.GradientShader.addGuiFolder(_gui, _sunMaterial);
                 const sunGeometry = new THREE.CircleGeometry(0.5, 128); 
                 _sunMesh = new THREE.Mesh( sunGeometry, _sunMaterial );
                 _graphics.scene.add( _sunMesh );
