@@ -169,9 +169,6 @@
 
                 const _gradientShaderPass = new ShaderPass(Shaders.GradientShader);
                 _gradientShaderPass.uniforms.gradientAngle.value = 90;
-                // _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
-                _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(6 / 255, 239 / 255, 223 / 255, 1);
-                _gradientShaderPass.uniforms.color2.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
                 Shaders.GradientShader.addGuiFolder(_gui, _gradientShaderPass);
                 _composer.addPass(_gradientShaderPass);
                 
@@ -190,10 +187,6 @@
                 // -----
 
                 const _sunMaterial = new THREE.ShaderMaterial( { uniforms: Shaders.GradientShader.uniforms, vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
-                // _sunMaterial.uniforms.color1.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
-                // _sunMaterial.uniforms.color2.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
-                _sunMaterial.uniforms.color1.value = new THREE.Vector4(150 / 255, 236 / 255, 126 / 255, 1);
-                _sunMaterial.uniforms.color2.value = new THREE.Vector4(251 / 255, 238 / 255, 218 / 255, 1);
                 _sunMaterial.uniforms.gradientAngle.value = 90;
                 _sunMaterial.uniforms.useWindowCoordinates.value = true;
                 Shaders.GradientShader.addGuiFolder(_gui, _sunMaterial);
@@ -220,6 +213,62 @@
 
                 _composer.addPass( new OutputPass() );				
 
+
+                // ----------------------
+
+                let presetIndex = 0;
+                let presetTotal = 2;
+
+                const presetsFolder = _gui.addFolder("Presets");
+
+                const presetObject = {
+                    nextPreset: function() 
+                    { 
+                        presetIndex++; 
+
+                        if(presetIndex >= presetTotal)
+                        {
+                            presetIndex = 0;
+                        }
+
+                        presetSwitchFunction();
+                    },
+                    previousPreset: function() 
+                    { 
+                        presetIndex--; 
+
+                        if(presetIndex < 0)
+                        {
+                            presetIndex = presetTotal - 1;
+                        }
+
+                        presetSwitchFunction();
+                    },
+                };
+
+                const presetSwitchFunction = function()
+                {
+                    switch(presetIndex)
+                    {
+                        case 1:
+                            _sunMaterial.uniforms.color1.value = new THREE.Vector4(150 / 255, 236 / 255, 126 / 255, 1);
+                            _sunMaterial.uniforms.color2.value = new THREE.Vector4(251 / 255, 238 / 255, 218 / 255, 1);
+                            _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(6 / 255, 239 / 255, 223 / 255, 1);
+                            _gradientShaderPass.uniforms.color2.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+                            break;
+                        default:
+                            _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                            _gradientShaderPass.uniforms.color2.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+                            _sunMaterial.uniforms.color1.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+                            _sunMaterial.uniforms.color2.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                            break;
+                    }
+                }
+
+                presetsFolder.add(presetObject, 'nextPreset').name('Next Preset');
+                presetsFolder.add(presetObject, 'previousPreset').name('Previous Preset');
+
+                presetSwitchFunction();
 
                 // ----------------------
 
