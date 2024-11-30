@@ -102,7 +102,7 @@ class RandomGenerator
             min = 0;
         }
 
-        return (min + this._randomFunction() * (max - min));
+        return Math.floor(min + this._randomFunction() * (max - min));
     }
     
     Bool()
