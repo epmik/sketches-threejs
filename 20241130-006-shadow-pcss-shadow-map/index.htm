@@ -141,7 +141,7 @@
 			let stats;
 			let camera, scene, renderer;
 
-			let group;
+			let group, light;
 
 			init();
 
@@ -173,47 +173,27 @@
 
 				scene.add( new THREE.AmbientLight( 0xaaaaaa, 3 ) );
 
-				const light = new THREE.DirectionalLight( 0xf0f6ff, 4.5 );
+				light = new THREE.DirectionalLight( 0xf0f6ff, 4.5 );
 				light.position.set( 2, 8, 4 );
 
 				light.castShadow = true;
-				light.shadow.mapSize.width = 1024;
-				light.shadow.mapSize.height = 1024;
+				light.shadow.mapSize.width = 2048;
+				light.shadow.mapSize.height = 2048;
 				light.shadow.camera.far = 20;
 
 				scene.add( light );
 
 				// scene.add( new DirectionalLightHelper( light ) );
-				scene.add( new THREE.CameraHelper( light.shadow.camera ) );
+				// scene.add( new THREE.CameraHelper( light.shadow.camera ) );
 
 				// group
 
 				group = new THREE.Group();
-				scene.add( group );
-
-				const geometry = new THREE.SphereGeometry( 0.3, 20, 20 );
-
-				for ( let i = 0; i < 20; i ++ ) {
-
-					const material = new THREE.MeshPhongMaterial( { color: Math.random() * 0xffffff } );
-
-					const sphere = new THREE.Mesh( geometry, material );
-					sphere.position.x = Math.random() - 0.5;
-					sphere.position.z = Math.random() - 0.5;
-					sphere.position.normalize();
-					sphere.position.multiplyScalar( Math.random() * 2 + 1 );
-					sphere.castShadow = true;
-					sphere.receiveShadow = true;
-					sphere.userData.phase = Math.random() * Math.PI;
-					// group.add( sphere );
-
-				}
-
-				// ground
+				scene.add( group );				
 
 				const groundMaterial = new THREE.MeshPhongMaterial( { color: 0x898989 } );
 
-				const ground = new THREE.Mesh( new THREE.PlaneGeometry( 20000, 20000, 8, 8 ), groundMaterial );
+				const ground = new THREE.Mesh( new THREE.PlaneGeometry( 8, 8, 8, 8 ), groundMaterial );
 				ground.rotation.x = - Math.PI / 2;
 				ground.receiveShadow = true;
 				scene.add( ground );
@@ -282,7 +262,7 @@
 				controls.maxPolarAngle = Math.PI * 0.5;
 				controls.minDistance = 4;
 				controls.maxDistance = 75;
-				controls.target.set( 0, 2.5, 0 );
+				controls.target.set( 0, 0, 0 );
 				controls.update();
 
 				// performance monitor
@@ -311,17 +291,19 @@
 
 			function animate() {
 
-				const time = performance.now() / 1000;
+				const time = performance.now() / 2500;
 
-				group.traverse( function ( child ) {
+				// group.traverse( function ( child ) {
 
-					if ( 'phase' in child.userData ) {
+				// 	if ( 'phase' in child.userData ) {
 
-						child.position.y = Math.abs( Math.sin( time + child.userData.phase ) ) * 4 + 0.3;
+				// 		child.position.y = Math.abs( Math.sin( time + child.userData.phase ) ) * 4 + 0.3;
 
-					}
+				// 	}
 
-				} );
+				// } );
+
+				light.position.set(Math.cos(time) * 5, light.position.y, Math.sin(time) * 5)
 
 				renderer.render( scene, camera );
 

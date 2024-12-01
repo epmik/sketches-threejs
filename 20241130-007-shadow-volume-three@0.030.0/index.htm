@@ -36,10 +36,10 @@
 		<script type="importmap">
 			{
 				"imports": {
-					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"three": "//cdn.skypack.dev/three@0.130.0/build/three.module.js",
 					"scrblr": "../scrblr/scrblr.module.js",
 					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
-					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+					"three/addons/": "//cdn.skypack.dev/three@0.130.0/examples/jsm/",
                     "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
 				}
 			}
@@ -49,6 +49,7 @@
 
 			import * as THREE from 'three';
 
+			// import { OrbitControls } from '//cdn.skypack.dev/three@0.130.1/examples/jsm/controls/OrbitControls.js';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 			import Stats from 'three/addons/libs/stats.module.js';
@@ -57,10 +58,6 @@
 
 			import { ShadowVolumeMaterial, ShadowVolumeMesh } from './js/ShadowVolume.js';
 
-            import { RandomGenerator } from '/js/RandomGenerator.js';
-			import { OpenSimplexNoiseGenerator } from '/js/OpenSimplexNoiseGenerator.js';
-			import { SummedNoiseGenerator } from '/js/SummedNoiseGenerator.js';
-
 			// globals
 			var stats;
 			var params = {
@@ -68,7 +65,7 @@
 
 				light: {
 					speed: 1.0,
-					distance: 50.0,
+					distance: 15.0,
 					pointLight: true,
 				},
 
@@ -93,7 +90,6 @@
 			var mixer;
 			var time = 0;
 			var lastTime = 0;
-			let _noiseGenerator, _randomGenerator;
 
 			init();
 			initGeometry();
@@ -143,37 +139,25 @@
 
 				let boxMaterial = new THREE.MeshStandardMaterial( { color: 0xff1111, metalness: 0.0, roughness: 1.0 } );
 
-				const size = 25;
-				const noiseMultiplier = 0.125;
+				let m1 = new THREE.Mesh( new THREE.BoxGeometry( 5, 5, 5 ),  boxMaterial)
+				m1.position.set(0, 0, 0);
+				addMesh(m1, boxContainer);
 
-				for(let z = 0; z < size; z++)
-				{
-					for(let y = 0; y < size; y++)
-					{
-						for(let x = 0; x < size; x++)
-						{
-							let v = _noiseGenerator.Value(x * noiseMultiplier, y * noiseMultiplier, z * noiseMultiplier);
+				let m2 = new THREE.Mesh( new THREE.BoxGeometry( 5, 5, 5 ), boxMaterial )
+				m2.position.set(-5, 0, 0);
+				addMesh(m2, boxContainer);
 
-							// console.log(v);
+				let m3 = new THREE.Mesh( new THREE.BoxGeometry( 5, 5, 5 ), boxMaterial )
+				m3.position.set(0, 5, 0);
+				addMesh(m3, boxContainer);
 
-							if( v < 0.5)
-							{
-								continue;								
-							}
+				let m4 = new THREE.Mesh( new THREE.BoxGeometry( 5, 5, 5 ), boxMaterial )
+				m4.position.set(0, 0, 5);
+				addMesh(m4, boxContainer);
 
-							const r = _randomGenerator.Value();
-							const g = _randomGenerator.Value() > 0.75 ? 180 : 0;
-							const c = new THREE.Color().setRGB(r, g, 0);
-
-							const cube1 = new THREE.Mesh( new THREE.BoxGeometry( 1, 1, 1 ), new THREE.MeshLambertMaterial( { color: c } ) );
-							cube1.castShadow = true;
-							cube1.receiveShadow = true;
-							cube1.position.set(x, y, z);
-							
-							addMesh( cube1, boxContainer );
-						}
-					}
-				}
+				let m5 = new THREE.Mesh( new THREE.BoxGeometry( 5, 5, 5 ), boxMaterial )
+				m5.position.set(0, 0, -5);
+				addMesh(m5, boxContainer);
 
 				scene.add( boxContainer );
 
@@ -181,9 +165,6 @@
 			}
 
 			function init() {
-
-				_randomGenerator = new RandomGenerator(1024);
-				_noiseGenerator = new OpenSimplexNoiseGenerator(1024);
 
 				renderer = new THREE.WebGLRenderer( { antialias: true, samples: 4, stencil: true, alpha: true } );
 				renderer.setPixelRatio( window.devicePixelRatio );
@@ -195,13 +176,12 @@
 
 				// initialize renderer, scene, camera
 				camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 2000 );
-				camera.position.set( 24, 12, 24 );
+				camera.position.set( 60, 30, 60 );
 
 				scene = new THREE.Scene();
 
 				directionalLight = new THREE.DirectionalLight();
 				directionalLight.castShadow = true;
-				directionalLight.position.set(100, 50, 0);
 
 				var dlShadowCam = directionalLight.shadow.camera;
 				dlShadowCam.left = dlShadowCam.bottom = -15;
@@ -212,12 +192,24 @@
 				pointLight.castShadow = true;
 				scene.add( pointLight );
 
-				ambientLight = new THREE.AmbientLight( 0xffffff, 0.525 );
+				ambientLight = new THREE.AmbientLight( 0xffffff, 0.25 );
 				scene.add( ambientLight );
 
-				// let m = new THREE.Mesh( new THREE.BoxGeometry( 1, 1, 1 ), new THREE.MeshBasicMaterial( {color: 0xffffff, side: THREE.BackSide} ) );
-				// m.position.set(0, -2, 0);
-				// addMesh( m, scene);				
+				// lightSphere = new THREE.Mesh( new THREE.SphereBufferGeometry( 0.25, 10, 10 ), new THREE.MeshBasicMaterial( { color: 0x90A4AE } ) );
+				// scene.add( lightSphere );
+
+				var groundMaterial = new THREE.MeshStandardMaterial( {
+					color: 0xCFD8DC,
+					side: THREE.BackSide,
+					metalness: 0.1,
+					roughness: 0.75,
+				} );
+				var plane = new THREE.BoxGeometry( 3, 1, 3 );
+				ground = new THREE.Mesh( plane, groundMaterial );
+				ground.scale.multiplyScalar( 50 );
+				ground.position.y += 10;
+				ground.receiveShadow = true;
+				scene.add( ground );
 
 				// stats
 				stats = new Stats();
@@ -291,10 +283,11 @@
 				pointLight.visible = params.light.pointLight;
 				pointLight.castShadow = !params.useShadowVolumes;
 
-				// directionalLight.position.x = Math.sin( time ) * params.light.distance;
-				// directionalLight.position.z = Math.cos( time ) * params.light.distance;
-				// directionalLight.position.y = 5;
+				directionalLight.position.x = Math.sin( time ) * params.light.distance;
+				directionalLight.position.z = Math.cos( time ) * params.light.distance;
+				directionalLight.position.y = 5;
 				pointLight.position.copy( directionalLight.position );
+				// lightSphere.position.copy( directionalLight.position );
 
 				shadowVolumes.forEach( c => {
 

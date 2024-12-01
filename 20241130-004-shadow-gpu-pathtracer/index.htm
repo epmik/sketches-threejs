@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - VSM Shadows example </title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+	<body>
+
+		<!-- 
+		<div id="info">
+			<a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - VSM Shadows example by <a href="https://github.com/supereggbert">Paul Brunt</a>
+		</div> 
+		-->
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "../scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+import * as THREE from 'three';
+import { WebGLPathTracer, GradientEquirectTexture }  from 'https://cdn.jsdelivr.net/npm/three-gpu-pathtracer@0.0.23/+esm'
+import { getScaledSettings } from './js/getScaledSettings.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+import { RandomGenerator } from '/js/RandomGenerator.js';
+import { OpenSimplexNoiseGenerator } from '/js/OpenSimplexNoiseGenerator.js';
+import { SummedNoiseGenerator } from '/js/SummedNoiseGenerator.js';
+
+const _randomGenerator = new RandomGenerator(1024);
+const _noiseGenerator = new OpenSimplexNoiseGenerator(1024);
+
+// init scene, renderer, camera, controls, etc
+const scene = new THREE.Scene();
+// const sphereGeom = new THREE.SphereGeometry( 0.49, 64, 32 );
+// const redBall = new THREE.Mesh(
+// 	sphereGeom,
+// 	new THREE.MeshStandardMaterial( {
+// 		color: '#e91e63',
+// 		roughness: 0.25,
+// 		metalness: 1,
+// 	} )
+// );
+// const goldBall = new THREE.Mesh(
+// 	new THREE.BoxGeometry( 0.75, 0.75, 0.75 ),
+// 	new THREE.MeshStandardMaterial( {
+// 		color: '#ff9800',
+// 		roughness: 0.25,
+// 		metalness: 0.75,
+// 	} )
+// );
+// const blueBall = new THREE.Mesh(
+// 	sphereGeom,
+// 	new THREE.MeshStandardMaterial( {
+// 		color: '#2196f3',
+// 		roughness: 1,
+// 		metalness: 0,
+// 	} )
+// );
+// const ground = new THREE.Mesh(
+// 	new THREE.BoxGeometry( 3.5, 0.1, 1.5 ),
+// 	new THREE.MeshStandardMaterial(),
+// );
+
+// goldBall.setRotationFromEuler(new THREE.Euler(THREE.MathUtils.degToRad(45), THREE.MathUtils.degToRad(45), 0, 'XYZ'));
+// goldBall.position.y = 0.92;
+// redBall.position.x = -0.5;
+// blueBall.position.x = 0.5;
+// ground.position.y = - 0.54;
+// scene.add( redBall, goldBall, blueBall, ground );
+
+
+var boxContainer = new THREE.Object3D();
+
+const size = 25;
+const noiseMultiplier = 0.125;
+
+for(let z = 0; z < size; z++)
+{
+	for(let y = 0; y < size; y++)
+	{
+		for(let x = 0; x < size; x++)
+		{
+			let v = _noiseGenerator.Value(x * noiseMultiplier, y * noiseMultiplier, z * noiseMultiplier);
+
+			// console.log(v);
+
+			if( v < 0.5)
+			{
+				continue;								
+			}
+
+			const r = _randomGenerator.Value();
+			const c = new THREE.Color().setRGB(r, 0, 0);
+
+			const cube = new THREE.Mesh( new THREE.BoxGeometry( 1, 1, 1 ), new THREE.MeshStandardMaterial( {
+				color: c,
+				roughness: 0.25,
+				metalness: 0.75,
+			} ) );
+
+			cube.position.set(x, y, z);
+			
+			boxContainer.add( cube );
+		}
+	}
+}
+
+scene.add( boxContainer );
+
+// set the environment map
+const texture = new GradientEquirectTexture();
+texture.bottomColor.set( 0xffffff );
+texture.bottomColor.set( 0x666666 );
+texture.update();
+scene.environment = texture;
+scene.background = texture;
+
+const camera = new THREE.PerspectiveCamera();
+camera.position.set( 0, 1, - 5 );
+camera.lookAt( 0, 0, 0 );
+
+const renderer = new THREE.WebGLRenderer( { antialias: true, samples : 4 } );
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild( renderer.domElement );
+
+const settings = getScaledSettings();
+const pathTracer = new WebGLPathTracer( renderer );
+pathTracer.renderScale = settings.renderScale;
+pathTracer.tiles.setScalar( settings.tiles );
+pathTracer.setScene( scene, camera );
+
+const _orbitControls = new OrbitControls( camera, renderer.domElement );
+_orbitControls.minDistance = 0.25;
+_orbitControls.maxDistance = 100;
+_orbitControls.maxPolarAngle = Math.PI / 2;
+_orbitControls.target.set( 0, 0, 0 );
+_orbitControls.update();                
+_orbitControls.addEventListener( 'change', function() {
+	pathTracer.updateCamera();
+});
+
+let samples = 0;
+let isCompiling = true;
+
+onResize();
+
+animate();
+
+window.addEventListener( 'resize', onResize );
+
+function animate() {
+
+	// if the camera position changes call "ptRenderer.reset()"
+	requestAnimationFrame( animate );
+
+	// update the camera and render one sample
+	pathTracer.renderSample();
+
+	_orbitControls.update();
+
+	// pathTracer.samples, pathTracer.isCompiling
+
+	if(samples != Math.floor(pathTracer.samples) || isCompiling != pathTracer.isCompiling)
+	{
+		samples = Math.floor(pathTracer.samples);
+		isCompiling = pathTracer.isCompiling;
+
+		console.log('samples: ' + samples + ' is compiling: ' + isCompiling);
+	}
+}
+
+function onResize() {
+
+	// update rendering resolution
+	const w = window.innerWidth;
+	const h = window.innerHeight;
+
+	renderer.setSize( w, h );
+	renderer.setPixelRatio( window.devicePixelRatio );
+
+	const aspect = w / h;
+	camera.aspect = aspect;
+	camera.updateProjectionMatrix();
+
+	pathTracer.setScene( scene, camera );
+
+}
+		</script>
+	</body>
+</html>
