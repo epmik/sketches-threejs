@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - orbit controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<script type="text/javascript" src="/js/date-extensions.js"></script>
+		<script src='https://unpkg.com/three-rt-helper'></script>
+	</head>
+
+	<body>
+        <div id="sketch-container"></div>
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "../scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
+				}
+			}
+		</script>
+
+        <script type="module">
+
+            import * as THREE from 'three';
+			import * as Scrblr from 'scrblr';
+            import { Graphics } from './js/Graphics.js';
+            import { RandomGenerator } from '/js/RandomGenerator.js';
+			import { OpenSimplexNoiseGenerator } from '/js/OpenSimplexNoiseGenerator.js';
+			import { SummedNoiseGenerator } from '/js/SummedNoiseGenerator.js';
+			import { LinearGradient } from '/js/LinearGradient.js';
+			import { MathUtility } from '/js/MathUtility.js';
+			import { Color } from '/js/Color.js';
+			import Stats from 'three/addons/libs/stats.module.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm'
+			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+			import * as Shaders from './.shaders/Export.module.js';
+			import * as Postprocessing from './.postprocessing/Export.module.js';
+            import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+			import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
+			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+            import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
+            import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
+            import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+			import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
+            import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+            import { Line2 } from "three/addons/lines/Line2.js";
+            import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+            import { LineMaterial } from "three/addons/lines/LineMaterial.js";
+            import { LineGeometry } from "three/addons/lines/LineGeometry.js";
+            import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
+            import { PNG } from 'pngjs';
+
+            let _screenCapturePrefix = "20241111-001-geometry-gradient-background";
+            let _renderer, _camera, _stats, _orbitControls;
+            let _composer, _clearPass, _composerMaskPass, _composerClearMaskPass; 
+            let _minCanvasWidth = 400, _minCanvasHeight = 400;
+            let _canvasWidth = _minCanvasWidth, _canvasHeight = _minCanvasHeight;
+            let _near = 1, _far = 8000, _fov = 60;
+			let _gui;
+            let _clock, _deltaTimeSeconds;
+            let _frameCount = 0;
+
+            let _randomGenerator;       
+            let _noiseGenerator;       
+
+            let _backgroundLinearGradient, _sunLinearGradient;
+            let _graphics, _maskGraphics, _backgroundGraphics;
+
+            let _sunRadius = 1;
+            let _minSunScale = 0.25;
+            let _maxSunScale = 0.325;
+            let _sunScaleSpeed = 0.01;   // per second
+            let _sunScale = _minSunScale;
+            let _sunScaleDirection = -1;
+            let _sunMesh;
+            let _randomPixelColumnDisplaceShaderPass1, _randomPixelDisplaceShaderPass2;
+
+            let _minPixelDisplaceOffset = 10;
+            let _maxPixelDisplaceOffset = 60;
+            let _sunPixelDisplaceOffsetSpeed = 4;
+            let _sunPixelDisplaceOffset = _minPixelDisplaceOffset;
+            let _sunPixelDisplaceOffsetDirection = -1;
+
+            let _lineGeometryTotal = 360;
+            let _lineGeometry = [];
+
+            let _settings = 
+            {
+                downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
+                downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(4); },
+                saveTransparentBackground: true,
+                enableMask: true,
+                sunRayCount: 720
+            };
+
+            init(); 
+
+            async function init() {
+
+                const container = document.getElementById( 'sketch-container' );
+
+                _randomGenerator = new RandomGenerator();
+                _noiseGenerator = new OpenSimplexNoiseGenerator();
+
+                // --------------------
+
+                _renderer = new THREE.WebGLRenderer( { antialias: true, samples: 4, stencil: true, alpha: true } );
+                _renderer.setPixelRatio( window.devicePixelRatio );
+                _renderer.setClearColor( 0xffffff, 1 );
+                // _renderer.shadowMap.enabled = true;
+
+                container.appendChild( _renderer.domElement );
+
+                // --------------------
+
+				_gui = new GUI({ width: 360 });
+
+				// -----------------------
+
+                // _camera = new THREE.OrthographicCamera( -1, 1, 1, -1, _near, _far);
+                // _camera.position.set( 0, 0, 10);
+                // _camera.lookAt( 0, 0, 0 );
+
+                _camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
+                _camera.position.set( 0, 0, 10);
+                 _camera.lookAt( 0, 0, 0 );
+
+                _orbitControls = new OrbitControls( _camera, _renderer.domElement );
+				_orbitControls.minDistance = 1;
+				_orbitControls.maxDistance = 24;
+				_orbitControls.maxPolarAngle = Math.PI / 2;
+				_orbitControls.target.set( 0, 0, 0 );
+				_orbitControls.update();                
+               
+                _graphics = new Graphics(_camera, _renderer);
+
+                // ----------------------
+				
+				var parameters = {
+						minFilter: THREE.LinearFilter,
+						magFilter: THREE.LinearFilter,
+						format: THREE.RGBAFormat,       // RGBA for transparent backgrounds
+						stencilBuffer: true,	        // enable stencil buffer writes
+                        depthBuffer: true,              // enable depth buffer writes
+                        samples: 8                      // multi sampling
+					};
+
+				var renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters );
+
+                // -----
+
+                _renderer.autoClear = false;
+				_composer = new EffectComposer( _renderer, renderTarget );
+				
+                // -----
+
+				_clearPass = new ClearPass(0xffffff, _settings.saveTransparentBackground == true ? 0.0 : 1.0);
+                _composer.addPass( _clearPass );
+
+                // -----
+
+                // const _gradientShaderPass = new ShaderPass(Shaders.GradientShader);
+                // _gradientShaderPass.uniforms.gradientAngle.value = 90;
+                // _composer.addPass(_gradientShaderPass);
+                
+                // -----
+
+                // _randomPixelColumnDisplaceShaderPass1 = new ShaderPass(Shaders.RandomPixelColumnDisplaceShader);
+                // _randomPixelColumnDisplaceShaderPass1.uniforms.minYOffset.value = -100;
+                // _randomPixelColumnDisplaceShaderPass1.uniforms.maxYOffset.value = 100;
+                // _composer.addPass(_randomPixelColumnDisplaceShaderPass1);
+
+                // const _randomPixelDisplaceShaderPass1 = new ShaderPass(Shaders.RandomPixelDisplaceShader);
+                // Shaders.RandomPixelDisplaceShader.addGuiFolder(_gui, _randomPixelDisplaceShaderPass1);
+                // _composer.addPass(_randomPixelDisplaceShaderPass1);
+                
+                // -----
+
+                const _sunMaterial = new THREE.LineBasicMaterial( 
+                    { 
+                        color: 0xff0000,
+                        linewidth: 1, 
+                        side : THREE.DoubleSide,
+                    });
+
+                // -----
+                // rays/lines
+
+                // space
+                // 10 x 10 x 10
+                // padding 0.1
+
+                const width = 10;
+                const height = 10;
+                const depth = 10;
+                const dStep = 0.5;
+                const size = 0.8;
+
+                for(let i = 0; i <= depth; i++)
+                {
+                    let z = 0;
+
+                    for(let y = 0; y <= 10; y++)
+                    {
+                        for(let x = 0; x <= width; x++)
+                        {
+                            const lineMesh = new THREE.Mesh( new Scrblr.QuadGeometry(0.005, size), _sunMaterial );
+                            lineMesh.position.set(x, y, i);
+                            // lineMesh.rotation.set(0, 0, _randomGenerator.Value(0, 360));
+                            _graphics.scene.add( lineMesh );
+                        }
+                    }
+
+                    z -= dStep;
+                }
+
+                var renderSunMeshPass = new RenderPass(_graphics.scene, _camera );
+				renderSunMeshPass.clear = false;
+				renderSunMeshPass.clearDepth = true;
+				_composer.addPass( renderSunMeshPass );
+
+                // -----
+
+                // const _randomPixelColumnDisplaceShaderPass2 = new ShaderPass(Shaders.RandomPixelColumnDisplaceShader);
+                // Shaders.RandomPixelColumnDisplaceShader.addGuiFolder(_gui, _randomPixelColumnDisplaceShaderPass2);
+                // _composer.addPass(_randomPixelColumnDisplaceShaderPass2);
+
+                // _randomPixelDisplaceShaderPass2 = new ShaderPass(Shaders.RandomPixelDisplaceShader);
+                // _composer.addPass(_randomPixelDisplaceShaderPass2);
+
+                // -----
+
+                _composer.addPass( new OutputPass() );				
+
+
+                // ----------------------
+
+                // let presetIndex = 0;
+                // let presetTotal = 5;
+
+                // const presetsFolder = _gui.addFolder("Presets");
+
+                // const presetObject = {
+                //     nextPreset: function() 
+                //     { 
+                //         presetIndex++; 
+
+                //         if(presetIndex >= presetTotal)
+                //         {
+                //             presetIndex = 0;
+                //         }
+
+                //         presetSwitchFunction();
+                //     },
+                //     previousPreset: function() 
+                //     { 
+                //         presetIndex--; 
+
+                //         if(presetIndex < 0)
+                //         {
+                //             presetIndex = presetTotal - 1;
+                //         }
+
+                //         presetSwitchFunction();
+                //     },
+                // };
+
+                // const presetSwitchFunction = function()
+                // {
+                //     switch(presetIndex)
+                //     {
+                //         case 1:
+                //             _sunMaterial.uniforms.color1.value = new THREE.Vector4(150 / 255, 236 / 255, 126 / 255, 1);
+                //             _sunMaterial.uniforms.color2.value = new THREE.Vector4(251 / 255, 238 / 255, 218 / 255, 1);
+                //             _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(6 / 255, 239 / 255, 223 / 255, 1);
+                //             _gradientShaderPass.uniforms.color2.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+                //             break;
+                //         case 2:
+                //             _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(21 / 255, 8 / 255, 5 / 255, 1);
+                //             _gradientShaderPass.uniforms.color2.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+                //             break;
+                //         case 3:
+                //             _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                //             _gradientShaderPass.uniforms.color2.value = new THREE.Vector4(0 / 255, 149 / 255, 199 / 255, 1);
+                //             break;
+                //         case 4:
+                //             _sunMaterial.uniforms.color1.value = new THREE.Vector4(255 / 255, 237 / 255, 199 / 255, 1);
+                //             _sunMaterial.uniforms.color2.value = new THREE.Vector4(208 / 255, 122 / 255, 1 / 255, 1);
+                //             break;
+                //         default:
+                //             _gradientShaderPass.uniforms.color1.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                //             _gradientShaderPass.uniforms.color2.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+                //             _sunMaterial.uniforms.color1.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+                //             _sunMaterial.uniforms.color2.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                //             break;
+                //     }
+                // }
+
+                // presetsFolder.add(presetObject, 'nextPreset').name('Next Preset');
+                // presetsFolder.add(presetObject, 'previousPreset').name('Previous Preset');
+
+                // presetSwitchFunction();
+
+                // ----------------------
+
+                // Shaders.GradientShader.addGuiFolder(_gui, _gradientShaderPass);
+                // Shaders.RandomPixelColumnDisplaceShader.addGuiFolder(_gui, _randomPixelColumnDisplaceShaderPass1);
+                // Shaders.GradientShader.addGuiFolder(_gui, _sunMaterial);
+                // Shaders.RandomPixelDisplaceShader.addGuiFolder(_gui, _randomPixelDisplaceShaderPass2);
+
+                _gui.add(_settings, 'downloadWebGLRendererAction').name('Save screen');
+                _gui.add(_settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
+                _gui.add(_settings, 'saveTransparentBackground').name('Save transparent background').onChange( function ( val ) { _clearPass.clearAlpha = (val == true ? 0 : 1); } );
+                _gui.add(_settings, 'enableMask').name('Enable Mask').onChange(function(val) { _composerMaskPass.enabled = val; _composerClearMaskPass.enabled = val; });
+
+                // ----------------------
+
+                _stats = new Stats();
+                container.appendChild( _stats.dom );
+
+                // ----------------------
+
+                _renderer.domElement.addEventListener("keydown", onKeyDown, false);
+                _renderer.domElement.addEventListener("keyup", onKeyUp, false);
+                _renderer.domElement.addEventListener("mousemove", onMouseMove, false);
+                _renderer.domElement.addEventListener("mousedown", onMouseDown, false);
+                _renderer.domElement.addEventListener("mouseup", onMouseUp, false);
+
+                onWindowResize();
+
+                window.addEventListener( 'resize', onWindowResize );
+                window.addEventListener( 'focus', function() { console.log('window focus') } );
+                window.addEventListener( 'blur', function() { console.log('window blur') } );
+
+                _renderer.setAnimationLoop( update );
+
+                // ----------------------
+
+                _clock = new THREE.Clock();
+
+                // ----------------------
+            }
+
+            function Render()
+            {
+    			_composer.render();
+            }
+
+            function update() 
+            {
+				_deltaTimeSeconds = _clock.getDelta();
+
+                // _randomPixelDisplaceShaderPass2.uniforms.minXOffset.value = -_sunPixelDisplaceOffset;
+                // _randomPixelDisplaceShaderPass2.uniforms.maxXOffset.value = _sunPixelDisplaceOffset;
+                // _randomPixelDisplaceShaderPass2.uniforms.minYOffset.value = -_sunPixelDisplaceOffset;
+                // _randomPixelDisplaceShaderPass2.uniforms.maxYOffset.value = _sunPixelDisplaceOffset;
+           
+                Render();
+
+                _stats.update();
+
+                _frameCount++;
+            }
+
+            function onKeyDown(event) 
+            {
+                event.preventDefault();
+
+                var keyCode = event.which;
+
+                switch(keyCode)
+                {
+                    default: 
+                        break;
+                }
+            };            
+
+            function onKeyUp(event) 
+            {
+                event.preventDefault();
+            };            
+
+            function onMouseDown(event) 
+            {
+                event.preventDefault();
+
+                switch(event.button)
+                {
+                    case 0:
+                        break;
+                }
+
+                // console.log(event.button);
+                // console.log(event.buttons);
+            }; 
+
+            function onMouseUp(event) 
+            {
+                event.preventDefault();
+            };  
+
+            function onMouseMove(event) 
+            {
+                event.preventDefault();
+
+                // event.clientX    // The X coordinate of the mouse pointer in viewport coordinates.
+                // event.clientY    // The Y coordinate of the mouse pointer in viewport coordinates.
+                // event.altKey     // Returns true if the alt key was down when the mouse event was fired.
+                // event.ctrlKey    // Returns true if the ctrl key was down when the mouse event was fired.
+                // event.shiftKey   // Returns true if the shift key was down when the mouse event was fired.
+                // event.button     // The button number that was pressed (if applicable) when the mouse event was fired.
+                // event.buttons    // The buttons being pressed (if any) when the mouse event was fired.
+                // event.movementX  // The X coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.movementY  // The Y coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.screenX    // The X coordinate of the mouse pointer in screen coordinates.
+                // event.screenY    // The Y coordinate of the mouse pointer in screen coordinates.
+            };            
+
+            function onWindowResize() 
+            {
+                const w = Math.min(window.innerWidth, document.documentElement.clientWidth);
+                const h = Math.min(window.innerHeight, document.documentElement.clientHeight);
+
+                if(h <= w)
+                {
+                    _canvasHeight = Math.max(h, _minCanvasHeight);
+                    _canvasWidth = _canvasHeight * (_minCanvasHeight / _minCanvasWidth);
+                }
+                else
+                {
+                    _canvasWidth = Math.max(w, _minCanvasWidth);
+                    _canvasHeight = _canvasWidth * (_minCanvasWidth / _minCanvasHeight);
+                }
+
+                _camera.aspect = _canvasWidth / _canvasHeight;
+                _camera.updateProjectionMatrix();
+
+                _renderer.setSize( _canvasWidth, _canvasHeight );
+                _composer.setSize( _canvasWidth, _canvasHeight );
+            }
+
+			function _downloadWebGLRenderer(hiresScale)
+			{
+                hiresScale = (hiresScale === undefined || hiresScale === null || hiresScale == 0 ? 1 : hiresScale);
+
+                const width = Math.round(_canvasWidth * hiresScale);
+                const height = Math.round(_canvasHeight * hiresScale);
+
+				const maxW = 3600;
+				const maxH = 3600;
+
+				const d = new Date();
+				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
+
+				for (let y = 0; y < height; y += maxH)
+				{
+					for (let x = 0; x < width; x += maxW)
+					{
+						let w = Math.min(width - x, maxW);
+						let h = Math.min(height - y, maxH);
+
+						_renderer.setSize( w, h );
+                        _composer.setSize( w, h );
+
+						_camera.setViewOffset(width, height, x, y, w, h);
+
+                        Render();
+					
+                        _downloadCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
+					}
+				}
+
+                _renderer.setSize( _canvasWidth, _canvasHeight );
+                _composer.setSize( _canvasWidth, _canvasHeight );
+
+                _camera.clearViewOffset();
+			}
+
+			// function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
+			// {
+			// 	let buffer = new Uint8ClampedArray(4 * webGLRenderTarget.width * webGLRenderTarget.height)
+
+			// 	webGLRenderer.readRenderTargetPixels(webGLRenderTarget, 0, 0, webGLRenderTarget.width, webGLRenderTarget.height, buffer);
+
+			// 	var canvas = document.createElement('canvas');
+
+			// 	canvas.width = webGLRenderTarget.width;
+			// 	canvas.height = webGLRenderTarget.height;
+
+			// 	var context = canvas.getContext('2d');
+
+			// 	context.putImageData(new ImageData( buffer, webGLRenderTarget.width, webGLRenderTarget.height ), 0, 0);
+
+			// 	_downloadCanvasAsPng(canvas);
+			// }
+
+			function _downloadCanvasAsPng(canvas, name)
+			{
+				if(name === null || name === undefined || name === "")
+				{
+					var d = new Date();
+
+					name = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
+				}
+
+				canvas.toBlob(function (blob) 
+                {
+                    // console.log(URL.createObjectURL(blob));
+
+                    // PNGImage.readImage(URL.createObjectURL(blob), function (err, image) {
+                    //     if (err) console.log(err);
+
+                    //     // The image is in the 'image' variable if everything went well
+                    // });                    
+
+                    // blob.arrayBuffer().then((arrayBuffer) => 
+                    // {
+                    //     new PNG({ filterType: 4 }).parse(arrayBuffer, function (error, data) 
+                    //     {
+                    //         console.log(error, data);
+                    //     });
+                    // });
+
+					var a = document.createElement('a');
+					var url = URL.createObjectURL(blob);
+					a.href = url;
+					a.download = name;
+					a.click();
+				}, 'image/png', 1.0); 
+			}
+
+        </script>
+    </body>
+</html>        

@@ -3,7 +3,7 @@ THREEjs
 uses a right handed coordinate system
     - positive x moves right
     - positive y moves up
-    - positive z moves back, negative z moves forward into the screen, 
+    - positive z moves towards the viewer, negative z moves away from the viewer 
 
 front faces have a counter-clockwise winding order
 
