@@ -1,7 +1,6 @@
 import { Vector2, Vector3, Vector4, Color } from "three";
 import { Pass } from 'three/addons/postprocessing/Pass.js';
 
-
 const GradientShader = {
 
 	self: this,

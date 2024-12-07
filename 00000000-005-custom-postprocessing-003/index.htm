@@ -283,66 +283,78 @@
 						},
 					},
 
-					NoisePixelDisplacePassContainer: 
+					NoisePixelDisplacePassContainer2: 
 					{
 						pass: null,
-						settings: null,
 						folder: null,
-						enabled: false,
 						init: function()
 						{
-							const self = this;
-
-							this.pass = new Postprocessing.NoisePixelDisplacePass();
-
-							this.settings = {
-								minXOffset: -10,
-								maxXOffset: 10,
-								minYOffset: -10,
-								maxYOffset: 10,
-								multiplierX: 0.01,
-								multiplierY: 0.01,
-								octaves: 4,
-								amplitude: 1.0,
-								frequency: 1.00,
-								lacunarity: 2.00,
-								persistence: 0.50,
-							};
-
-							function updateUniforms()
-							{
-								self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
-								self.pass.uniforms.minXOffset.value = self.settings.minXOffset;
-								self.pass.uniforms.maxXOffset.value = self.settings.maxXOffset;
-								self.pass.uniforms.minYOffset.value = self.settings.minYOffset;
-								self.pass.uniforms.maxYOffset.value = self.settings.maxYOffset;
-								self.pass.uniforms.multiplier.value = new THREE.Vector3(self.settings.multiplierX, self.settings.multiplierY, 1.0);
-								self.pass.uniforms.octaves.value = self.settings.octaves;
-								self.pass.uniforms.amplitude.value = self.settings.amplitude;
-								self.pass.uniforms.frequency.value = self.settings.frequency;
-								self.pass.uniforms.lacunarity.value = self.settings.lacunarity;
-								self.pass.uniforms.persistence.value = self.settings.persistence;
-								self.pass.enabled = self.enabled;
-							}
-
-							this.folder = _gui.addFolder('NoisePixelDisplacePass');
-
-							this.folder.add(this.settings, 'minXOffset', -100, 0, 1.0).name('Min X-Offset').onChange(updateUniforms);
-							this.folder.add(this.settings, 'maxXOffset', 0, 100, 1.0).name('Max X-Offset').onChange(updateUniforms);
-							this.folder.add(this.settings, 'minYOffset', -100, 0, 1.0).name('Min Y-Offset').onChange(updateUniforms);
-							this.folder.add(this.settings, 'maxYOffset', 0, 100, 1.0).name('Max Y-Offset').onChange(updateUniforms);
-							this.folder.add(this.settings, 'multiplierX', 0, 0.1, 0.0001).name('Noise X Multiplier').onChange(updateUniforms);
-							this.folder.add(this.settings, 'multiplierY', 0, 0.1, 0.0001).name('Noise Y Multiplier').onChange(updateUniforms);
-							this.folder.add(this.settings, 'octaves', 1, 4, 1).name('Noise Octaves').onChange(updateUniforms);
-							this.folder.add(this.settings, 'amplitude', 0.00, 2.00, 0.01).name('Noise Amplitude').onChange(updateUniforms);
-							this.folder.add(this.settings, 'frequency', 0.25, 2.00, 0.05).name('Noise Frequency').onChange(updateUniforms);
-							this.folder.add(this.settings, 'lacunarity', 0.20, 4.00, 0.1).name('Noise Lacunarity').onChange(updateUniforms);
-							this.folder.add(this.settings, 'persistence', 0.20, 4.00, 0.1).name('Noise Persistence').onChange(updateUniforms);
-							this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
-
-							updateUniforms();
+							this.pass = new ShaderPass(Shaders.NoisePixelDisplaceShader);
+							this.pass.enabled = true;
+							this.folder = Shaders.NoisePixelDisplaceShader.addGuiFolder(_gui, this.pass);
 						},
 					},
+
+					// NoisePixelDisplacePassContainer: 
+					// {
+					// 	pass: null,
+					// 	settings: null,
+					// 	folder: null,
+					// 	enabled: false,
+					// 	init: function()
+					// 	{
+					// 		const self = this;
+
+					// 		this.pass = new Postprocessing.NoisePixelDisplacePass();
+
+					// 		this.settings = {
+					// 			minXOffset: -10,
+					// 			maxXOffset: 10,
+					// 			minYOffset: -10,
+					// 			maxYOffset: 10,
+					// 			multiplierX: 0.01,
+					// 			multiplierY: 0.01,
+					// 			octaves: 4,
+					// 			amplitude: 1.0,
+					// 			frequency: 1.00,
+					// 			lacunarity: 2.00,
+					// 			persistence: 0.50,
+					// 		};
+
+					// 		function updateUniforms()
+					// 		{
+					// 			self.pass.uniforms.resolution.value = new THREE.Vector2(_canvasWidth, _canvasHeight);
+					// 			self.pass.uniforms.minXOffset.value = self.settings.minXOffset;
+					// 			self.pass.uniforms.maxXOffset.value = self.settings.maxXOffset;
+					// 			self.pass.uniforms.minYOffset.value = self.settings.minYOffset;
+					// 			self.pass.uniforms.maxYOffset.value = self.settings.maxYOffset;
+					// 			self.pass.uniforms.multiplier.value = new THREE.Vector3(self.settings.multiplierX, self.settings.multiplierY, 1.0);
+					// 			self.pass.uniforms.octaves.value = self.settings.octaves;
+					// 			self.pass.uniforms.amplitude.value = self.settings.amplitude;
+					// 			self.pass.uniforms.frequency.value = self.settings.frequency;
+					// 			self.pass.uniforms.lacunarity.value = self.settings.lacunarity;
+					// 			self.pass.uniforms.persistence.value = self.settings.persistence;
+					// 			self.pass.enabled = self.enabled;
+					// 		}
+
+					// 		this.folder = _gui.addFolder('NoisePixelDisplacePass');
+
+					// 		this.folder.add(this.settings, 'minXOffset', -100, 0, 1.0).name('Min X-Offset').onChange(updateUniforms);
+					// 		this.folder.add(this.settings, 'maxXOffset', 0, 100, 1.0).name('Max X-Offset').onChange(updateUniforms);
+					// 		this.folder.add(this.settings, 'minYOffset', -100, 0, 1.0).name('Min Y-Offset').onChange(updateUniforms);
+					// 		this.folder.add(this.settings, 'maxYOffset', 0, 100, 1.0).name('Max Y-Offset').onChange(updateUniforms);
+					// 		this.folder.add(this.settings, 'multiplierX', 0, 0.1, 0.0001).name('Noise X Multiplier').onChange(updateUniforms);
+					// 		this.folder.add(this.settings, 'multiplierY', 0, 0.1, 0.0001).name('Noise Y Multiplier').onChange(updateUniforms);
+					// 		this.folder.add(this.settings, 'octaves', 1, 4, 1).name('Noise Octaves').onChange(updateUniforms);
+					// 		this.folder.add(this.settings, 'amplitude', 0.00, 2.00, 0.01).name('Noise Amplitude').onChange(updateUniforms);
+					// 		this.folder.add(this.settings, 'frequency', 0.25, 2.00, 0.05).name('Noise Frequency').onChange(updateUniforms);
+					// 		this.folder.add(this.settings, 'lacunarity', 0.20, 4.00, 0.1).name('Noise Lacunarity').onChange(updateUniforms);
+					// 		this.folder.add(this.settings, 'persistence', 0.20, 4.00, 0.1).name('Noise Persistence').onChange(updateUniforms);
+					// 		this.folder.add(this, 'enabled').name('Enable/disable').onChange(updateUniforms);
+
+					// 		updateUniforms();
+					// 	},
+					// },
 
 					RandomPixelDisplacePassContainer: 
 					{

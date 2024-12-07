@@ -26,7 +26,7 @@
         <script type="module">
 
             import * as THREE from 'three';
-			import * as Scrblr from 'scrblr';
+			import * as SCRBLR from 'scrblr';
 			// import { Sketch } from './js/sketch.js';
             import { Graphics } from './js/Graphics.js';
             import { RandomGenerator } from '/js/RandomGenerator.js';
@@ -74,13 +74,15 @@
             let _backgroundLinearGradient, _sunLinearGradient;
             let _graphics, _maskGraphics, _backgroundGraphics;
 
-            let _sunRadius = 1;
-            let _minSunScale = 0.25;
-            let _maxSunScale = 0.325;
+
+            let _sunRadius = 0.5;
+            let _sunSegments = 128;
+            let _minSunScale = 1;
+            let _maxSunScale = 1;
             let _sunScaleSpeed = 0.01;   // per second
             let _sunScale = _minSunScale;
             let _sunScaleDirection = -1;
-            let _sunMesh;
+            let _sunMaterial, _sunMesh;
             let _randomPixelColumnDisplaceShaderPass1, _randomPixelDisplaceShaderPass2;
 
             let _minPixelDisplaceOffset = 10;
@@ -141,6 +143,8 @@
                
                 _graphics = new Graphics(_camera, _renderer);
 
+				// -----------------------
+
                 // ----------------------
 				
 				var parameters = {
@@ -175,6 +179,7 @@
                 _randomPixelColumnDisplaceShaderPass1 = new ShaderPass(Shaders.RandomPixelColumnDisplaceShader);
                 _randomPixelColumnDisplaceShaderPass1.uniforms.minYOffset.value = -100;
                 _randomPixelColumnDisplaceShaderPass1.uniforms.maxYOffset.value = 100;
+                _randomPixelColumnDisplaceShaderPass1.enabled = false;
                 _composer.addPass(_randomPixelColumnDisplaceShaderPass1);
 
                 // const _randomPixelDisplaceShaderPass1 = new ShaderPass(Shaders.RandomPixelDisplaceShader);
@@ -183,14 +188,13 @@
                 
                 // -----
 
-                Scrblr.Utility.
+                _sunSegments = SCRBLR.Utility.CircleResolution(_sunRadius, _camera, _renderer);
 
-                _minSunScale
-                const _sunMaterial = new THREE.ShaderMaterial( { uniforms: Shaders.GradientShader.uniforms, vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
+                _sunMaterial = new THREE.ShaderMaterial( { uniforms: Shaders.GradientShader.uniforms, vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
                 _sunMaterial.uniforms.gradientAngle.value = 90;
                 _sunMaterial.uniforms.useWindowCoordinates.value = true;
-                const sunGeometry = new THREE.CircleGeometry(_sunRadius, 128); 
-                _sunMesh = new THREE.Mesh( sunGeometry, _sunMaterial );
+                // _sunMesh = new THREE.Mesh( new THREE.CircleGeometry(_sunRadius, _sunSegments), _sunMaterial );
+                _sunMesh = new THREE.Mesh( new SCRBLR.EllipseGeometry(_sunRadius, _sunRadius * 0.5, _sunSegments), _sunMaterial );
                 _graphics.scene.add( _sunMesh );
 
                 // -----
@@ -198,21 +202,21 @@
 
                 let c = 0;
 
-                for(; c < _lineGeometryTotal / 2; c++)
-                {
-                    LineGeometry[c] = new Scrblr.QuadGeometry(0.005, _sunRadius * _randomGenerator.Value(1.05, 1.25));
-                    const lineMesh = new THREE.Mesh( LineGeometry[c], _sunMaterial );
-                    lineMesh.rotation.set(0, 0, _randomGenerator.Value(0, 360));
-                    _graphics.scene.add( lineMesh );
-                }
+                // for(; c < _lineGeometryTotal / 2; c++)
+                // {
+                //     LineGeometry[c] = new SCRBLR.QuadGeometry(0.005, _sunRadius * _randomGenerator.Value(1.05, 1.25));
+                //     const lineMesh = new THREE.Mesh( LineGeometry[c], _sunMaterial );
+                //     lineMesh.rotation.set(0, 0, _randomGenerator.Value(0, 360));
+                //     _graphics.scene.add( lineMesh );
+                // }
 
-                for(; c < _lineGeometryTotal; c++)
-                {
-                    LineGeometry[c] = new Scrblr.QuadGeometry(0.005, _sunRadius * _randomGenerator.Value(1.55, 1.75));
-                    const lineMesh = new THREE.Mesh( LineGeometry[c], _sunMaterial );
-                    lineMesh.rotation.set(0, 0, _randomGenerator.Value(0, 360));
-                    _graphics.scene.add( lineMesh );
-                }
+                // for(; c < _lineGeometryTotal; c++)
+                // {
+                //     LineGeometry[c] = new SCRBLR.QuadGeometry(0.005, _sunRadius * _randomGenerator.Value(1.55, 1.75));
+                //     const lineMesh = new THREE.Mesh( LineGeometry[c], _sunMaterial );
+                //     lineMesh.rotation.set(0, 0, _randomGenerator.Value(0, 360));
+                //     _graphics.scene.add( lineMesh );
+                // }
 
                 var renderSunMeshPass = new RenderPass(_graphics.scene, _camera );
 				renderSunMeshPass.clear = false;
@@ -226,6 +230,7 @@
                 // _composer.addPass(_randomPixelColumnDisplaceShaderPass2);
 
                 _randomPixelDisplaceShaderPass2 = new ShaderPass(Shaders.RandomPixelDisplaceShader);
+                _randomPixelDisplaceShaderPass2.enabled = false;
                 _composer.addPass(_randomPixelDisplaceShaderPass2);
 
                 // -----
@@ -350,18 +355,15 @@
             {
 				_deltaTimeSeconds = _clock.getDelta();
 
-                _sunScale += _sunScaleSpeed * _deltaTimeSeconds * _sunScaleDirection;
+                // _sunScale += _sunScaleSpeed * _deltaTimeSeconds * _sunScaleDirection;
 
-                if(_sunScale >= _maxSunScale || _sunScale <= _minSunScale)
-                {
-                    _sunScale = Math.min(_maxSunScale, Math.max(_minSunScale, _sunScale))
-                    _sunScaleDirection *= -1;
-                    // console.log("change sun scale direction:" + _sunScaleDirection);
-                    // console.log("sun scale:" + _sunScale);
-                    // console.log("_deltaTimeSeconds:" + _deltaTimeSeconds);
-                }
+                // if(_sunScale >= _maxSunScale || _sunScale <= _minSunScale)
+                // {
+                //     _sunScale = Math.min(_maxSunScale, Math.max(_minSunScale, _sunScale))
+                //     _sunScaleDirection *= -1;
+                // }
 
-                _sunMesh.scale.set(_sunScale * _sunRadius, _sunScale * _sunRadius, 1);
+                // _sunMesh.scale.set(_sunScale * _sunRadius, _sunScale * _sunRadius, 1);
 
                 // _randomPixelColumnDisplaceShaderPass1.uniforms.xTime.value += _deltaTimeSeconds * 0.000001;
 
@@ -467,6 +469,22 @@
 
                 _renderer.setSize( _canvasWidth, _canvasHeight );
                 _composer.setSize( _canvasWidth, _canvasHeight );
+
+                console.log("canvas size: " + _canvasWidth + "x" + _canvasHeight);
+                // const radius = SCRBLR.Utility.CircleRadiusInScreenSpace(_sunRadius, _camera, _renderer);
+                // const circumference = SCRBLR.Utility.CircleCircumferenceInScreenSpace(_sunRadius, _camera, _renderer);
+                _sunSegments = SCRBLR.Utility.EllipseResolution(_sunRadius, _sunRadius * 1.25, _camera, _renderer);
+                // console.log(circumference);
+                // console.log(_sunSegments);
+
+                if(_sunMesh !== null)
+                {
+                    _graphics.scene.remove( _sunMesh );    
+                }
+
+                // _sunMesh = new THREE.Mesh( new THREE.CircleGeometry(_sunRadius, _sunSegments), _sunMaterial );
+                _sunMesh = new THREE.Mesh( new SCRBLR.EllipseGeometry(_sunRadius, _sunRadius * 1.25, _sunSegments), _sunMaterial );
+                _graphics.scene.add( _sunMesh );
             }
 
 			function _downloadWebGLRenderer(hiresScale)

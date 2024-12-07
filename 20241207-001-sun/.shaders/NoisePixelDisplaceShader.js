@@ -1,6 +1,5 @@
 
-import { Vector2, Vector3, Vector4, Color } from "three";
-import { Pass } from 'three/addons/postprocessing/Pass.js';
+import { Vector2, Vector3 } from "three";
 
 const NoisePixelDisplaceShader = {
 
@@ -9,52 +8,15 @@ const NoisePixelDisplaceShader = {
 		'tDiffuse': { value: null }, //diffuse texture
 		'resolution': { value: new Vector2(800, 800) }, 
 		'minXOffset': { value: -10 }, 
-		'maxXOffset': { value: 10 }, 
+		'maxXOffset': { value:  10 }, 
 		'minYOffset': { value: -10 }, 
-		'maxYOffset': { value: 10 }, 
+		'maxYOffset': { value:  10 }, 
 		'multiplier': { value: new Vector3(0.01, 0.01, 0.01) }, 
 		'octaves': { value: 4 }, 
 		'amplitude': { value: 1.0 }, 
 		'frequency': { value: 1.0 }, 
 		'lacunarity': { value: 2.0 }, 
 		'persistence': { value: 0.5 }, 
-	},
-
-	addGuiFolder : function (gui, element, name, openFolder)
-	{
-		const self = this;
-
-		const isPass = (element instanceof Pass);
-
-		name = name === undefined ? (isPass ? 'Noise Pixel Displace Shader Pass' : 'Noise Pixel Displace Shader Material') : name;
-
-		let folder = gui.addFolder(name);
-
-		folder.add(element.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
-		folder.add(element.uniforms.resolution.value, 'y', 1, 256, 1.0).name('Y-resolution');
-		folder.add(element.uniforms.minXOffset, 'value', -256, 0, 1.0).name('Min X-Offset');
-		folder.add(element.uniforms.maxXOffset, 'value', 0, 256, 1.0).name('Max X-Offset');
-		folder.add(element.uniforms.minYOffset, 'value', -256, 0, 1.0).name('Min Y-Offset');
-		folder.add(element.uniforms.maxYOffset, 'value', 0, 256, 1.0).name('Max Y-Offset');
-		folder.add(element.uniforms.multiplier.value, 'x').name('Noise X-Multiplier');
-		folder.add(element.uniforms.multiplier.value, 'y').name('Noise Y-Multiplier');
-		folder.add(element.uniforms.octaves, 'value', 1, 8, 1).name('Noise Octaves');
-		folder.add(element.uniforms.amplitude, 'value', 0.00, 2.00, 0.01).name('Noise Amplitude');
-		folder.add(element.uniforms.frequency, 'value', 0.01, 4.00, 0.01).name('Noise Frequency');
-		folder.add(element.uniforms.lacunarity, 'value', 0.01, 4.00, 0.01).name('Noise Lacunarity');
-		folder.add(element.uniforms.persistence, 'value', 0.01, 2.00, 0.01).name('Noise Persistence');
-
-		if(isPass)
-		{
-			folder.add(element, 'enabled').name('Enable/disable');
-		}
-
-		if(openFolder !== false)
-		{
-			folder.close();
-		}
-
-		return folder;
 	},
 
 	vertexShader: /* glsl */`
