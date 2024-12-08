@@ -1,9 +1,10 @@
 export { NoisePixelDisplaceShader } from '../.shaders/NoisePixelDisplaceShader.js';
+export { NoisePixelRowColumnDisplaceShader } from '../.shaders/NoisePixelRowColumnDisplaceShader.js';
 export { RandomPixelStretchShader } from '../.shaders/RandomPixelStretchShader.js';
 export { MondriaanLinesShader } from '../.shaders/MondriaanLinesShader.js';
 export { UvVisualizerShader } from '../.shaders/UvVisualizerShader.js';
 export { RandomPixelDisplaceShader } from '../.shaders/RandomPixelDisplaceShader.js';
-export { RandomPixelColumnDisplaceShader } from '../.shaders/RandomPixelColumnDisplaceShader.js';
+export { RandomPixelRowColumnDisplaceShader } from '../.shaders/RandomPixelRowColumnDisplaceShader.js';
 export { VisualizeRandomShader } from '../.shaders/VisualizeRandomShader.js';
 export { VisualizeNoiseShader } from '../.shaders/VisualizeNoiseShader.js';
 export { OvercastSkyShader } from '../.shaders/OvercastSkyShader.js';

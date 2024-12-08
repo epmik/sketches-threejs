@@ -59,7 +59,7 @@ class Utility
 		let hw = r.width * 0.5;
 		let hh = r.height * 0.5;
 
-		return new THREE.Vector2((vector.x * hw) + hw, (vector.y * hh) + hh);
+		return new Vector2((vector.x * hw) + hw, (vector.y * hh) + hh);
 	}
 
 	static TransformObjectToScreenSpace(object, camera, renderer)

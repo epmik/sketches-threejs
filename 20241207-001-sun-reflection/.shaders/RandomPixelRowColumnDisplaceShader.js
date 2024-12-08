@@ -1,7 +1,7 @@
 import { Vector2 } from "three";
 import { Pass } from 'three/addons/postprocessing/Pass.js';
 
-const RandomPixelColumnDisplaceShader = {
+const RandomPixelRowColumnDisplaceShader = {
 
 	self: this,
 
@@ -9,12 +9,9 @@ const RandomPixelColumnDisplaceShader = {
 	{
 		'tDiffuse': { value: null }, //diffuse texture
 		'resolution': { value: new Vector2(800, 800) }, 
-		'minXOffset': { value: -10 }, 
-		'maxXOffset': { value:  10 }, 
-		'minYOffset': { value: -10 }, 
-		'maxYOffset': { value:  10 }, 
-		'xTime': { value:  0 }, 
-		'yTime': { value:  0 }, 
+		'xOffset': { value: new Vector2(0, 0) }, 
+		'yOffset': { value: new Vector2(0, 0) }, 
+		'time': { value: new Vector2(0, 0) }, 
 	},
 
 	addGuiFolder : function (gui, element, name, openFolder)
@@ -29,12 +26,12 @@ const RandomPixelColumnDisplaceShader = {
 
 		folder.add(element.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
 		folder.add(element.uniforms.resolution.value, 'y', 1, 2048, 1.0).name('Y-resolution');
-		folder.add(element.uniforms.minXOffset, 'value', -400, 0, 1.0).name('Min X-Offset');
-		folder.add(element.uniforms.maxXOffset, 'value', 0, 400, 1.0).name('Max X-Offset');
-		folder.add(element.uniforms.minYOffset, 'value', -400, 0, 1.0).name('Min Y-Offset');
-		folder.add(element.uniforms.maxYOffset, 'value', 0, 400, 1.0).name('Max Y-Offset');
-		folder.add(element.uniforms.xTime, 'value', 0, 1000, 0.01).name('X-Time');
-		folder.add(element.uniforms.yTime, 'value', 0, 1000, 0.01).name('Y-Time');
+		folder.add(element.uniforms.xOffset.value, 'x', -1024, 0, 1.0).name('Min X-Offset');
+		folder.add(element.uniforms.xOffset.value, 'y', 0, 1024, 1.0).name('Max X-Offset');
+		folder.add(element.uniforms.yOffset.value, 'x', -1024, 0, 1.0).name('Min Y-Offset');
+		folder.add(element.uniforms.yOffset.value, 'y', 0, 1024, 1.0).name('Max Y-Offset');
+		folder.add(element.uniforms.time.value, 'x', 0, 1, 0.01).name('X-Time');
+		folder.add(element.uniforms.time.value, 'y', 0, 1, 0.01).name('Y-Time');
 
 		if(isPass)
 		{
@@ -62,12 +59,9 @@ const RandomPixelColumnDisplaceShader = {
 
 		uniform sampler2D tDiffuse;
 		uniform vec2 resolution;
-		uniform float minXOffset;
-		uniform float maxXOffset;
-		uniform float minYOffset;
-		uniform float maxYOffset;
-		uniform float xTime;
-		uniform float yTime;
+		uniform vec2 xOffset;
+		uniform vec2 yOffset;
+		uniform vec2 time;
 
 		varying vec2 v_Uv;
 
@@ -112,14 +106,14 @@ const RandomPixelColumnDisplaceShader = {
 
 		void main()
 		{
-			vec2 fraction = vec2(1.0, 1.0) / resolution.xy;
+			vec2 fraction = vec2(1.0, 1.0) / resolution;
 
-			float x = v_Uv.x + (fraction.x * random(v_Uv.y + yTime , minXOffset, maxXOffset));
-			float y = v_Uv.y + (fraction.y * random(v_Uv.x + xTime, minYOffset, maxYOffset));
+			float x = v_Uv.x + (fraction.x * random(v_Uv.y + time.x , xOffset.x, xOffset.y));
+			float y = v_Uv.y + (fraction.y * random(v_Uv.x + time.y, yOffset.x, yOffset.y));
 
 			gl_FragColor = texture(tDiffuse, vec2(x, y));
 		}`
 
 };
 
-export { RandomPixelColumnDisplaceShader };
+export { RandomPixelRowColumnDisplaceShader };

@@ -90,7 +90,20 @@ const GradientShader = {
 
 			vec2 v = useWindowCoordinates ? (gl_FragCoord.xy / resolution.xy) : v_Uv.xy;
 
-			float factor = gradientAngle == 0 ? v.x : 1.0 - v.y;
+			float factor = v.x;
+
+			if(gradientAngle == 180)
+			{
+				factor = 1.0 - v.x;
+			}
+			else if(gradientAngle == 90)
+			{
+				factor = 1.0 - v.y;
+			}
+			else if(gradientAngle == 270)
+			{
+				factor = v.y;
+			}
 
 			if(gradientType == 1)	// radial
 			{
