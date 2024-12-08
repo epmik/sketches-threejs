@@ -72,20 +72,22 @@
             let _noiseGenerator;       
 
             let _backgroundLinearGradient, _sunLinearGradient;
-            let _sceneSun, _sceneSunReflection;
+            let _sceneSun, _sceneSunReflection1, _sceneSunReflection2;
 
-            let _sunRadius = 0.25;
-            let _sunReflectionWidth = 0.15;
-            let _sunReflectionHeight = 0.30;
+            let _sunRadius = 0.360;
+            let _sunReflection1Radius = 0.280;
+            let _sunReflection2Width = 0.180;
+            let _sunReflection2Height = 0.280;
             let _sunSegments = 128;
-            let _sunReflectionSegments = 128;
+            let _sunReflection1Segments = 128;
+            let _sunReflection2Segments = 128;
             let _minSunScale = 1;
             let _maxSunScale = 1;
             let _sunScaleSpeed = 0.01;   // per second
             let _sunScale = _minSunScale;
             let _sunScaleDirection = -1;
-            let _sunMaterial, _sunMesh, _gradientBackgroundShaderPass, _randomPixelRowColumnDisplaceShader, _noisePixelRowColumnDisplaceShader;
-            let _sunReflectionMaterial, _sunReflectionMesh;
+            let _sunMaterial, _sunMesh, _sunReflection1Material, _sunReflection1Mesh, _sunReflection2Material, _sunReflection2Mesh;
+            let _gradientBackgroundShaderPass, _randomPixelRowColumnDisplaceShader, _noisePixelRowColumnDisplaceShader;
             let _randomPixelColumnDisplaceShaderPass1, _randomPixelDisplaceShaderPass2;
 
             let _minPixelDisplaceOffset = 10;
@@ -96,6 +98,8 @@
 
             let _lineGeometryTotal = 360;
             let _lineGeometry = [];
+
+            let _color1, _color2;
 
             let _settings = 
             {
@@ -142,71 +146,30 @@
 				// _orbitControls.maxDistance = 12;
 				// _orbitControls.maxPolarAngle = Math.PI / 2;
 				// _orbitControls.target.set( 0, 0, 0 );
-				// _orbitControls.update();                
+				// _orbitControls.update();     
+                
+                _color1 = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                _color2 = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+                
+                // _color1 = new THREE.Vector4(253 / 255, 56 / 255, 2 / 255, 1);
+                // _color2 = new THREE.Vector4(1 / 255, 58 / 255, 84 / 255, 1);
+                
+                // _color1 = new THREE.Vector4(253 / 255, 56 / 255, 2 / 255, 1);
+                // _color2 = new THREE.Vector4(0 / 255, 30 / 255, 45 / 255, 1);
+                
+                // _color1 = new THREE.Vector4(254 / 255, 2 / 255, 89 / 255, 1);
+                // _color2 = new THREE.Vector4(1 / 255, 24 / 255, 67 / 255, 1);
+                
+                // _color1 = new THREE.Vector4(215 / 255, 241 / 255, 3 / 255, 1);
+                // _color2 = new THREE.Vector4(28 / 255, 129 / 255, 129 / 255, 1);
+                
+                // _color1 = new THREE.Vector4(100 / 255, 213 / 255, 10 / 255, 1);
+                // _color2 = new THREE.Vector4(109 / 255, 27 / 255, 141 / 255, 1);
+                
                
                 _sceneSun = new THREE.Scene();
-                _sceneSunReflection = new THREE.Scene();
-
-				// -----------------------
-
-                let presetIndex = 0;
-                let presetTotal = 5;
-
-                const presetObject = {
-                    nextPreset: function() 
-                    { 
-                        presetIndex++; 
-
-                        if(presetIndex >= presetTotal)
-                        {
-                            presetIndex = 0;
-                        }
-
-                        presetSwitchFunction();
-                    },
-                    previousPreset: function() 
-                    { 
-                        presetIndex--; 
-
-                        if(presetIndex < 0)
-                        {
-                            presetIndex = presetTotal - 1;
-                        }
-
-                        presetSwitchFunction();
-                    },
-                };
-
-                const presetSwitchFunction = function()
-                {
-                    switch(presetIndex)
-                    {
-                        case 1:
-                            _sunMaterial.uniforms.color1.value = new THREE.Vector4(150 / 255, 236 / 255, 126 / 255, 1);
-                            _sunMaterial.uniforms.color2.value = new THREE.Vector4(251 / 255, 238 / 255, 218 / 255, 1);
-                            _sunReflectionMaterial.uniforms.color1.value = new THREE.Vector4(150 / 255, 236 / 255, 126 / 255, 1);
-                            _sunReflectionMaterial.uniforms.color2.value = new THREE.Vector4(251 / 255, 238 / 255, 218 / 255, 1);
-                            break;
-                        case 2:
-                            break;
-                        case 3:
-                            break;
-                        case 4:
-                            _sunMaterial.uniforms.color1.value = new THREE.Vector4(208 / 255, 122 / 255, 1 / 255, 1);
-                            _sunMaterial.uniforms.color2.value = new THREE.Vector4(255 / 255, 237 / 255, 199 / 255, 1);
-                            _sunReflectionMaterial.uniforms.color1.value = new THREE.Vector4(208 / 255, 122 / 255, 1 / 255, 1);
-                            _sunReflectionMaterial.uniforms.color2.value = new THREE.Vector4(255 / 255, 237 / 255, 199 / 255, 1);
-                            break;
-                        default:
-                            _gradientBackgroundShaderPass.uniforms.color1.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
-                            _gradientBackgroundShaderPass.uniforms.color2.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
-                            _sunMaterial.uniforms.color1.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
-                            _sunMaterial.uniforms.color2.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
-                            _sunReflectionMaterial.uniforms.color1.value = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
-                            _sunReflectionMaterial.uniforms.color2.value = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
-                            break;
-                    }
-                }
+                _sceneSunReflection1 = new THREE.Scene();
+                _sceneSunReflection2 = new THREE.Scene();
 
                 // ----------------------
 				
@@ -234,7 +197,11 @@
                 // -----
 
                 _gradientBackgroundShaderPass = new ShaderPass(Shaders.GradientShader);
+
                 _gradientBackgroundShaderPass.uniforms.gradientAngle.value = 90;
+                _gradientBackgroundShaderPass.uniforms.color1.value = _color1;
+                _gradientBackgroundShaderPass.uniforms.color2.value = _color2;
+
                 _composer.addPass(_gradientBackgroundShaderPass);
                 
                 // -----
@@ -243,36 +210,56 @@
 
                 _sunMaterial = new THREE.ShaderMaterial( { uniforms: THREE.UniformsUtils.clone(Shaders.GradientShader.uniforms), vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
 
-                _sunMaterial.uniforms.gradientAngle.value = 90;
+                _sunMaterial.uniforms.gradientAngle.value = 270;
                 _sunMaterial.uniforms.useWindowCoordinates.value = false;
+                _sunMaterial.uniforms.color1.value = _color1;
+                _sunMaterial.uniforms.color2.value = _color2;
 
                 _sunMesh = new THREE.Mesh( new THREE.CircleGeometry(_sunRadius, _sunSegments), _sunMaterial );
-                _sunMesh.position.set(0, 0.30, 0);
+                _sunMesh.position.set(0, 0.560, 0);
 
                 _sceneSun.add( _sunMesh );
                 
                 // -----
 
-                _sunReflectionSegments = SCRBLR.Utility.EllipseResolution(_sunReflectionWidth, _sunReflectionHeight, _camera, _renderer);
+                _sunReflection1Segments = SCRBLR.Utility.CircleResolution(_sunReflection1Radius, _camera, _renderer);
 
-                _sunReflectionMaterial = new THREE.ShaderMaterial( { uniforms: THREE.UniformsUtils.clone(Shaders.GradientShader.uniforms), vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
+                _sunReflection1Material = new THREE.ShaderMaterial( { uniforms: THREE.UniformsUtils.clone(Shaders.GradientShader.uniforms), vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
 
-                _sunReflectionMaterial.uniforms.gradientAngle.value = 270;
-                _sunReflectionMaterial.uniforms.useWindowCoordinates.value = false;
+                _sunReflection1Material.uniforms.gradientAngle.value = 90;
+                _sunReflection1Material.uniforms.useWindowCoordinates.value = false;
+                _sunReflection1Material.uniforms.color1.value = _color1;
+                _sunReflection1Material.uniforms.color2.value = _color2;
 
-                _sunReflectionMesh = new THREE.Mesh( new SCRBLR.EllipseGeometry(_sunReflectionWidth, _sunReflectionHeight, _sunReflectionSegments), _sunReflectionMaterial );
-                _sunReflectionMesh.position.set(0, -0.35, 0);
+                _sunReflection1Mesh = new THREE.Mesh( new THREE.CircleGeometry(_sunReflection1Radius, _sunReflection1Segments), _sunReflection1Material );
+                _sunReflection1Mesh.position.set(0, -0.125, 0);
 
-                _sceneSunReflection.add( _sunReflectionMesh );
+                _sceneSunReflection1.add( _sunReflection1Mesh );
                 
                 // -----
 
-                var renderSunReflectionMeshPass = new RenderPass(_sceneSunReflection, _camera );
+                _sunReflection2Segments = SCRBLR.Utility.EllipseResolution(_sunReflection2Width, _sunReflection2Height, _camera, _renderer);
+
+                _sunReflection2Material = new THREE.ShaderMaterial( { uniforms: THREE.UniformsUtils.clone(Shaders.GradientShader.uniforms), vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
+
+                _sunReflection2Material.uniforms.gradientAngle.value = 270;
+                _sunReflection2Material.uniforms.useWindowCoordinates.value = false;
+                _sunReflection2Material.uniforms.color1.value = _color1;
+                _sunReflection2Material.uniforms.color2.value = _color2;
+
+                _sunReflection2Mesh = new THREE.Mesh( new SCRBLR.EllipseGeometry(_sunReflection2Width, _sunReflection2Height, _sunReflection2Segments), _sunReflection2Material );
+                _sunReflection2Mesh.position.set(0, -0.575, 0);
+
+                _sceneSunReflection2.add( _sunReflection2Mesh );
+                
+                // -----
+
+                var renderSunReflection2Pass = new RenderPass(_sceneSunReflection2, _camera );
 				
-                renderSunReflectionMeshPass.clear = false;
-				renderSunReflectionMeshPass.clearDepth = true;
+                renderSunReflection2Pass.clear = false;
+				renderSunReflection2Pass.clearDepth = true;
 				
-                _composer.addPass( renderSunReflectionMeshPass );
+                _composer.addPass( renderSunReflection2Pass );
 
                 // -----
 
@@ -291,55 +278,59 @@
                 
                 // -----
                 
-                presetSwitchFunction();
-
                 Shaders.GradientShader.addGuiFolder(_gui, _gradientBackgroundShaderPass);
 
-                Shaders.GradientShader.addGuiFolder(_gui, _sunMaterial);
+                Shaders.GradientShader.addGuiFolder(_gui, _sunReflection1Material);
 
-                Shaders.GradientShader.addGuiFolder(_gui, _sunReflectionMaterial);
+                Shaders.GradientShader.addGuiFolder(_gui, _sunReflection2Material);
                 
                 // -----
 
-                var renderSunMeshPass = new RenderPass(_sceneSun, _camera );
+                var renderSunReflection1Pass = new RenderPass(_sceneSunReflection1, _camera );
 				
-                renderSunMeshPass.clear = false;
-				renderSunMeshPass.clearDepth = true;
+                renderSunReflection1Pass.clear = false;
+				renderSunReflection1Pass.clearDepth = true;
 				
-                _composer.addPass( renderSunMeshPass );
+                _composer.addPass( renderSunReflection1Pass );
 
-                // -----
-
-                _randomPixelRowColumnDisplaceShader = new ShaderPass(Shaders.RandomPixelRowColumnDisplaceShader);
-                _randomPixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -2;
-                _randomPixelRowColumnDisplaceShader.uniforms.xOffset.value.y =  2;
-                _randomPixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -1;
-                _randomPixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  1;
-                _composer.addPass(_randomPixelRowColumnDisplaceShader);
-
-                Shaders.RandomPixelRowColumnDisplaceShader.addGuiFolder(_gui, _randomPixelRowColumnDisplaceShader);
-                
                 // -----
 
                 _noisePixelRowColumnDisplaceShader = new ShaderPass(Shaders.NoisePixelRowColumnDisplaceShader);
-                _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -5;
+                
+                _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -4;
                 _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.y =  3;
-                _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -7;
+                _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -16;
                 _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  46;
+                
                 _composer.addPass(_noisePixelRowColumnDisplaceShader);
 
                 Shaders.NoisePixelRowColumnDisplaceShader.addGuiFolder(_gui, _noisePixelRowColumnDisplaceShader);
                 
                 // -----
 
+                var renderSunPass = new RenderPass(_sceneSun, _camera );
+				
+                renderSunPass.clear = false;
+				renderSunPass.clearDepth = true;
+				
+                _composer.addPass( renderSunPass );
+
+                // -----
+
+                _randomPixelRowColumnDisplaceShader = new ShaderPass(Shaders.RandomPixelRowColumnDisplaceShader);
+                
+                _randomPixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -2;
+                _randomPixelRowColumnDisplaceShader.uniforms.xOffset.value.y =  2;
+                _randomPixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -1;
+                _randomPixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  1;
+                
+                _composer.addPass(_randomPixelRowColumnDisplaceShader);
+
+                Shaders.RandomPixelRowColumnDisplaceShader.addGuiFolder(_gui, _randomPixelRowColumnDisplaceShader);
+                
+                // -----
+
                 _composer.addPass( new OutputPass() );	
-
-                // ----------------------
-
-                const presetsFolder = _gui.addFolder("Presets");
-
-                presetsFolder.add(presetObject, 'nextPreset').name('Next Preset');
-                presetsFolder.add(presetObject, 'previousPreset').name('Previous Preset');
 
                 // ----------------------
 
