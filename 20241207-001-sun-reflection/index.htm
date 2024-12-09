@@ -126,6 +126,13 @@
                 _renderer.setClearColor( 0xffffff, 1 );
                 // _renderer.shadowMap.enabled = true;
 
+                console.log("WebGL2RenderingContext: " + _renderer.capabilities.isWebGL2);
+                console.log("GL.MAX_TEXTURE_SIZE: " + _renderer.capabilities.maxTextureSize);
+                console.log("GL.MAX_SAMPLES: " + _renderer.capabilities.maxSamples);
+                console.log("GL.MAX_FRAGMENT_UNIFORM_VECTORS: " + _renderer.capabilities.maxFragmentUniforms);
+                console.log("GL.MAX_VARYING_VECTORS: " + _renderer.capabilities.maxVaryings);
+                console.log("GL.MAX_VERTEX_UNIFORM_VECTORS: " + _renderer.capabilities.maxVertexUniforms);
+
                 container.appendChild( _renderer.domElement );
 
                 // --------------------
@@ -491,18 +498,9 @@
                 _renderer.setSize( _canvasWidth, _canvasHeight );
                 _composer.setSize( _canvasWidth, _canvasHeight );
 
-                console.log("canvas size: " + _canvasWidth + "x" + _canvasHeight);
-                
-                // _sunReflectionSegments = SCRBLR.Utility.EllipseResolution(_sunRadius, _sunRadius * 1.25, _camera, _renderer);
+                SCRBLR.Utility.UpdateResolutionUniforms(new THREE.Vector2(_canvasWidth, _canvasHeight), _composer.passes);
 
-                // if(_sunReflectionMesh !== null)
-                // {
-                //     _sceneSunReflection.remove( _sunReflectionMesh );    
-                // }
-
-                // // _sunMesh = new THREE.Mesh( new THREE.CircleGeometry(_sunRadius, _sunSegments), _sunMaterial );
-                // _sunReflectionMesh = new THREE.Mesh( new SCRBLR.EllipseGeometry(_sunRadius, _sunRadius * 1.25, _sunReflectionSegments), _sunReflectionMaterial );
-                // _sceneSunReflection.add( _sunReflectionMesh );
+                console.log("canvas size: " + _canvasWidth + "x" + _canvasHeight);             
             }
 
 			function _downloadWebGLRenderer(hiresScale)

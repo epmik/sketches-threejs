@@ -12,6 +12,7 @@ const RandomPixelRowColumnDisplaceShader = {
 		'xOffset': { value: new Vector2(0, 0) }, 
 		'yOffset': { value: new Vector2(0, 0) }, 
 		'time': { value: new Vector2(0, 0) }, 
+		'baseHorizontalResolution': { value: 800 }, 
 	},
 
 	addGuiFolder : function (gui, element, name, openFolder)
@@ -61,6 +62,7 @@ const RandomPixelRowColumnDisplaceShader = {
 		uniform vec2 resolution;
 		uniform vec2 xOffset;
 		uniform vec2 yOffset;
+		uniform float baseHorizontalResolution;
 		uniform vec2 time;
 
 		varying vec2 v_Uv;
@@ -106,9 +108,9 @@ const RandomPixelRowColumnDisplaceShader = {
 
 		void main()
 		{
-			vec2 fraction = vec2(1.0, 1.0) / resolution;
+			vec2 fraction = (vec2(1.0, 1.0) / resolution) * (resolution / baseHorizontalResolution);
 
-			float x = v_Uv.x + (fraction.x * random(v_Uv.y + time.x , xOffset.x, xOffset.y));
+			float x = v_Uv.x + (fraction.x * random(v_Uv.y + time.x, xOffset.x, xOffset.y));
 			float y = v_Uv.y + (fraction.y * random(v_Uv.x + time.y, yOffset.x, yOffset.y));
 
 			gl_FragColor = texture(tDiffuse, vec2(x, y));

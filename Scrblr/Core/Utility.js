@@ -66,6 +66,20 @@ class Utility
 	{
 		return Utility.TransformVectorToScreenSpace(new Vector3().setFromMatrixPosition(object.matrixWorld), camera, renderer);
 	}
+
+	static UpdateResolutionUniforms(resolution, passes)
+	{
+		for(let i = 0; i < passes.length; i++)
+		{
+			if(passes[i].uniforms === undefined || passes[i].uniforms.resolution === undefined || passes[i].uniforms.resolution === null)
+			{
+				continue;
+			}
+
+			passes[i].uniforms.resolution.value.x = resolution.x;
+			passes[i].uniforms.resolution.value.y = resolution.y;
+		}
+	}
 }
 
 export { Utility };
