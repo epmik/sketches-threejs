@@ -8,11 +8,11 @@ const RandomPixelRowColumnDisplaceShader = {
 	uniforms:
 	{
 		'tDiffuse': { value: null }, //diffuse texture
-		'resolution': { value: new Vector2(800, 800) }, 
+		'resolution': { value: new Vector2(1024, 1024) }, 
 		'xOffset': { value: new Vector2(0, 0) }, 
 		'yOffset': { value: new Vector2(0, 0) }, 
 		'time': { value: new Vector2(0, 0) }, 
-		'baseHorizontalResolution': { value: 800 }, 
+		'FixedHorizontalResolution': { value: 1024 }, 
 	},
 
 	addGuiFolder : function (gui, element, name, openFolder)
@@ -25,14 +25,14 @@ const RandomPixelRowColumnDisplaceShader = {
 
 		let folder = gui.addFolder(name);
 
-		folder.add(element.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
-		folder.add(element.uniforms.resolution.value, 'y', 1, 2048, 1.0).name('Y-resolution');
+		// folder.add(element.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
+		// folder.add(element.uniforms.resolution.value, 'y', 1, 2048, 1.0).name('Y-resolution');
 		folder.add(element.uniforms.xOffset.value, 'x', -1024, 0, 1.0).name('Min X-Offset');
 		folder.add(element.uniforms.xOffset.value, 'y', 0, 1024, 1.0).name('Max X-Offset');
 		folder.add(element.uniforms.yOffset.value, 'x', -1024, 0, 1.0).name('Min Y-Offset');
 		folder.add(element.uniforms.yOffset.value, 'y', 0, 1024, 1.0).name('Max Y-Offset');
-		folder.add(element.uniforms.time.value, 'x', 0, 1, 0.01).name('X-Time');
-		folder.add(element.uniforms.time.value, 'y', 0, 1, 0.01).name('Y-Time');
+		// folder.add(element.uniforms.time.value, 'x', 0, 1, 0.01).name('X-Time');
+		// folder.add(element.uniforms.time.value, 'y', 0, 1, 0.01).name('Y-Time');
 
 		if(isPass)
 		{
@@ -62,7 +62,7 @@ const RandomPixelRowColumnDisplaceShader = {
 		uniform vec2 resolution;
 		uniform vec2 xOffset;
 		uniform vec2 yOffset;
-		uniform float baseHorizontalResolution;
+		uniform float FixedHorizontalResolution;
 		uniform vec2 time;
 
 		varying vec2 v_Uv;
@@ -108,7 +108,8 @@ const RandomPixelRowColumnDisplaceShader = {
 
 		void main()
 		{
-			vec2 fraction = (vec2(1.0, 1.0) / resolution) * (resolution / baseHorizontalResolution);
+			vec2 fraction = vec2(1.0, 1.0) / resolution;
+			fraction *= resolution.x / FixedHorizontalResolution;
 
 			float x = v_Uv.x + (fraction.x * random(v_Uv.y + time.x, xOffset.x, xOffset.y));
 			float y = v_Uv.y + (fraction.y * random(v_Uv.x + time.y, yOffset.x, yOffset.y));
