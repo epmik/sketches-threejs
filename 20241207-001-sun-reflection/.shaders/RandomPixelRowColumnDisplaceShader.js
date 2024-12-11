@@ -11,7 +11,7 @@ const RandomPixelRowColumnDisplaceShader = {
 		'resolution': { value: new Vector2(1024, 1024) }, 
 		'xOffset': { value: new Vector2(0, 0) }, 
 		'yOffset': { value: new Vector2(0, 0) }, 
-		'time': { value: new Vector2(0, 0) }, 
+		'time': { value: 0 }, 
 		'FixedHorizontalResolution': { value: 1024 }, 
 	},
 
@@ -63,7 +63,7 @@ const RandomPixelRowColumnDisplaceShader = {
 		uniform vec2 xOffset;
 		uniform vec2 yOffset;
 		uniform float FixedHorizontalResolution;
-		uniform vec2 time;
+		uniform float time;
 
 		varying vec2 v_Uv;
 
@@ -111,8 +111,8 @@ const RandomPixelRowColumnDisplaceShader = {
 			vec2 fraction = vec2(1.0, 1.0) / resolution;
 			fraction *= resolution.x / FixedHorizontalResolution;
 
-			float x = v_Uv.x + (fraction.x * random(v_Uv.y + time.x, xOffset.x, xOffset.y));
-			float y = v_Uv.y + (fraction.y * random(v_Uv.x + time.y, yOffset.x, yOffset.y));
+			float x = v_Uv.x + (fraction.x * random(v_Uv.y + time, xOffset.x, xOffset.y));
+			float y = v_Uv.y + (fraction.y * random(v_Uv.x + time, yOffset.x, yOffset.y));
 
 			gl_FragColor = texture(tDiffuse, vec2(x, y));
 		}`

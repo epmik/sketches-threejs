@@ -100,6 +100,7 @@
             let _lineGeometry = [];
 
             let _color1, _color2;
+            let _updatePixelsTime = 0.0, _updatePixelsTimeLimit = 0.25;
 
             let _settings = 
             {
@@ -328,8 +329,8 @@
                 
                 _randomPixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -2;
                 _randomPixelRowColumnDisplaceShader.uniforms.xOffset.value.y =  2;
-                _randomPixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -1;
-                _randomPixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  1;
+                _randomPixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -2;
+                _randomPixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  2;
                 
                 _composer.addPass(_randomPixelRowColumnDisplaceShader);
 
@@ -382,6 +383,15 @@
             function update() 
             {
 				_deltaTimeSeconds = _clock.getDelta();
+
+                _updatePixelsTime += _deltaTimeSeconds;
+
+                if(_updatePixelsTime >= _updatePixelsTimeLimit)
+                {
+                    _updatePixelsTime -= _updatePixelsTimeLimit;
+
+                    _randomPixelRowColumnDisplaceShader.uniforms.time.value += _updatePixelsTimeLimit;
+                }
 
                 // _sunScale += _sunScaleSpeed * _deltaTimeSeconds * _sunScaleDirection;
 

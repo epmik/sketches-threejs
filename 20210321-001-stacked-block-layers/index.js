@@ -1,17 +1,10 @@
 
-import * as THREE from '/node_modules/three/build/three.module.js';
-import * as SCRBLR from '/scrblr/scrblr.js';
-import { OrbitControls } from '/node_modules/three/examples/jsm/controls/OrbitControls.js';
-import { FirstPersonControls } from '/node_modules/three/examples/jsm/controls/FirstPersonControls.js';
-import { GLTFLoader } from '/node_modules/three/examples/jsm/loaders/GLTFLoader.js';
-import { EffectComposer } from '/node_modules/three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from '/node_modules/three/examples/jsm/postprocessing/RenderPass.js';
-import { GlitchPass } from '/node_modules/three/examples/jsm/postprocessing/GlitchPass.js';
-import { ShaderPass } from '/node_modules/three/examples/jsm/postprocessing/ShaderPass.js';
-import { LuminosityShader } from '/node_modules/three/examples/jsm/shaders/LuminosityShader.js';
-import Stats from '/node_modules/three/examples/jsm/libs/stats.module.js';
-import { GUI } from "/node_modules/dat.gui/build/dat.gui.module.js";
-import { Easing } from "/js/easing.js";
+import * as THREE from 'three';
+import * as SCRBLR from 'scrblr';
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import Stats from 'three/addons/libs/stats.module.js';
+import Alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm'
 
 let ScreenCapturePrefix = "20210321-001-stacked-block-layers";
 let camera, scene, renderer, stats;
