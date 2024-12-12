@@ -10,7 +10,7 @@ const NoisePixelRowColumnDisplaceShader = {
 		'resolution': { value: new Vector2(800, 800) }, 
 		'xOffset': { value: new Vector2(-10, 10) }, 
 		'yOffset': { value: new Vector2(-10, 10) }, 
-		'multiplier': { value: new Vector3(0.01, 0.01, 0.01) }, 
+		'multiplier': { value: new Vector3(1.00, 1.00, 1.00) }, 
 		'octaves': { value: 4 }, 
 		'amplitude': { value: 1.0 }, 
 		'frequency': { value: 1.0 }, 
@@ -532,8 +532,11 @@ const NoisePixelRowColumnDisplaceShader = {
 		{
 			vec2 p = vec2(1.0, 1.0) / resolution.xy;
 
-			float x = v_Uv.x + (p.x * (xOffset.x + ((xOffset.y - xOffset.x) * ((1.0 + summedSimplexNoise( gl_FragCoord.x * multiplier.x)) * 0.5))));
-			float y = v_Uv.y + (p.y * (yOffset.x + ((yOffset.y - yOffset.x) * ((1.0 + summedSimplexNoise((gl_FragCoord.y  + vec2(8.2146, 3.5964)) * multiplier.y)) * 0.5))));
+			// float x = v_Uv.x + (p.x * (xOffset.x + ((xOffset.y - xOffset.x) * ((1.0 + summedSimplexNoise( gl_FragCoord.x * multiplier.x)) * 0.5))));
+			// float y = v_Uv.y + (p.y * (yOffset.x + ((yOffset.y - yOffset.x) * ((1.0 + summedSimplexNoise((gl_FragCoord.y  + vec2(8.2146, 3.5964)) * multiplier.y)) * 0.5))));
+
+			float x = v_Uv.x + (p.x * (xOffset.x + ((xOffset.y - xOffset.x) * ((1.0 + summedSimplexNoise( v_Uv.x * multiplier.x)) * 0.5))));
+			float y = v_Uv.y + (p.y * (yOffset.x + ((yOffset.y - yOffset.x) * ((1.0 + summedSimplexNoise((v_Uv.y  + vec2(8.2146, 3.5964)) * multiplier.y)) * 0.5))));
 
 			 gl_FragColor = texture(tDiffuse, vec2(x, y));
 		}`

@@ -10,6 +10,9 @@ export { VisualizeNoiseShader } from '../.shaders/VisualizeNoiseShader.js';
 export { OvercastSkyShader } from '../.shaders/OvercastSkyShader.js';
 export { ColorAdjustShader } from '../.shaders/ColorAdjustShader.js';
 export { GradientShader } from '../.shaders/GradientShader.js';
+export { HorizontalGaussianBlurShader } from '../.shaders/HorizontalGaussianBlurShader.js';
+export { VerticalGaussianBlurShader } from '../.shaders/VerticalGaussianBlurShader.js';
+
 
 import { ShaderChunk } from 'three';
 
