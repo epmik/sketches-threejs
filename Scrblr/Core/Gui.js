@@ -8,9 +8,9 @@ class Gui
 
 	static _ignoreList = new Set(['tDiffuse']);
 
-	constructor() 
+	constructor(options) 
 	{
-		this.g = new LIL.GUI({ width: 360 });
+		this.g = new LIL.GUI(options);
 
 		// if (this instanceof Utility) 
 		// {

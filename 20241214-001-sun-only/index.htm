@@ -112,7 +112,7 @@
             let _sceneSun, _sceneSunReflection2;
             let _sceneMask, _maskMesh;
 
-            let _sunRadius = 0.300, _sunPosition = new THREE.Vector3(0, 0.585, 0);
+            let _sunRadius = 0.550, _sunPosition = new THREE.Vector3(0, 0, 0);
             let _sunReflection1Radius = 0.280, _sunReflection1Position = new THREE.Vector3(0, -0.125, 0);
             let _sunReflection2Width = 0.180, _sunReflection2Position = new THREE.Vector3(0, -0.575, 0);
             let _sunReflection2Height = 0.280;
@@ -177,7 +177,7 @@
 
                 // --------------------
 
-                _renderer = new THREE.WebGLRenderer( { antialias: true, samples: 4, stencil: true, alpha: true } );
+                _renderer = new THREE.WebGLRenderer( { antialias: true, samples: 8, stencil: true, alpha: true } );
                 _renderer.setPixelRatio( window.devicePixelRatio );
                 _renderer.setClearColor( 0xffffff, 1 );
                 // _renderer.shadowMap.enabled = true;
@@ -230,7 +230,7 @@
                
                 _sceneMask = new THREE.Scene();
                 _sceneSun = new THREE.Scene();
-                _sceneSunReflection2 = new THREE.Scene();
+                // _sceneSunReflection2 = new THREE.Scene();
 
                 // ----------------------
 				
@@ -248,7 +248,7 @@
                 // -----
 
                 _renderer.autoClear = false;
-				_composer = new EffectComposer( _renderer, renderTarget );
+				_composer = new EffectComposer( _renderer );
 				
                 // -----
 
@@ -310,7 +310,7 @@
                 _sunReflection1Mesh = new THREE.Mesh( new THREE.CircleGeometry(_sunReflection1Radius, _sunReflection1Segments), _sunReflection1Material );
                 _sunReflection1Mesh.position.set(_sunReflection1Position.x, _sunReflection1Position.y, _sunReflection1Position.z);
 
-                _sceneSunReflection2.add( _sunReflection1Mesh );
+                // _sceneSunReflection2.add( _sunReflection1Mesh );
                 
                 // -----
 
@@ -326,27 +326,39 @@
                 _sunReflection2Mesh = new THREE.Mesh( new SCRBLR.EllipseGeometry(_sunReflection2Width, _sunReflection2Height, _sunReflection2Segments), _sunReflection2Material );
                 _sunReflection2Mesh.position.set(_sunReflection2Position.x, _sunReflection2Position.y, _sunReflection2Position.z);
 
-                _sceneSunReflection2.add( _sunReflection2Mesh );
+                // _sceneSunReflection2.add( _sunReflection2Mesh );
                 
                 // -----
 
-                var renderSunReflection2Pass = new RenderPass(_sceneSunReflection2, _camera );
+                // var renderSunReflection2Pass = new RenderPass(_sceneSunReflection2, _camera );
 				
-                renderSunReflection2Pass.clear = false;
-				renderSunReflection2Pass.clearDepth = true;
+                // renderSunReflection2Pass.clear = false;
+				// renderSunReflection2Pass.clearDepth = true;
 				
-                _composer.addPass( renderSunReflection2Pass );
+                // _composer.addPass( renderSunReflection2Pass );
+
+                // -----
+
+                var renderSunPass = new RenderPass(_sceneSun, _camera );
+				
+                renderSunPass.clear = false;
+				renderSunPass.clearDepth = true;
+				
+                _composer.addPass( renderSunPass );
 
                 // -----
 
                 const _sunReflectionDisplaceShader = new ShaderPass(Shaders.NoisePixelDisplaceShader);
                 
+                _sunReflectionDisplaceShader.uniforms.octaves.value = 2;
                 _sunReflectionDisplaceShader.uniforms.multiplier.value.x = 8;
                 _sunReflectionDisplaceShader.uniforms.multiplier.value.y = 12;
-                _sunReflectionDisplaceShader.uniforms.xOffset.value.x = -15;
-                _sunReflectionDisplaceShader.uniforms.xOffset.value.y = 25;
-                _sunReflectionDisplaceShader.uniforms.yOffset.value.x = -9;
-                _sunReflectionDisplaceShader.uniforms.yOffset.value.y = 9;
+                _sunReflectionDisplaceShader.uniforms.xOffset.value.x = -30;
+                _sunReflectionDisplaceShader.uniforms.xOffset.value.y = 124;
+                _sunReflectionDisplaceShader.uniforms.yOffset.value.x = -63;
+                _sunReflectionDisplaceShader.uniforms.yOffset.value.y = 40;
+
+                _sunReflectionDisplaceShader.enabled = false;
                 
                 _composer.addPass(_sunReflectionDisplaceShader);
                 
@@ -366,6 +378,7 @@
 
                 _noisePixelRowColumnDisplaceShader = new ShaderPass(Shaders.NoisePixelRowColumnDisplaceShader);
                 
+                _noisePixelRowColumnDisplaceShader.uniforms.octaves.value = 2;
                 _noisePixelRowColumnDisplaceShader.uniforms.multiplier.value.x = 12;
                 _noisePixelRowColumnDisplaceShader.uniforms.multiplier.value.y = 18;
                 _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -4;
@@ -373,23 +386,16 @@
                 _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -16;
                 _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  46;
                 
+                _noisePixelRowColumnDisplaceShader.enabled = false;
+
                 _composer.addPass(_noisePixelRowColumnDisplaceShader);
 
                 Shaders.NoisePixelRowColumnDisplaceShader.addGuiFolder(_g.g, _noisePixelRowColumnDisplaceShader);
                 
                 // -----
 
-                var renderSunPass = new RenderPass(_sceneSun, _camera );
-				
-                renderSunPass.clear = false;
-				renderSunPass.clearDepth = true;
-				
-                _composer.addPass( renderSunPass );
-
-                // -----
-
                 _horizontalBlurShaderPass2 = new ShaderPass(Shaders.HorizontalGaussianBlurShader);
-                _horizontalBlurShaderPass2.uniforms.radius.value = 16;
+                _horizontalBlurShaderPass2.uniforms.radius.value = 12;
                
                 _composer.addPass(_horizontalBlurShaderPass2);
 
@@ -398,7 +404,7 @@
                 // ----- 
 
                 _verticalBlurShaderPass2 = new ShaderPass(Shaders.VerticalGaussianBlurShader);
-                _verticalBlurShaderPass2.uniforms.radius.value = 2;
+                _verticalBlurShaderPass2.uniforms.radius.value = 4;
                
                 _composer.addPass(_verticalBlurShaderPass2);
 
