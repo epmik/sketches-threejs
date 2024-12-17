@@ -323,7 +323,7 @@
                 _sunReflection2Material.uniforms.color1.value = _sunReflectionColorPair.color1;
                 _sunReflection2Material.uniforms.color2.value = _sunReflectionColorPair.color2;
 
-                _sunReflection2Mesh = new THREE.Mesh( new SCRBLR.EllipseGeometry(_sunReflection2Width, _sunReflection2Height, _sunReflection2Segments), _sunReflection2Material );
+                _sunReflection2Mesh = new THREE.Mesh( new SCRBLR.EllipseGeometry({ width : _sunReflection2Width, height : _sunReflection2Height, segments : _sunReflection2Segments }), _sunReflection2Material );
                 _sunReflection2Mesh.position.set(_sunReflection2Position.x, _sunReflection2Position.y, _sunReflection2Position.z);
 
                 // _sceneSunReflection2.add( _sunReflection2Mesh );

@@ -2,19 +2,28 @@ import { Vector2, Vector3, BufferGeometry, Float32BufferAttribute } from "three"
 
 class EllipseGeometry extends BufferGeometry 
 {
-	constructor( width = 1, height = 1, segments = 32 ) {
+	static defaultOptions = 
+	{
+		width: 1.0,
+		height: 1.0,
+		segments: 32,
+		startAngleInDegrees: 0.0,
+		stopAngleInDegrees: 360.0,
+		thickness: undefined,
+	};	
+	
+	
+
+	constructor( options ) {
 
 		super();
 
 		this.type = 'EllipseGeometry';
 
-		this.parameters = {
-			width: width,
-			height: height,
-			segments: segments,
-		};
+		this.options = Object.assign({}, EllipseGeometry.defaultOptions);
+		Object.assign(this.options, options);
 
-		segments = Math.min( 720, Math.max( 3, segments ));
+		this.options = Math.max( 3, this.options );
 
 		// buffers
 
@@ -28,41 +37,47 @@ class EllipseGeometry extends BufferGeometry
 		const vertex = new Vector3();
 		const uv = new Vector2();
 
-		// center point
+		if (this.options.thickness == undefined)
+		{
+			// center point
 
-		vertices.push( 0, 0, 0 );
-		normals.push( 0, 0, 1 );
-		uvs.push( 0.5, 0.5 );
-
-		for ( let s = 0, i = 3; s <= segments; s ++, i += 3 ) {
-
-			const segment = s / segments * Math.PI * 2;
-
-			// vertex
-
-			vertex.x = width * Math.cos( segment );
-			vertex.y = height * Math.sin( segment );
-
-			vertices.push( vertex.x, vertex.y, vertex.z );
-
-			// normal
-
+			vertices.push( 0, 0, 0 );
 			normals.push( 0, 0, 1 );
+			uvs.push( 0.5, 0.5 );
 
-			// uvs
+			for ( let s = 0, i = 3; s <= this.options.segments; s ++, i += 3 ) {
 
-			uv.x = ( vertices[ i ] / width + 1 ) / 2;
-			uv.y = ( vertices[ i + 1 ] / height + 1 ) / 2;
+				const segment = s / this.options.segments * Math.PI * 2;
 
-			uvs.push( uv.x, uv.y );
+				// vertex
+
+				vertex.x = this.options.width * Math.cos( segment );
+				vertex.y = this.options.height * Math.sin( segment );
+
+				vertices.push( vertex.x, vertex.y, vertex.z );
+
+				// normal
+
+				normals.push( 0, 0, 1 );
+
+				// uvs
+
+				uv.x = ( vertices[ i ] / this.options.width + 1 ) / 2;
+				uv.y = ( vertices[ i + 1 ] / this.options.height + 1 ) / 2;
+
+				uvs.push( uv.x, uv.y );
+			}
+
+			// indices
+
+			for (let i = 1; i <= this.options.segments; i++) 
+			{
+				indices.push( i, i + 1, 0 );
+			}
 		}
-
-		// indices
-
-		for ( let i = 1; i <= segments; i ++ ) {
-
-			indices.push( i, i + 1, 0 );
-
+		else
+		{
+			
 		}
 
 		// build geometry
