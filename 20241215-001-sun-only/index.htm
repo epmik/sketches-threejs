@@ -652,8 +652,8 @@
                 //     _canvasHeight = _canvasWidth * (_minCanvasWidth / _minCanvasHeight);
                 // }
 
-                _canvasWidth = Math.min(window.innerWidth, document.documentElement.clientWidth);
-                _canvasHeight = Math.min(window.innerHeight, document.documentElement.clientHeight);
+                _canvasWidth = Math.max(window.innerWidth, _minCanvasWidth);
+                _canvasHeight = Math.max(window.innerHeight, _minCanvasHeight);
 
                 _camera.aspect = _canvasWidth / _canvasHeight;
                 _camera.left = -1 * _camera.aspect;
