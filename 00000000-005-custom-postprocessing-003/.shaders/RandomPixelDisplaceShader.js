@@ -16,8 +16,6 @@ const RandomPixelDisplaceShader = {
 
 	addGuiFolder : function (gui, pass, openFolder)
 	{
-		const self = this;
-
 		let folder = gui.addFolder('Random Pixel Displace');
 
 		folder.add(pass.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
