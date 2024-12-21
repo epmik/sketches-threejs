@@ -151,8 +151,8 @@
 			let _g;
             let _clock, _deltaTimeSeconds;
             let _frameCount = 0;
-
-            let mouseTimer = null;
+			let _mouseTimer = null;
+			let _squareCanvas = false;
 
             let _randomGenerator;       
             let _noiseGenerator;       
@@ -475,9 +475,9 @@
                 window.addEventListener("mousedown", onMouseDown, false);
                 window.addEventListener("mouseup", onMouseUp, false);
 
-                onWindowResize();
+                resize();
 
-                window.addEventListener( 'resize', onWindowResize );
+                window.addEventListener( 'resize', resize );
                 window.addEventListener( 'focus', function() { console.log('window focus') } );
                 window.addEventListener( 'blur', function() { console.log('window blur') } );
 
@@ -567,6 +567,11 @@
 
                 switch(keyCode)
                 {
+                    case 119: // F8
+                        event.preventDefault();
+						_squareCanvas = !_squareCanvas;
+						resize();
+                        break;
                     case 120: // F9
                         event.preventDefault();
                         _toggleInfo();
@@ -613,15 +618,15 @@
             {
                 // event.preventDefault();
 
-                if (mouseTimer) 
+                if (_mouseTimer) 
                 {
-                    window.clearTimeout(mouseTimer);
+                    window.clearTimeout(_mouseTimer);
                 }
 
                 document.body.style.cursor = "default";
                 $('#info-container').show(0);
 
-                mouseTimer = window.setTimeout(_hideCursor, 4000);
+                _mouseTimer = window.setTimeout(_hideCursor, 4000);
 
                 // event.clientX    // The X coordinate of the mouse pointer in viewport coordinates.
                 // event.clientY    // The Y coordinate of the mouse pointer in viewport coordinates.
@@ -636,32 +641,30 @@
                 // event.screenY    // The Y coordinate of the mouse pointer in screen coordinates.
             };            
 
-            function onWindowResize() 
+            function resize() 
             {
-                // const w = Math.min(window.innerWidth, document.documentElement.clientWidth);
-                // const h = Math.min(window.innerHeight, document.documentElement.clientHeight);
+				if(_squareCanvas)
+				{
+					_canvasHeight = _canvasWidth = window.innerWidth < window.innerHeight ? Math.max(window.innerWidth, _minCanvasWidth) : Math.max(window.innerHeight, _minCanvasHeight);
+				}
+				else
+				{
+					_canvasWidth = Math.max(window.innerWidth, _minCanvasWidth);
+					_canvasHeight = Math.max(window.innerHeight, _minCanvasHeight);
+				}
 
-                // if(h <= w)
-                // {
-                //     _canvasHeight = Math.max(h, _minCanvasHeight);
-                //     _canvasWidth = _canvasHeight * (_minCanvasHeight / _minCanvasWidth);
-                // }
-                // else
-                // {
-                //     _canvasWidth = Math.max(w, _minCanvasWidth);
-                //     _canvasHeight = _canvasWidth * (_minCanvasWidth / _minCanvasHeight);
-                // }
+				_camera.aspect = _canvasWidth / _canvasHeight;
 
-                _canvasWidth = Math.min(window.innerWidth, document.documentElement.clientWidth);
-                _canvasHeight = Math.min(window.innerHeight, document.documentElement.clientHeight);
+				if(_camera instanceof THREE.OrthographicCamera)
+				{
+					_camera.left = -1 * _camera.aspect;
+					_camera.right = 1 * _camera.aspect;
+				}
 
-                _camera.aspect = _canvasWidth / _canvasHeight;
-                _camera.left = -1 * _camera.aspect;
-                _camera.right = 1 * _camera.aspect;
-                _camera.updateProjectionMatrix();
+				_camera.updateProjectionMatrix();
 
-                _renderer.setSize( _canvasWidth, _canvasHeight );
-                _composer.setSize( _canvasWidth, _canvasHeight );
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+				_composer.setSize( _canvasWidth, _canvasHeight );
 
                 SCRBLR.Utility.UpdateResolutionUniforms(new THREE.Vector2(_canvasWidth, _canvasHeight), _composer.passes);
 
@@ -839,7 +842,7 @@
 
             function _hideCursor() 
             {
-                mouseTimer = null;
+                _mouseTimer = null;
                 document.body.style.cursor = "none";
                 $('#info-container').hide(0);
             }
