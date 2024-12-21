@@ -29,6 +29,7 @@
 
 		<script type="module">
 
+			import $ from 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/+esm'
 			import * as THREE from 'three';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
@@ -54,6 +55,8 @@
 			let _clock, _deltaTime;
 			let _meshes = [];
 			let _postProcessingObject;			
+			let _mouseTimer = null;
+			let _squareCanvas = false;
 
 			// --------------------
 
@@ -654,14 +657,111 @@
 				const outputPass = new OutputPass();				
 				_effectsComposer.addPass( outputPass );				
 
+
 				// -----------------------
 
-				window.addEventListener( 'resize', onWindowResize );
+                window.addEventListener("keydown", onKeyDown, false);
+                window.addEventListener("keyup", onKeyUp, false);
+                window.addEventListener("mousemove", onMouseMove, false);
+                window.addEventListener("mousedown", onMouseDown, false);
+                window.addEventListener("mouseup", onMouseUp, false);
+
+                resize();
+
+                window.addEventListener( 'resize', resize );
+                window.addEventListener( 'focus', function() { console.log('window focus') } );
+                window.addEventListener( 'blur', function() { console.log('window blur') } );
+
+                onMouseMove();
+
+				// -----------------------
 
 				_clock = new THREE.Clock();
+
+				// -----------------------
 			}
 
-			function onWindowResize() {
+            function onKeyDown(event) 
+            {
+                var keyCode = event.which;
+
+                switch(keyCode)
+                {
+                    case 119: // F8
+                        event.preventDefault();
+						_squareCanvas = !_squareCanvas;
+						resize();
+                        break;
+                    case 120: // F9
+                        event.preventDefault();
+                        _toggleInfo();
+                        break;
+                    case 121: // F10
+                        event.preventDefault();
+                        _toggleGui();
+                        break;
+                    case 122: // F11
+                        event.preventDefault();
+                        _toggleFullscreen(document.body);
+                        break;
+                    default: 
+                        console.log("key down: " + keyCode + ' keyCode');
+                        break;
+                }
+            };            
+
+            function onKeyUp(event) 
+            {
+                // event.preventDefault();
+            };            
+
+            function onMouseDown(event) 
+            {
+                // event.preventDefault();
+
+                switch(event.button)
+                {
+                    case 0:
+                        break;
+                }
+
+                // console.log(event.button);
+                // console.log(event.buttons);
+            }; 
+
+            function onMouseUp(event) 
+            {
+                // event.preventDefault();
+            };  
+
+            function onMouseMove(event) 
+            {
+                // event.preventDefault();
+
+                if (_mouseTimer) 
+                {
+                    window.clearTimeout(_mouseTimer);
+                }
+
+                document.body.style.cursor = "default";
+                $('#info-container').show(0);
+
+                _mouseTimer = window.setTimeout(_hideCursor, 4000);
+
+                // event.clientX    // The X coordinate of the mouse pointer in viewport coordinates.
+                // event.clientY    // The Y coordinate of the mouse pointer in viewport coordinates.
+                // event.altKey     // Returns true if the alt key was down when the mouse event was fired.
+                // event.ctrlKey    // Returns true if the ctrl key was down when the mouse event was fired.
+                // event.shiftKey   // Returns true if the shift key was down when the mouse event was fired.
+                // event.button     // The button number that was pressed (if applicable) when the mouse event was fired.
+                // event.buttons    // The buttons being pressed (if any) when the mouse event was fired.
+                // event.movementX  // The X coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.movementY  // The Y coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.screenX    // The X coordinate of the mouse pointer in screen coordinates.
+                // event.screenY    // The Y coordinate of the mouse pointer in screen coordinates.
+            };            
+
+			function resize() {
 
 				_camera.aspect = _canvasWidth / _canvasHeight;
 				_camera.updateProjectionMatrix();
@@ -783,6 +883,92 @@
 					a.click();
 				}, 'image/png', 1.0); 
 			}
+
+            $('.clickable').on('click', function(e) 
+            {    
+                let target = $(this).attr('target');
+
+                switch(target)
+                {
+                    case 'F9':
+                        _toggleInfo();
+                        break;
+                    case 'F10':
+                        _toggleGui();
+                        break;
+                    case 'F11':
+                        _toggleFullscreen();
+                        break;
+                }
+            });
+
+            function _toggleInfo()
+            {
+                $('#info-container').toggle(0);
+                $('#info-help-container').toggle(0);
+                $('#info-text-container').toggle(0);
+            }
+
+            function _toggleGui()
+            {
+                $('#gui-container').toggle(0);
+            }
+
+            function _toggleFullscreen(element)
+            {
+                // https://stackoverflow.com/a/47110257/527843
+
+                if(element === undefined || element === null)
+                {
+                    element = document.body;                    
+                }
+
+                if ((document.fullScreenElement !== undefined && document.fullScreenElement === null) || (document.msFullscreenElement !== undefined && document.msFullscreenElement === null) || (document.mozFullScreen !== undefined && !document.mozFullScreen) || (document.webkitIsFullScreen !== undefined && !document.webkitIsFullScreen)) 
+                {
+                    if (element.requestFullScreen) 
+                    {
+                        element.requestFullScreen();
+                    } 
+                    else if (element.mozRequestFullScreen) 
+                    {
+                        element.mozRequestFullScreen();
+                    }
+                    else if (element.webkitRequestFullScreen) 
+                    {
+                        element.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+                    }
+                    else if (element.msRequestFullscreen) 
+                    {
+                        element.msRequestFullscreen();
+                    }
+                } 
+                else 
+                {
+                    if (document.cancelFullScreen) 
+                    {
+                        document.cancelFullScreen();
+                    } 
+                    else if (document.mozCancelFullScreen) 
+                    {
+                        document.mozCancelFullScreen();
+                    } 
+                    else if (document.webkitCancelFullScreen) 
+                    {
+                        document.webkitCancelFullScreen();
+                    } 
+                    else if (document.msExitFullscreen) 
+                    {
+                        document.msExitFullscreen();
+                    }
+                }            
+            }
+
+            function _hideCursor() 
+            {
+                _mouseTimer = null;
+                document.body.style.cursor = "none";
+                $('#info-container').hide(0);
+            }
 
 		</script>
 

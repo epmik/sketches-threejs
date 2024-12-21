@@ -1,15 +1,24 @@
-body {
-	margin: 0;
-	background-color: #ddd;
-	color: #fff;
-	font-family: Monospace;
-	font-size: 13px;
-	line-height: 24px;
-	overscroll-behavior: none;
+html,
+body
+{
+	min-height:100%;
+	height:auto;
+	min-width:100%;
+	width:auto;
+	margin: 0 auto;
+	padding: 0;
+	background-color: #ffffff;
+	text-align: center;
 }
-
-canvas{
-	margin: auto;
+canvas
+{
+	margin: 0 auto;
+	padding: 0;
+	background-color: #ffffff;
+	/* min-height:100%;
+	height:auto;
+	min-width:100%;
+	width:auto; */
 }
 
 a {
