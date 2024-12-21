@@ -201,11 +201,13 @@ const GradientShader2 = {
 			float first = float(firstIndex(factor)) * 0.25;
 			float last = float(lastIndex(factor)) * 0.25;
 
-			gl_FragColor = vec4(v_Uv.x, v_Uv.x, v_Uv.x, 1);
+			// gl_FragColor = vec4(v_Uv.x, v_Uv.x, v_Uv.x, 1);
 			// gl_FragColor = vec4(factor, factor, factor, 1);
 			// gl_FragColor = vec4(first, first, first, 1);
 			// gl_FragColor = vec4(last, last, last, 1);
 			// gl_FragColor = colorAt(factor);
+			// gl_FragColor = gradient[firstIndex(factor)].color;
+			gl_FragColor = gradient[lastIndex(factor)].color;
   		}`
 };
 
