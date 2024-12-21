@@ -8,6 +8,7 @@ export { VisualizeNoiseShader } from '../.shaders/VisualizeNoiseShader.js';
 export { OvercastSkyShader } from '../.shaders/OvercastSkyShader.js';
 export { ColorAdjustShader } from '../.shaders/ColorAdjustShader.js';
 export { GradientShader } from '../.shaders/GradientShader.js';
+export { GradientShader2 } from '../.shaders/GradientShader2.js';
 
 import { ShaderChunk } from 'three';
 
