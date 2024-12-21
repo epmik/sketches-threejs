@@ -1,4 +1,4 @@
-import { Vector2, Vector3, BufferGeometry, Float32BufferAttribute } from "three";
+import { Vector2, Vector3, BufferGeometry, Float32BufferAttribute, MathUtils } from "three";
 
 class EllipseGeometry extends BufferGeometry 
 {
@@ -10,9 +10,7 @@ class EllipseGeometry extends BufferGeometry
 		startAngleInDegrees: 0.0,
 		stopAngleInDegrees: 360.0,
 		thickness: undefined,
-	};	
-	
-	
+	};		
 
 	constructor( options ) {
 
@@ -37,7 +35,10 @@ class EllipseGeometry extends BufferGeometry
 		const vertex = new Vector3();
 		const uv = new Vector2();
 
-		if (this.options.thickness == undefined)
+		const start = MathUtils.degToRad(this.options.startAngleInDegrees);
+		const stop = MathUtils.degToRad(this.options.stopAngleInDegrees);
+
+		if (this.options.thickness === undefined)
 		{
 			// center point
 
