@@ -1,19 +1,14 @@
 export { NoisePixelDisplaceShader } from '../.shaders/NoisePixelDisplaceShader.js';
-export { NoisePixelRowColumnDisplaceShader } from '../.shaders/NoisePixelRowColumnDisplaceShader.js';
 export { RandomPixelStretchShader } from '../.shaders/RandomPixelStretchShader.js';
 export { MondriaanLinesShader } from '../.shaders/MondriaanLinesShader.js';
 export { UvVisualizerShader } from '../.shaders/UvVisualizerShader.js';
 export { RandomPixelDisplaceShader } from '../.shaders/RandomPixelDisplaceShader.js';
-export { RandomPixelRowColumnDisplaceShader } from '../.shaders/RandomPixelRowColumnDisplaceShader.js';
 export { VisualizeRandomShader } from '../.shaders/VisualizeRandomShader.js';
 export { VisualizeNoiseShader } from '../.shaders/VisualizeNoiseShader.js';
 export { OvercastSkyShader } from '../.shaders/OvercastSkyShader.js';
 export { ColorAdjustShader } from '../.shaders/ColorAdjustShader.js';
 export { GradientShader } from '../.shaders/GradientShader.js';
-export { HorizontalGaussianBlurShader } from '../.shaders/HorizontalGaussianBlurShader.js';
-export { VerticalGaussianBlurShader } from '../.shaders/VerticalGaussianBlurShader.js';
 export { GradientShader2 } from '../.shaders/GradientShader2.js';
-
 
 import { ShaderChunk } from 'three';
 

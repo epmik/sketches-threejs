@@ -14,7 +14,22 @@
 	</head>
 
 	<body>
-
+        <div id="canvas-container">
+        </div>
+        <div id="gui-container">
+        </div>
+        <div id="info-container">
+            <div id="info-help-container">
+                <div class="clickable" target="F9">Help (F9)</div>
+            </div>
+            <div id="info-text-container">
+                <div class="clickable" target="F8">Toggle square canvas - F8</div>
+                <div class="clickable" target="F9">Toggle this information - F9</div>
+                <div class="clickable" target="F5">Refresh page - F5</div>
+                <div class="clickable" target="F10">Toggle GUI - F10</div>
+                <div class="clickable" target="F11">Toggle fullscreen - F11</div>
+            </div>
+        </div>
 		<script type="importmap">
 			{
 				"imports": {
@@ -31,8 +46,9 @@
 
 			import $ from 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/+esm'
 			import * as THREE from 'three';
+			import * as SCRBLR from 'scrblr';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			// import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 			import Stats from 'three/addons/libs/stats.module.js';
 			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
@@ -49,15 +65,16 @@
 			let _camera, _controls, _postprocessingScene, _shaderGeometryScene, _renderer;
 			let _effectsComposer;
 			let _minCanvasWidth = 640, _minCanvasHeight = 640;
-			let _canvasWidth = 800, _canvasHeight = 800;
+			let _canvasWidth = 800, _canvasHeight = 800, _canvasContainer;
 			let _sceneWidth = 1, _sceneHeight = 1;
 			let _near = 1, _far = 1000, _fov = 60;
-			let _gui, _guiActions;
+			let _g, _gui, _guiActions, _guiContainer, _stats;
 			let _clock, _deltaTime;
 			let _meshes = [];
 			let _shaderSettingsObject;			
 			let _mouseTimer = null;
 			let _squareCanvas = false;
+			const _hiresUpscaleFactor = 4.0;
 
 			// --------------------
 
@@ -71,6 +88,9 @@
 
 			function init() 
 			{
+                _canvasContainer = document.getElementById('canvas-container');
+                _guiContainer = document.getElementById('gui-container');
+
 				_renderer = new THREE.WebGLRenderer( { antialias: true, stencil: true, alpha: true } );
 				_renderer.setPixelRatio( window.devicePixelRatio );
 				_renderer.setSize( _canvasWidth, _canvasHeight );
@@ -79,7 +99,22 @@
 				_renderer.shadowMap.enabled = true;
     			_renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-				document.body.appendChild( _renderer.domElement );
+                console.log("WebGL2RenderingContext: " + _renderer.capabilities.isWebGL2);
+                console.log("GL.MAX_TEXTURE_SIZE: " + _renderer.capabilities.maxTextureSize);
+                console.log("GL.MAX_SAMPLES: " + _renderer.capabilities.maxSamples);
+                console.log("GL.MAX_FRAGMENT_UNIFORM_VECTORS: " + _renderer.capabilities.maxFragmentUniforms);
+                console.log("GL.MAX_VARYING_VECTORS: " + _renderer.capabilities.maxVaryings);
+                console.log("GL.MAX_VERTEX_UNIFORM_VECTORS: " + _renderer.capabilities.maxVertexUniforms);
+
+                _canvasContainer.appendChild( _renderer.domElement );
+
+				let _settings = 
+				{
+					downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
+					downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(_hiresUpscaleFactor); },
+					saveTransparentBackground: true,
+					hideScene: false,
+				};
 
 				_shaderSettingsObject = 
 				{
@@ -87,11 +122,13 @@
 					{
 						pass: null,
 						folder: null,
+						shader: null,
 						init: function()
 						{
-							this.pass = new ShaderPass(Shaders.GradientShader2);
+							this.shader = Shaders.GradientShader2,
+							this.pass = new ShaderPass(this.shader);
 							this.pass.enabled = true;
-							this.folder = Shaders.GradientShader2.addGuiFolder(_gui, this.pass);
+							this.folder = Shaders.GradientShader2.addGuiFolder(_g.g, this.pass);
 						},
 					},
 
@@ -103,7 +140,7 @@
 						{
 							this.pass = new ShaderPass(Shaders.GradientShader);
 							this.pass.enabled = false;
-							this.folder = Shaders.GradientShader.addGuiFolder(_gui, this.pass);
+							this.folder = Shaders.GradientShader.addGuiFolder(_g.g, this.pass);
 						},
 					},
 
@@ -141,7 +178,7 @@
 								self.pass.enabled = self.enabled;
 							}
 
-							this.folder = _gui.addFolder('ColorAdjustShader');
+							this.folder = _g.g.addFolder('ColorAdjustShader');
 
 							this.folder.add(this.settings, 'hue', -1.0, 1.0, 0.02).name('Hue').onChange(updateUniforms);
 							this.folder.add(this.settings, 'saturation', -1.0, 1.0, 0.02).name('Saturation').onChange(updateUniforms);
@@ -190,7 +227,7 @@
 								self.pass.enabled = self.enabled;
 							}
 
-							this.folder = _gui.addFolder('OvercastSkyShader');
+							this.folder = _g.g.addFolder('OvercastSkyShader');
 
 							this.folder.add(this.settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
 							this.folder.add(this.settings, 'noiseFuncionType', { 'Classic': 0, 'Ken Perlin': 1, 'Simplex': 2, 'Gradient': 3, 'Fbm': 4, 'Voronoi': 4 }).name('Noise Implementation').onChange(updateUniforms);
@@ -243,7 +280,7 @@
 								self.pass.enabled = self.enabled;
 							}
 
-							this.folder = _gui.addFolder('VisualizeNoiseShader');
+							this.folder = _g.g.addFolder('VisualizeNoiseShader');
 
 							this.folder.add(this.settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
 							this.folder.add(this.settings, 'noiseFuncionType', { 'Classic': 0, 'Ken Perlin': 1, 'Simplex': 2, 'Gradient': 3, 'Fbm': 4, 'Summed Simplex': 5 }).name('Noise Implementation').onChange(updateUniforms);
@@ -288,7 +325,7 @@
 								self.pass.enabled = self.enabled;
 							}
 
-							this.folder = _gui.addFolder('VisualizeRandomShader');
+							this.folder = _g.g.addFolder('VisualizeRandomShader');
 
 							this.folder.add(this.settings, 'bias', 0, 1, 0.025).name('Bias').onChange(updateUniforms);
 							this.folder.add(this.settings, 'randomFuncionType', { 'Lygia': 0, '1-liner': 1, 'Golden Ratio': 2, 'Improved 1-liner': 3, 'Int Hash': 4 }).name('Random Implementation').onChange(updateUniforms);
@@ -299,7 +336,7 @@
 						},
 					},
 
-					NoisePixelDisplacePassContainer2: 
+					NoisePixelDisplacePassContainer: 
 					{
 						pass: null,
 						folder: null,
@@ -307,7 +344,19 @@
 						{
 							this.pass = new ShaderPass(Shaders.NoisePixelDisplaceShader);
 							this.pass.enabled = false;
-							this.folder = Shaders.NoisePixelDisplaceShader.addGuiFolder(_gui, this.pass);
+							this.folder = Shaders.NoisePixelDisplaceShader.addGuiFolder(_g.g, this.pass);
+						},
+					},
+
+					NoisePixelRowColumnDisplacePassContainer: 
+					{
+						pass: null,
+						folder: null,
+						init: function()
+						{
+							this.pass = new ShaderPass(Shaders.NoisePixelRowColumnDisplaceShader);
+							this.pass.enabled = false;
+							this.folder = Shaders.NoisePixelRowColumnDisplaceShader.addGuiFolder(_g.g, this.pass);
 						},
 					},
 
@@ -319,7 +368,7 @@
 						{
 							this.pass = new ShaderPass(Shaders.RandomPixelDisplaceShader);
 							this.pass.enabled = false;
-							this.folder = Shaders.RandomPixelDisplaceShader.addGuiFolder(_gui, this.pass);
+							this.folder = Shaders.RandomPixelDisplaceShader.addGuiFolder(_g.g, this.pass);
 						},
 					},
 
@@ -348,7 +397,7 @@
 								self.pass.enabled = self.enabled;
 							}
 
-							this.folder = _gui.addFolder('UvVisualizerPass');
+							this.folder = _g.g.addFolder('UvVisualizerPass');
 
 							this.folder.add(this.settings, 'visualizeXaxis').name('Visualize X-axis').onChange(updateUniforms);
 							this.folder.add(this.settings, 'visualizeType', 
@@ -388,7 +437,7 @@
 								self.pass.enabled = self.enabled;
 							}
 
-							this.folder = _gui.addFolder('MondriaanLinesPass');
+							this.folder = _g.g.addFolder('MondriaanLinesPass');
 
 							this.folder.add(this.settings, 'minOffset', -0.25, 0, 0.001).name('Min Offset').onChange(updateUniforms);
 							this.folder.add(this.settings, 'maxOffset',  0, 0.25, 0.001).name('Max Offset').onChange(updateUniforms);
@@ -422,7 +471,7 @@
 								self.pass.enabled = self.enabled;
 							}
 
-							this.folder = _gui.addFolder('RandomPixelStretchPass');
+							this.folder = _g.g.addFolder('RandomPixelStretchPass');
 
 							this.folder.add(this.settings, 'minOffset', -0.25, 0, 0.001).name('Min Offset').onChange(updateUniforms);
 							this.folder.add(this.settings, 'maxOffset',  0, 0.25, 0.001).name('Max Offset').onChange(updateUniforms);
@@ -545,7 +594,8 @@
 	
 				// -----------------------
 
-				_gui = new GUI();
+				// _gui = new GUI({ width: 360 });
+				_g = new SCRBLR.Gui( { container : _guiContainer, width: 360 });
 
 				// -----------------------
 
@@ -609,25 +659,27 @@
 					});				
 				}
 
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[0].time = 0.0;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[0].color.x = 1.0;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[0].color.y = 0.0;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[0].color.z = 0.0;
+				//_shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(0.000, 222, 104, 102);
 
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[1].time = 0.5;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[1].color.x = 1.0;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[1].color.y = 1.0;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[1].color.z = 1.0;
+				// _shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(0.000, 255, 50, 50);
+				// _shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(1.000, 25, 25, 0);
+				// _shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(0.000, 187, 35, 34);
+				// _shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(1.000, 187, 35, 34);
 
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[2].time = 0.75;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[2].color.x = 1.0;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[2].color.y = 0.0;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[2].color.z = 0.0;
 
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[3].time = 1.0;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[3].color.x = 1.0;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[3].color.y = 1.0;
-				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradient.value[3].color.z = 1.0;
+				_shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(0.250, 187, 35, 34);
+				_shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(0.375, 209, 87, 40);
+				_shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(0.500, 204, 152, 115);
+				_shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(0.625, 196, 183, 184);
+				_shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(0.750, 185, 177, 188);
+				_shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(0.875, 180, 160, 174);
+				_shaderSettingsObject.Gradient2ShaderObject.shader.addGradient(1.000, 177, 139, 148);
+
+				_shaderSettingsObject.Gradient2ShaderObject.pass.uniforms.gradientAngle.value = 270;
+
+				// lastIndex(0.0);
+				// lastIndex(0.52);
+				// lastIndex(1.00);
 
 
 				const shaderGeometryPass = new RenderPass( _shaderGeometryScene, _camera );
@@ -640,6 +692,20 @@
 
 				const outputPass = new OutputPass();				
 				_effectsComposer.addPass( outputPass );				
+
+				// -----------------------
+
+                _g.g.add(_settings, 'downloadWebGLRendererAction').name('Save screen');
+                _g.g.add(_settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
+                _g.g.add(_settings, 'saveTransparentBackground').name('Save transparent background').onChange( function ( val ) { _clearPass.clearAlpha = (val == true ? 0 : 1); } );
+                _g.g.add(_settings, 'hideScene').name('Hide scene').onChange(function(val) { _meshes.visible = !_meshes.visible; });
+
+                // ----------------------
+
+                _stats = new Stats();
+                _stats.dom.style.top = '16px';
+                _stats.dom.style.left = '16px';
+                _guiContainer.appendChild( _stats.dom );
 
 				// -----------------------
 
@@ -663,7 +729,7 @@
 
 				// -----------------------
 			}
-
+	
             function onKeyDown(event) 
             {
                 var keyCode = event.which;
@@ -789,6 +855,8 @@
 				});		
 
 				render();
+
+				_stats.update();				
 			}
 
 			function render() 

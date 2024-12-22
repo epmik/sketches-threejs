@@ -1,6 +1,7 @@
 import { Vector2, Vector3, Vector4, Color } from "three";
 import { Pass } from 'three/addons/postprocessing/Pass.js';
 
+
 const GradientShader = {
 
 	self: this,
@@ -38,7 +39,7 @@ const GradientShader = {
 		folder.add(element.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
 		folder.add(element.uniforms.resolution.value, 'y', 1, 2048, 1.0).name('Y-resolution');
 		folder.add(element.uniforms.gradientType, 'value', { 'Linear': 0, 'Radial': 1 }).name('Gradient Type');
-		folder.add(element.uniforms.gradientAngle, 'value', { '0': 0, '90': 90, '180': 180, '270': 270 }).name('Gradient Angle');
+		folder.add(element.uniforms.gradientAngle, 'value', { 'Horizontal': 0, 'Vertical': 1 }).name('Gradient Angle');
 		folder.add(element.uniforms.colorMixType, 'value', { 'RGB': 0, 'HSV': 1, 'HSL': 2, 'LAB': 3 }).name('Color Mix Type');
 		folder.add(element.uniforms.radialCenter.value, 'x', 0, 1, 0.01).name('X-radial Center');
 		folder.add(element.uniforms.radialCenter.value, 'y', 0, 1, 0.01).name('Y-radial Center');
@@ -90,20 +91,7 @@ const GradientShader = {
 
 			vec2 v = useWindowCoordinates ? (gl_FragCoord.xy / resolution.xy) : v_Uv.xy;
 
-			float factor = v.x;
-
-			if(gradientAngle == 180)
-			{
-				factor = 1.0 - v.x;
-			}
-			else if(gradientAngle == 90)
-			{
-				factor = 1.0 - v.y;
-			}
-			else if(gradientAngle == 270)
-			{
-				factor = v.y;
-			}
+			float factor = gradientAngle == 0 ? v.x : 1.0 - v.y;
 
 			if(gradientType == 1)	// radial
 			{

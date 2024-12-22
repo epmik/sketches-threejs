@@ -8,9 +8,11 @@ const NoisePixelDisplaceShader = {
 	{
 		'tDiffuse': { value: null }, //diffuse texture
 		'resolution': { value: new Vector2(800, 800) }, 
-		'xOffset': { value: new Vector2(-10, 10) }, 
-		'yOffset': { value: new Vector2(-10, 10) }, 
-		'multiplier': { value: new Vector3(1.00, 1.00, 1.00) }, 
+		'minXOffset': { value: -10 }, 
+		'maxXOffset': { value: 10 }, 
+		'minYOffset': { value: -10 }, 
+		'maxYOffset': { value: 10 }, 
+		'multiplier': { value: new Vector3(0.01, 0.01, 0.01) }, 
 		'octaves': { value: 4 }, 
 		'amplitude': { value: 1.0 }, 
 		'frequency': { value: 1.0 }, 
@@ -20,6 +22,8 @@ const NoisePixelDisplaceShader = {
 
 	addGuiFolder : function (gui, element, name, openFolder)
 	{
+		const self = this;
+
 		const isPass = (element instanceof Pass);
 
 		name = name === undefined ? (isPass ? 'Noise Pixel Displace Shader Pass' : 'Noise Pixel Displace Shader Material') : name;
@@ -28,10 +32,10 @@ const NoisePixelDisplaceShader = {
 
 		folder.add(element.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
 		folder.add(element.uniforms.resolution.value, 'y', 1, 256, 1.0).name('Y-resolution');
-		folder.add(element.uniforms.xOffset.value, 'x', -256, 0, 1.0).name('Min X-Offset');
-		folder.add(element.uniforms.xOffset.value, 'y', 0, 256, 1.0).name('Max X-Offset');
-		folder.add(element.uniforms.yOffset.value, 'x', -256, 0, 1.0).name('Min Y-Offset');
-		folder.add(element.uniforms.yOffset.value, 'y', 0, 256, 1.0).name('Max Y-Offset');
+		folder.add(element.uniforms.minXOffset, 'value', -256, 0, 1.0).name('Min X-Offset');
+		folder.add(element.uniforms.maxXOffset, 'value', 0, 256, 1.0).name('Max X-Offset');
+		folder.add(element.uniforms.minYOffset, 'value', -256, 0, 1.0).name('Min Y-Offset');
+		folder.add(element.uniforms.maxYOffset, 'value', 0, 256, 1.0).name('Max Y-Offset');
 		folder.add(element.uniforms.multiplier.value, 'x').name('Noise X-Multiplier');
 		folder.add(element.uniforms.multiplier.value, 'y').name('Noise Y-Multiplier');
 		folder.add(element.uniforms.octaves, 'value', 1, 8, 1).name('Noise Octaves');
@@ -66,8 +70,10 @@ const NoisePixelDisplaceShader = {
 
 		uniform sampler2D tDiffuse;
 		uniform vec2 resolution;
-		uniform vec2 xOffset;
-		uniform vec2 yOffset;
+		uniform float minXOffset;
+		uniform float maxXOffset;
+		uniform float minYOffset;
+		uniform float maxYOffset;
 		uniform vec3 multiplier;
 		uniform int octaves;
 		uniform float amplitude;
@@ -506,8 +512,8 @@ const NoisePixelDisplaceShader = {
 		{
 			vec2 p = vec2(1.0, 1.0) / resolution.xy;
 
-			float x = v_Uv.x + (p.x * (xOffset.x + ((xOffset.y - xOffset.x) * ((1.0 + summedSimplexNoise( v_Uv * multiplier.x)) * 0.5))));
-			float y = v_Uv.y + (p.y * (yOffset.x + ((yOffset.y - yOffset.x) * ((1.0 + summedSimplexNoise((v_Uv  + vec2(8.2146, 3.5964)) * multiplier.y)) * 0.5))));
+			float x = v_Uv.x + (p.x * (minXOffset + ((maxXOffset - minXOffset) * ((1.0 + summedSimplexNoise( gl_FragCoord.xy * multiplier.x)) * 0.5))));
+			float y = v_Uv.y + (p.y * (minYOffset + ((maxYOffset - minYOffset) * ((1.0 + summedSimplexNoise((gl_FragCoord.xy  + vec2(8.2146, 3.5964)) * multiplier.y)) * 0.5))));
 
 			 gl_FragColor = texture(tDiffuse, vec2(x, y));
 		}`

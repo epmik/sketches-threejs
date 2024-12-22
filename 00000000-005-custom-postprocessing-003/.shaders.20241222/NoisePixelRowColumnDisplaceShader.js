@@ -2,7 +2,7 @@
 import { Vector2, Vector3, Vector4, Color } from "three";
 import { Pass } from 'three/addons/postprocessing/Pass.js';
 
-const NoisePixelDisplaceShader = {
+const NoisePixelRowColumnDisplaceShader = {
 
 	uniforms:
 	{
@@ -16,13 +16,15 @@ const NoisePixelDisplaceShader = {
 		'frequency': { value: 1.0 }, 
 		'lacunarity': { value: 2.0 }, 
 		'persistence': { value: 0.5 }, 
+		'time': { value: 0 }, 
+		'FixedHorizontalResolution': { value: 1024 }, 
 	},
 
 	addGuiFolder : function (gui, element, name, openFolder)
 	{
 		const isPass = (element instanceof Pass);
 
-		name = name === undefined ? (isPass ? 'Noise Pixel Displace Shader Pass' : 'Noise Pixel Displace Shader Material') : name;
+		name = name === undefined ? (isPass ? 'Noise Pixel Row/Column Displace Shader Pass' : 'Noise Pixel Row/Column Displace Shader Material') : name;
 
 		let folder = gui.addFolder(name);
 
@@ -74,6 +76,8 @@ const NoisePixelDisplaceShader = {
 		uniform float frequency;
 		uniform float lacunarity;
 		uniform float persistence;
+		uniform float time;
+		uniform float FixedHorizontalResolution;
 
 		varying vec2 v_Uv;
 
@@ -309,6 +313,11 @@ const NoisePixelDisplaceShader = {
 		return 130.0 * dot(m, g);
 		}
 
+		float snoise(float v)
+		{
+			return snoise(vec2(v, v));
+		}
+
 		float snoise(vec3 v)
 		{
 		const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
@@ -483,6 +492,27 @@ const NoisePixelDisplaceShader = {
 		
 		// summed simplex noise
 
+		float summedSimplexNoise(float v)
+		{
+			float value = 0.0;
+			float a = amplitude;
+			float f = frequency;
+
+			for (int c = 0; c < octaves; c++)
+			{
+				value += snoise(v * f) * a;
+
+				f *= lacunarity;
+				a *= persistence;
+			}
+
+			return value;
+		}
+
+		// --------------------------------
+		
+		// summed simplex noise
+
 		float summedSimplexNoise(vec2 v)
 		{
 			float value = 0.0;
@@ -504,14 +534,16 @@ const NoisePixelDisplaceShader = {
 			
 		void main()
 		{
-			vec2 p = vec2(1.0, 1.0) / resolution.xy;
+			vec2 fraction = vec2(1.0, 1.0) / resolution;
+			fraction *= resolution / FixedHorizontalResolution;
 
-			float x = v_Uv.x + (p.x * (xOffset.x + ((xOffset.y - xOffset.x) * ((1.0 + summedSimplexNoise( v_Uv * multiplier.x)) * 0.5))));
-			float y = v_Uv.y + (p.y * (yOffset.x + ((yOffset.y - yOffset.x) * ((1.0 + summedSimplexNoise((v_Uv  + vec2(8.2146, 3.5964)) * multiplier.y)) * 0.5))));
+			float x = fraction.x * (xOffset.x + ((xOffset.y - xOffset.x) * ((1.0 + summedSimplexNoise((v_Uv.y + 8.2146 + time) * multiplier.y)) * 0.5)));
+			float y = fraction.y * (yOffset.x + ((yOffset.y - yOffset.x) * ((1.0 + summedSimplexNoise((v_Uv.x + 4.9536 + time) * multiplier.x)) * 0.5)));
 
-			 gl_FragColor = texture(tDiffuse, vec2(x, y));
+			// gl_FragColor = vec4(y, y, y, 1);
+			gl_FragColor = texture(tDiffuse, vec2(v_Uv.x + x, v_Uv.y + y));
 		}`
 
 };
 
-export { NoisePixelDisplaceShader };
+export { NoisePixelRowColumnDisplaceShader };

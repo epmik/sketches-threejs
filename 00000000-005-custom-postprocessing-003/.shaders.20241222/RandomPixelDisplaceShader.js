@@ -1,5 +1,4 @@
 import { Vector2 } from "three";
-import { Pass } from 'three/addons/postprocessing/Pass.js';
 
 const RandomPixelDisplaceShader = {
 
@@ -15,32 +14,22 @@ const RandomPixelDisplaceShader = {
 		'maxYOffset': { value:  10 }, 
 	},
 
-	addGuiFolder : function (gui, element, name, openFolder)
+	addGuiFolder : function (gui, pass, openFolder)
 	{
-		const self = this;
+		let folder = gui.addFolder('Random Pixel Displace');
 
-		const isPass = (element instanceof Pass);
+		folder.add(pass.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
+		folder.add(pass.uniforms.resolution.value, 'y', 1, 2048, 1.0).name('Y-resolution');
+		folder.add(pass.uniforms.minXOffset, 'value', -400, 0, 1.0).name('Min X-Offset');
+		folder.add(pass.uniforms.maxXOffset, 'value', 0, 400, 1.0).name('Max X-Offset');
+		folder.add(pass.uniforms.minYOffset, 'value', -400, 0, 1.0).name('Min Y-Offset');
+		folder.add(pass.uniforms.maxYOffset, 'value', 0, 400, 1.0).name('Max Y-Offset');
+		folder.add(pass, 'enabled').name('Enable/disable');
 
-		name = name === undefined ? (isPass ? 'Random Pixel Displace Shader Pass' : 'Random Pixel Displace Shader Material') : name;
-
-		let folder = gui.addFolder(name);
-
-		folder.add(element.uniforms.resolution.value, 'x', 1, 2048, 1.0).name('X-resolution');
-		folder.add(element.uniforms.resolution.value, 'y', 1, 2048, 1.0).name('Y-resolution');
-		folder.add(element.uniforms.minXOffset, 'value', -400, 0, 1.0).name('Min X-Offset');
-		folder.add(element.uniforms.maxXOffset, 'value', 0, 400, 1.0).name('Max X-Offset');
-		folder.add(element.uniforms.minYOffset, 'value', -400, 0, 1.0).name('Min Y-Offset');
-		folder.add(element.uniforms.maxYOffset, 'value', 0, 400, 1.0).name('Max Y-Offset');
-
-		if(isPass)
-		{
-			folder.add(element, 'enabled').name('Enable/disable');
-		}
-
-		if(openFolder !== false)
+		if((openFolder === undefined && pass.enabled == false) || openFolder == false)
 		{
 			folder.close();
-		}	
+		}
 
 		return folder;
 	},
