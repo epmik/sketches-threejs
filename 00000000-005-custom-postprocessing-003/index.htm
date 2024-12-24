@@ -591,7 +591,7 @@
 				// mesh.receiveShadow = true;
 				_meshes.push(mesh);
 				_shaderGeometryScene.add(mesh);	
-	
+
 				// -----------------------
 
 				// _gui = new GUI({ width: 360 });
@@ -698,7 +698,7 @@
                 _g.g.add(_settings, 'downloadWebGLRendererAction').name('Save screen');
                 _g.g.add(_settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
                 _g.g.add(_settings, 'saveTransparentBackground').name('Save transparent background').onChange( function ( val ) { _clearPass.clearAlpha = (val == true ? 0 : 1); } );
-                _g.g.add(_settings, 'hideScene').name('Hide scene').onChange(function(val) { _meshes.visible = !_meshes.visible; });
+                _g.g.add(_settings, 'hideScene').name('Hide scene').onChange(function(val) { _shaderGeometryScene.visible = !_shaderGeometryScene.visible; });
 
                 // ----------------------
 
