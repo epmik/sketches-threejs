@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm';
 // import { WebGLRenderTarget } from 'three/src/renderers/WebGLRenderTarget.js';
 // import { Scene } from 'three/src/scenes/Scene.js';
 // import { BufferAttribute } from 'three/src/core/BufferAttribute.js';
@@ -55,8 +56,8 @@ class Sketch
 	{
 		if (this.pixelBufferGeometry === null)
 		{
-			this.pixelBufferGeometry = new BufferGeometry();
-			this.pixelBufferGeometry.setAttribute('position', new BufferAttribute(new Float32Array([x, y, 0]), 3));
+			this.pixelBufferGeometry = new THREE.BufferGeometry();
+			this.pixelBufferGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([x, y, 0]), 3));
 			// this.pixelBufferGeometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array([color.r, color.g, color.b]), 3));
 
 			// this.pixelPointsMaterial = new THREE.PointsMaterial({ size: 1, side: THREE.DoubleSide, depthTest: false, vertexColors: true });
@@ -66,12 +67,12 @@ class Sketch
 		
 		// or use vertex colors
 		// https://github.com/mrdoob/three.js/blob/master/examples/webgl_buffergeometry_points.html
-		let g = new BufferGeometry();
-		g.setAttribute('position', new BufferAttribute(new Float32Array([x, y, 0]), 3));
+		let g = new THREE.BufferGeometry();
+		g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([x, y, 0]), 3));
 
-		let m = new PointsMaterial({ size: 1, color: color });
+		let m = new THREE.PointsMaterial({ size: 1, color: color });
 
-		return new Points(g, m);
+		return new THREE.Points(g, m);
 	}
 
 	pixel(x, y, color)
@@ -163,7 +164,7 @@ class Sketch
 				parameters.webGlRenderTargetHeight = this._renderer.height;
 			}
 
-			webGlRenderTarget = new WebGLRenderTarget(parameters.webGlRenderTargetWidth, parameters.webGlRenderTargetHeight, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter });
+			webGlRenderTarget = new THREE.WebGLRenderTarget(parameters.webGlRenderTargetWidth, parameters.webGlRenderTargetHeight, { minFilter: THREE.LinearFilter, magFilter: THREE.NearestFilter });
 		}
 
 		if (parameters.coverPercentage === undefined)
@@ -173,12 +174,12 @@ class Sketch
 
 		if (parameters.pixelColor === undefined)
 		{
-			parameters.pixelColor = new Color(0, 0, 0);
+			parameters.pixelColor = new THREE.Color(0, 0, 0);
 		}
 	
 		const count = webGlRenderTarget.width * webGlRenderTarget.height * parameters.coverPercentage;
 
-		let random = prng_alea(parameters.randomSeed);
+		let random = alea(parameters.randomSeed);
 
 		let orthoCamera = new THREE.OrthographicCamera(0, webGlRenderTarget.width, 0, webGlRenderTarget.height, 1, 100);
 
