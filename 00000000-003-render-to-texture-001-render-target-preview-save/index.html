@@ -14,10 +14,10 @@
 		<script type="importmap">
 			{
 				"imports": {
-					"three": "../node_modules/three/build/three.module.js",
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
 					"scrblr": "../scrblr/scrblr.module.js",
-					"pngjs": "../node_modules/pngjs/browser.js",
-					"three/addons/": "../jsm/"
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
 				}
 			}
 		</script>
@@ -30,7 +30,7 @@
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 			import Stats from 'three/addons/libs/stats.module.js';
 			import * as PNG from 'pngjs';
-			import { prng_alea } from '../../node_modules/esm-seedrandom/esm/alea.min.mjs';
+			import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm'
 
 			let _screenCapturePrefix = "00000000-003-render-to-texture-000-bare-bones";
 			let _camera, _controls, _scene, _renderer;
