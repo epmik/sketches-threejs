@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - lines - fat</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+
+	<body>
+
+        <div id="canvas-container">
+        </div>
+        <div id="gui-container">
+        </div>
+        <div id="info-container">
+            <div id="info-help-container">
+				// Create a WebGLRenderer with a parameter: { preserveDrawingBuffer: true }
+				<br />
+				renderer = new THREE.WebGLRenderer( { antialias: true, samples:4, stencil: false, alpha: false, depth: true, preserveDrawingBuffer: true } );
+				<br />
+				<br />
+				// Set WebGLRenderer.autoClear to false;
+				<br />
+				renderer.autoClear = false;
+				<br />
+				<br />
+				// Or set WebGLRenderer.autoClearColor to false if you do want to clear the depth en stencil buffers
+				<br />
+				renderer.autoClearColor = false;
+				<br />
+				<br />
+				// Call WebGLRenderer.clear(true, false, false) to explicitly clear the color buffer
+				<br />
+				renderer.clear(true, false, false);
+            </div>
+        </div>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "/scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import $ from 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/+esm'
+			import * as THREE from 'three';
+			import * as SCRBLR from 'scrblr';
+            import { RandomGenerator } from '/js/RandomGenerator.js';
+			import { OpenSimplexNoiseGenerator } from '/js/OpenSimplexNoiseGenerator.js';
+			import { SummedNoiseGenerator } from '/js/SummedNoiseGenerator.js';
+			import Stats from 'stats-gl';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import { Line2 } from 'three/addons/lines/Line2.js';
+			import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+			import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+			import * as GeometryUtils from 'three/addons/utils/GeometryUtils.js';
+
+			let renderer, scene, camera;
+			let stats;
+			let gui;
+			let lineRenderTime = 0.0;
+			const lineRenderTimeout = 1.0;
+			let _clock, _deltaTime;
+			let _randomGenerator, _randomGeneratorSeed = 1024;
+			let _noiseGenerator, _noiseGeneratorSeed = 1024;
+			let _guiContainer, _canvasContainer;
+			let _canvasWidth = 800, _canvasHeight = 800;
+
+			init();
+
+			function init() 
+			{
+                _canvasContainer = document.getElementById('canvas-container');
+                _guiContainer = document.getElementById('gui-container');
+
+                _randomGenerator = new RandomGenerator(_randomGeneratorSeed);
+                _noiseGenerator = new OpenSimplexNoiseGenerator(_noiseGeneratorSeed);
+
+				renderer = new THREE.WebGLRenderer( { antialias: true, samples:4, stencil: false, alpha: false, depth: true, preserveDrawingBuffer: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( _canvasWidth, _canvasHeight );
+				renderer.setClearColor( 0x000000, 0.0 );
+				renderer.setAnimationLoop( update );
+				renderer.autoClear = false;
+				
+				_canvasContainer.appendChild( renderer.domElement );
+
+				scene = new THREE.Scene();
+
+				camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 1000 );
+				camera.position.set( 0, 0, 60 );
+
+				insertLine();
+
+				window.addEventListener( 'resize', resize );
+
+				resize();
+
+				stats = new Stats( { horizontal: false } );
+				stats.init( renderer );
+				document.body.appendChild( stats.dom );
+
+				initGui();
+
+				// -----------------------
+
+				_clock = new THREE.Clock();
+
+				// -----------------------
+			}
+
+			function insertLine()
+			{
+				const positions = [];
+				const colors = [];
+
+				const color = new THREE.Color();
+
+				positions.push(_randomGenerator.Single(-10, 10), _randomGenerator.Single(-10, 0), 0 );
+				color.setHSL( _randomGenerator.Single(), 1.0, 0.5, THREE.SRGBColorSpace );
+				colors.push( color.r, color.g, color.b );
+
+				positions.push(_randomGenerator.Single(-10, 10), _randomGenerator.Single(0, 10), 0 );
+				color.setHSL( _randomGenerator.Single(), 1.0, 0.5, THREE.SRGBColorSpace );
+				colors.push( color.r, color.g, color.b );
+
+				// Line2 ( LineGeometry, LineMaterial )
+
+				const geometry = new LineGeometry();
+				geometry.setPositions( positions );
+				geometry.setColors( colors );
+
+				const matLine = new LineMaterial( {
+
+					color: 0xffffff,
+					linewidth: 1, // in world units with size attenuation, pixels otherwise
+					vertexColors: true,
+					alphaToCoverage: false,
+					worldUnits: true,
+					depthTest: false,
+				} );
+
+				const line = new Line2( geometry, matLine );
+				
+				scene.add( line );
+			}
+
+			function resize() 
+			{
+                _canvasWidth = Math.min(window.innerWidth, document.documentElement.clientWidth);
+                _canvasHeight = Math.min(window.innerHeight, document.documentElement.clientHeight);
+
+				camera.aspect = _canvasWidth / _canvasHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( _canvasWidth, _canvasHeight );
+			}
+
+			function update() 
+			{
+				const elapsed = _clock.getDelta();
+
+				lineRenderTime += elapsed;
+
+				if(lineRenderTime >= lineRenderTimeout)
+				{
+					scene.clear();
+
+					// renderer.clear(true, false, false);
+
+					insertLine();
+
+					lineRenderTime -= lineRenderTimeout;
+				}
+
+				renderer.render( scene, camera );
+
+				stats.update();
+			}
+
+			//
+
+			function initGui() {
+
+				gui = new GUI({ container : _guiContainer });
+
+				// const param = {
+				// 	'world units': true,
+				// 	'width': 2.5,
+				// };
+
+				// gui.add( param, 'world units' ).onChange( function ( val ) {
+
+				// 	matLine.worldUnits = val;
+				// 	matLine.needsUpdate = true;
+
+				// } );
+
+				// gui.add( param, 'width', 1, 10 ).onChange( function ( val ) {
+
+				// 	matLine.linewidth = val;
+
+				// } );
+			}
+
+		</script>
+
+	</body>
+
+</html>

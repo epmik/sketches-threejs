@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - lines - fat</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+	</head>
+
+	<body>
+
+        <div id="canvas-container">
+        </div>
+        <div id="gui-container">
+        </div>
+        <div id="info-container">
+            <div id="info-help-container">
+                <div class="clickable" target="F9">Help (F9)</div>
+            </div>
+            <div id="info-text-container">
+                <div class="clickable" target="F8">Toggle square canvas - F8</div>
+                <div class="clickable" target="F9">Toggle this information - F9</div>
+                <div class="clickable" target="F5">Refresh page - F5</div>
+                <div class="clickable" target="F10">Toggle GUI - F10</div>
+                <div class="clickable" target="F11">Toggle fullscreen - F11</div>
+            </div>
+        </div>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "/scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import $ from 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/+esm'
+			import * as THREE from 'three';
+			import * as SCRBLR from 'scrblr';
+            import { RandomGenerator } from '/js/RandomGenerator.js';
+			import { OpenSimplexNoiseGenerator } from '/js/OpenSimplexNoiseGenerator.js';
+			import { SummedNoiseGenerator } from '/js/SummedNoiseGenerator.js';
+			import Stats from 'stats-gl';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import { Line2 } from 'three/addons/lines/Line2.js';
+			import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+			import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
+			import * as GeometryUtils from 'three/addons/utils/GeometryUtils.js';
+
+			let renderer, scene, camera;
+			let stats;
+			let gui;
+			let lineRenderTime = 0.0;
+			const lineRenderTimeout = 1.0;
+			let _clock, _deltaTime;
+			let _randomGenerator, _randomGeneratorSeed = undefined;
+			let _noiseGenerator, _noiseGeneratorSeed = 1024;
+			let _guiContainer, _canvasContainer;
+			let _canvasWidth = 800, _canvasHeight = 800;
+			const gridColumnCount = 20;
+			const gridRowCount = 20;
+			let grid = [];
+
+			init();
+
+			function init() 
+			{
+                _canvasContainer = document.getElementById('canvas-container');
+                _guiContainer = document.getElementById('gui-container');
+
+                _randomGenerator = new RandomGenerator(_randomGeneratorSeed);
+                _noiseGenerator = new OpenSimplexNoiseGenerator(_noiseGeneratorSeed);
+
+				renderer = new THREE.WebGLRenderer( { antialias: true, samples:4, stencil: false, alpha: false, depth: true, preserveDrawingBuffer: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( _canvasWidth, _canvasHeight );
+				renderer.setClearColor( 0x000000, 0.0 );
+				renderer.setAnimationLoop( update );
+				renderer.autoClear = false;
+				
+				_canvasContainer.appendChild( renderer.domElement );
+
+				scene = new THREE.Scene();
+
+				camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 1000 );
+				camera.position.set( 0, 0, 60 );
+
+				// -----------------------
+
+				for (let row = 0; row < gridRowCount; row++) 
+				{
+					for (let column = 0; column < gridColumnCount; column++) 
+					{
+						const a = _randomGenerator.Single(0, Math.PI * 2.0);
+
+						grid.push({ angle: a, row: row, column: column });
+					}
+				}				
+
+				// -----------------------
+
+				const cellSize = 2.0;
+
+				renderGrid(cellSize);
+
+				renderCurve({ start: { x: 0.0, y: 0.0 }, steps: 20, stepSize: 2, cellSize : cellSize });
+
+				// -----------------------
+
+				window.addEventListener( 'resize', resize );
+
+				resize();
+
+				stats = new Stats( { horizontal: false } );
+				stats.init( renderer );
+				document.body.appendChild( stats.dom );
+
+				initGui();
+
+				// -----------------------
+
+				_clock = new THREE.Clock();
+
+				// -----------------------
+			}
+
+			function renderCurve(options)
+			{
+				const red = new THREE.Color();
+				red.setRGB(1.0, 0.0, 0.0);
+
+				let x = options.start.x;
+				let y = options.start.y;
+
+				for (let s = 0; s < options.steps; s++) 
+				{
+					const corners = cornerIndices(x, y, options.cellSize);
+
+					const angle = grid[corners.leftTopIndex].angle;
+
+					const radius = options.stepSize * 0.5;
+
+					const center = { x: x + radius, y: y + radius };
+
+					const o = Math.cos(angle) * radius;
+					const p = Math.sin(angle) * radius;
+
+					insertLine(
+						{ x: center.x - o, y: center.y - p }, 
+						{ x: center.x + o, y: center.y + p }, 
+						options.stepSize,
+						0.25,
+						red);
+
+						x += o + o;
+						y += p + p;
+					}
+			}
+
+			function cornerIndices(x, y, cellSize)
+			{
+				let left = (cellSize * gridColumnCount) * -0.5;
+				let top = (cellSize * gridRowCount) * -0.5;
+
+				let leftcolumn = Math.floor((x - left) / cellSize);
+				let rightcolumn = leftcolumn < gridColumnCount - 1 ? leftcolumn + 1 : leftcolumn;
+
+				let toprow = Math.floor((y - top) / cellSize);
+				let bottomrow = toprow < gridRowCount - 1 ? toprow + 1 : toprow;
+
+				return { 
+					leftTopIndex : toprow * gridColumnCount + leftcolumn, 
+					rightTopIndex : toprow * gridColumnCount + rightcolumn,
+					leftBottomIndex : bottomrow * gridColumnCount + leftcolumn, 
+					rightBottomIndex : bottomrow * gridColumnCount + rightcolumn 
+				};
+			}
+
+			function renderGrid(cellSize)
+			{
+				// if(cellSize === undefined || cellSize === null)
+				// {
+				// 	const cellWidth = (_canvasWidth / gridColumnCount);
+				// 	const cellHeight = (_canvasHeight / gridRowCount);
+
+				// 	cellSize = cellHeight < cellWidth ? cellHeight : cellWidth;
+				// }
+
+				let top = (cellSize * gridRowCount) * -0.5;
+
+				for (let row = 0; row < gridRowCount; row++) 
+				{
+					let left = (cellSize * gridColumnCount) * -0.5;
+
+					for (let column = 0; column < gridColumnCount; column++) 
+					{
+						renderGridCell(grid[row * gridColumnCount + column], left, top, cellSize);
+
+						left += cellSize;
+					}
+
+					top += cellSize;
+				}				
+			}
+
+			function renderGridCell(cell, x, y, size)
+			{
+				const angle = cell.angle;
+
+				const radius = size * 0.5;
+
+				const center = { x: x + radius, y: y + radius };
+
+				const o = Math.cos(angle) * radius;
+				const p = Math.sin(angle) * radius;
+
+				insertLine(
+					{ x: center.x - o, y: center.y - p }, 
+					{ x: center.x + o, y: center.y + p }, 
+					size);
+			}
+
+			function insertLine(from, to, radius, width, color)
+			{
+				if(radius === undefined || radius === null)
+				{
+					radius = 1;
+				}
+
+				if(from === undefined || from === null)
+				{
+					from = { x: _randomGenerator.Single(-radius, radius), y: _randomGenerator.Single(-radius, radius) };
+				}
+
+				if(to === undefined || to === null)
+				{
+					to = { x: _randomGenerator.Single(-radius, radius), y: _randomGenerator.Single(-radius, radius) };
+				}
+
+				if(width === undefined || width === null)
+				{
+					width = 0.1;
+				}
+
+				if(color === undefined || color === null)
+				{
+					color = new THREE.Color();
+					color.setHSL( _randomGenerator.Single(), 1.0, 0.5, THREE.SRGBColorSpace );
+				}
+
+				const positions = [];
+				const colors = [];
+
+				positions.push(from.x, from.y, 0 );
+				colors.push( color.r, color.g, color.b );
+
+				positions.push(to.x, to.y, 0 );
+				colors.push( color.r, color.g, color.b );
+
+				const geometry = new LineGeometry();
+				geometry.setPositions( positions );
+				geometry.setColors( colors );
+
+				const matLine = new LineMaterial( {
+
+					color: 0xffffff,
+					linewidth: width,
+					vertexColors: true,
+					alphaToCoverage: false,
+					worldUnits: true,
+					depthTest: false,
+				} );
+
+				const line = new Line2( geometry, matLine );
+				
+				scene.add( line );
+
+				const circle = new THREE.Mesh( new THREE.CircleGeometry( 0.125, 8 ), new THREE.MeshBasicMaterial( { color: 0x000000 } ) ); 
+				circle.position.set(to.x, to.y, 0);
+				
+				scene.add( circle );				
+			}
+
+			function resize() 
+			{
+                _canvasWidth = Math.min(window.innerWidth, document.documentElement.clientWidth);
+                _canvasHeight = Math.min(window.innerHeight, document.documentElement.clientHeight);
+
+				camera.aspect = _canvasWidth / _canvasHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( _canvasWidth, _canvasHeight );
+			}
+
+			function update() 
+			{
+				const elapsed = _clock.getDelta();
+
+				lineRenderTime += elapsed;
+
+				if(lineRenderTime >= lineRenderTimeout)
+				{
+					scene.clear();
+
+					// renderer.clear(true, false, false);
+
+					// insertLine(undefined, undefined, 20);
+
+					lineRenderTime -= lineRenderTimeout;
+				}
+
+				renderer.render( scene, camera );
+
+				stats.update();
+			}
+
+			//
+
+			function initGui() {
+
+				gui = new GUI({ container : _guiContainer });
+
+				// const param = {
+				// 	'world units': true,
+				// 	'width': 2.5,
+				// };
+
+				// gui.add( param, 'world units' ).onChange( function ( val ) {
+
+				// 	matLine.worldUnits = val;
+				// 	matLine.needsUpdate = true;
+
+				// } );
+
+				// gui.add( param, 'width', 1, 10 ).onChange( function ( val ) {
+
+				// 	matLine.linewidth = val;
+
+				// } );
+			}
+
+		</script>
+
+	</body>
+
+</html>

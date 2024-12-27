@@ -12,7 +12,7 @@ export { ColorAdjustShader } from '../.shaders/ColorAdjustShader.js';
 export { GradientShader } from '../.shaders/GradientShader.js';
 export { HorizontalGaussianBlurShader } from '../.shaders/HorizontalGaussianBlurShader.js';
 export { VerticalGaussianBlurShader } from '../.shaders/VerticalGaussianBlurShader.js';
-
+export { GradientShader2 } from '../.shaders/GradientShader2.js';
 
 import { ShaderChunk } from 'three';
 

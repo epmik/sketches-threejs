@@ -1,3 +1,5 @@
+import { Pass } from 'three/addons/postprocessing/Pass.js';
+
 /**
  * Hue and saturation adjustment
  * https://github.com/evanw/glfx.js
@@ -18,6 +20,50 @@ const ColorAdjustShader = {
 		'contrast': { value: 0.0 },
 		'seed': { value: Date.now() },
 		'coverPercentage': { value: 1.00 },
+	},
+
+	NewShaderMaterial: function ()
+	{
+		return new ShaderMaterial( 
+			{ 
+				uniforms: Utility.DeepCloneUniforms(ColorAdjustShader.uniforms), 
+				vertexShader: ColorAdjustShader.vertexShader, 
+				fragmentShader: ColorAdjustShader.fragmentShader 
+			});
+	},
+
+	addGuiFolder : function (gui, element, name, openFolder)
+	{
+		const isPass = (element instanceof Pass);
+
+		name = name === undefined ? (isPass ? 'Color Adjust Shader Pass' : 'Color Adjust Shader Material') : name;
+
+		let folder = gui.addFolder(name);
+
+		let settings = 
+		{
+			hue: Math.floor((1.0 + element.uniforms.hue.value) * 360),
+			saturation: Math.floor(element.uniforms.saturation.value * 100),
+			brightness: Math.floor(element.uniforms.brightness.value * 100),
+			coverPercentage: Math.floor(element.uniforms.coverPercentage.value * 100),
+		}
+
+		folder.add(settings, 'hue', 0, 360, 1).name('Hue').onChange(function (c) { element.uniforms.hue.value = c * 0.0027777777777778 - 1.0; });
+		folder.add(settings, 'saturation', -100, 100, 1).name('Saturation').onChange(function (c) { element.uniforms.saturation.value = c * 0.01; });
+		folder.add(settings, 'brightness', -100, 100, 1).name('Brightness').onChange(function (c) { element.uniforms.brightness.value = c * 0.01; });
+		folder.add(settings, 'coverPercentage', 0, 100, 1).name('Cover Percentage').onChange(function (c) { element.uniforms.coverPercentage.value = c * 0.01; });
+		
+		if(isPass)
+		{
+			folder.add(element, 'enabled').name('Enable/disable');
+		}
+
+		if(openFolder !== false)
+		{
+			folder.close();
+		}
+
+		return folder;
 	},
 
 	vertexShader: /* glsl */`

@@ -10,6 +10,59 @@ class Utility
 	  	}
 	}
 
+	static DeepCloneUniforms(src) 
+	{
+		const dst = {};
+	
+		for (const u in src)
+		{
+	
+			dst[u] = {};
+	
+			for (const p in src[u])
+			{
+	
+				const property = src[u][p];
+	
+				if (property && (property.isColor ||
+					property.isMatrix3 || property.isMatrix4 ||
+					property.isVector2 || property.isVector3 || property.isVector4 ||
+					property.isTexture || property.isQuaternion))
+				{
+	
+					if (property.isRenderTargetTexture)
+					{
+	
+						console.warn('UniformsUtils: Textures of render targets cannot be cloned via cloneUniforms() or mergeUniforms().');
+						dst[u][p] = null;
+	
+					} else
+					{
+	
+						dst[u][p] = property.clone();
+	
+					}
+	
+				} else if (Array.isArray(property))
+				{
+	
+					dst[u][p] = structuredClone(property);
+	
+				}
+				else
+				{
+	
+					dst[u][p] = property;
+	
+				}
+	
+			}
+	
+		}
+	
+		return dst;
+	}	
+
 	static CircleRadiusInScreenSpace(radius, camera, renderer)
 	{
 		const o = Utility.TransformVectorToScreenSpace(new Vector3( radius, 0, 0), camera, renderer);

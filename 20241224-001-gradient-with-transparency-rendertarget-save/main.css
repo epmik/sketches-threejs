@@ -1,0 +1,74 @@
+html,
+body
+{
+	min-height:100%;
+	height:auto;
+	min-width:100%;
+	width:auto;
+	margin: 0 auto;
+	padding: 0;
+	background-color: #ffffff;
+	text-align: center;
+}
+canvas
+{
+	margin: 0 auto;
+	padding: 0;
+	background-color: #ffffff;
+	/* min-height:100%;
+	height:auto;
+	min-width:100%;
+	width:auto; */
+}
+#gui-container,
+#info-container
+{
+   	position: absolute;
+	top:0;
+	left:0;
+	right:0;
+	bottom:0;
+	min-height:100%;
+	height:auto;
+	min-width:100%;
+	width:auto;
+}
+#gui-container
+{
+   	display: none;
+}
+#gui-container .lil-gui.root
+{
+	max-height: 100%;
+    position: fixed;
+    top: 0;
+	top:16px;
+	right:16px;
+    z-index: 1001;
+}
+#info-container .clickable{
+	text-decoration: none;
+	color:#ffffff;
+	font-family: Arial, Helvetica, sans-serif;
+	opacity: 0.75;
+	cursor: pointer;
+}
+#info-help-container{
+	position: absolute;
+	left:16px;
+	bottom: 16px;
+	width: auto;
+	height: auto;
+	color:#ffffff;
+	font-family: Arial, Helvetica, sans-serif;
+}
+#info-text-container{
+	position: absolute;
+	left:16px;
+	bottom: 16px;
+	width: auto;
+	height: auto;
+	color:#ffffff;
+	font-family: Arial, Helvetica, sans-serif;
+	display: none;
+}

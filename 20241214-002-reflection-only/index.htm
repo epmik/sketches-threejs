@@ -82,28 +82,105 @@
 
                 constructor (color1, color2)
                 {
+                    this.color1 = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                    this.color2 = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+
                     if(color1 instanceof ColorPair)
                     {
-                        color2 = color1.color2;
-                        color1 = color1.color1;
+                        this.color1.x = color1.color1.x;
+                        this.color1.y = color1.color1.y;
+                        this.color1.z = color1.color1.z; 
+                        this.color1.w = color1.color1.w;
+
+                        this.color2.x = color1.color2.x;
+                        this.color2.y = color1.color2.y;
+                        this.color2.z = color1.color2.z; 
+                        this.color2.w = color1.color2.w;
+
+                        return;
+                    }
+                    
+                    if(color1 !== undefined && color1 !== null)
+                    {
+                        this.color1.x = color1.x;
+                        this.color1.y = color1.y;
+                        this.color1.z = color1.z; 
+                        this.color1.w = color1.w;
+                    }
+                    
+                    if(color2 !== undefined && color2 !== null)
+                    {
+                        this.color2.x = color2.x;
+                        this.color2.y = color2.y;
+                        this.color2.z = color2.z; 
+                        this.color2.w = color2.w;
+                    }
+                }
+            }  
+
+            class Morph
+            {
+                start;
+                target;
+                duration;
+                time;
+                object;
+                property;
+                floorValue;
+
+                static defaultOptions = 
+                {
+                    start: 0.0,
+                    target:1.0,
+                    duration:1.0,
+                    time: 0.0,
+                    floorValue: false,
+                    returnToStart: true,
+                };
+                
+                constructor( options )
+                {
+                    Object.assign(this, Morph.defaultOptions);
+                    Object.assign(this, options);
+
+                    this.time = this.duration * (this.object[this.property] / (this.target - this.start));
+                }
+
+                update (elapsed) 
+                {
+                    this.time += elapsed;
+
+                    if(this.time > this.duration)
+                    {
+                        this.time = this.duration;
+
+                        if(this.returnToStart)
+                        {
+                            this.time = 0;
+                            const s = this.start;
+                            this.start = this.target;
+                            this.target = s;
+                        }
                     }
 
-                    this.color1 = color1 === undefined ? new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1) : color1;
-                    this.color2 = color1 === undefined ? new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1) : color2;
-                }
-            }            
+                    const t = this.start + (this.target - this.start) * (this.time / this.duration);
 
-            let _screenCapturePrefix = "20241111-001-geometry-gradient-background";
+                    this.object[this.property] = this.floorValue ? Math.floor(t) : t;
+                }
+            }          
+
+            let _screenCapturePrefix = "20241214-002-reflection-only";
             let _renderer, _camera, _stats, _orbitControls;
             let _composer, _clearPass, _composerMaskPass, _composerClearMaskPass; 
             let _minCanvasWidth = 400, _minCanvasHeight = 400;
             let _canvasWidth = _minCanvasWidth, _canvasHeight = _minCanvasHeight;
             let _near = 1, _far = 8000, _fov = 60;
 			let _g;
-            let _clock, _deltaTimeSeconds;
+            let _clock, _deltaTimeSeconds, _timeUpdateFactor = 0.0075;
             let _frameCount = 0;
 			let _mouseTimer = null;
 			let _squareCanvas = false;
+            let _morphs = [];
 
             let _randomGenerator;       
             let _noiseGenerator;       
@@ -124,10 +201,10 @@
             let _sunScaleSpeed = 0.01;   // per second
             let _sunScale = _minSunScale;
             let _sunScaleDirection = -1;
-            let _sunMaterial, _sunMesh, _sunReflection1Material, _sunReflection1Mesh, _sunReflection2Material, _sunReflection2Mesh;
+            let _sunMaterial, _sunMesh, _sunReflection1Material, _sunReflection1Mesh, _sunReflection2Material, _sunReflection2Mesh, _sunReflectionDisplaceShader;
             let _gradientBackgroundShaderPass, _randomPixelRowColumnDisplaceShader, _noisePixelRowColumnDisplaceShader;
             let _randomPixelColumnDisplaceShaderPass1, _randomPixelDisplaceShaderPass2, _horizontalBlurShaderPass, _verticalBlurShaderPass;
-            let _horizontalBlurShaderPass2, _verticalBlurShaderPass2, _gaussianBlurShaderPass2;
+            let _horizontalBlurShaderPass2, _verticalBlurShaderPass2, _gaussianBlurShaderPass2, _vibrantColorsShaderPass;
 
             let _minPixelDisplaceOffset = 10;
             let _maxPixelDisplaceOffset = 60;
@@ -150,10 +227,11 @@
                 downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(_hiresUpscaleFactor); },
                 saveTransparentBackground: true,
                 enableMask: true,
-                sunRayCount: 720
+                sunRayCount: 720,
+                enableMorphing: true,
             };
 
-            let _addColorPairPicker = function(folder, colorPair, uniforms)
+            let _addColorPairPicker = function(folder, colorPair, uniforms, name)
             {
                 let settings = 
                 {
@@ -161,8 +239,8 @@
                     color2: { r: colorPair.color2.x, g: colorPair.color2.y, b: colorPair.color2.z },
                 }                
 
-                folder.addColor(settings, 'color1').name('color 1').onChange(function(c) { uniforms.color1.value.x = c.r; uniforms.color1.value.y = c.g; uniforms.color1.value.z = c.b; });
-        		folder.addColor(settings, 'color2').name('color 2').onChange(function(c) { uniforms.color2.value.x = c.r; uniforms.color2.value.y = c.g; uniforms.color2.value.z = c.b; });
+                folder.addColor(settings, 'color1').name(name + ' color 1').onChange(function(c) { uniforms.gradient.value[0].color.x = c.r; uniforms.gradient.value[0].color.y = c.g; uniforms.gradient.value[0].color.z = c.b; });
+        		folder.addColor(settings, 'color2').name(name + ' color 2').onChange(function(c) { uniforms.gradient.value[1].color.x = c.r; uniforms.gradient.value[1].color.y = c.g; uniforms.gradient.value[1].color.z = c.b; });
             }
 
             init(); 
@@ -215,12 +293,38 @@
 				// _orbitControls.update();     
 
                 _colorPairs = [
-                    new ColorPair(new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1), new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1)),
-                    new ColorPair(new THREE.Vector4(253 / 255, 56 / 255, 2 / 255, 1), new THREE.Vector4(0 / 255, 30 / 255, 45 / 255, 1)),
-                    new ColorPair(new THREE.Vector4(254 / 255, 2 / 255, 89 / 255, 1), new THREE.Vector4(1 / 255, 24 / 255, 67 / 255, 1)),
-                    new ColorPair(new THREE.Vector4(215 / 255, 241 / 255, 3 / 255, 1), new THREE.Vector4(28 / 255, 129 / 255, 129 / 255, 1)),
-                    new ColorPair(new THREE.Vector4(100 / 255, 213 / 255, 10 / 255, 1), new THREE.Vector4(109 / 255, 27 / 255, 141 / 255, 1)),
-                ];
+                    new ColorPair(
+                        new THREE.Color().setRGB(241 / 255, 53 / 255, 6 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(199 / 255, 136 / 255, 0 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(253 / 255, 56 / 255, 2 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(0 / 255, 30 / 255, 45 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(254 / 255, 2 / 255, 89 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(1 / 255, 24 / 255, 67 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(255 / 255, 130 / 255, 24 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(16 / 255, 98 / 255, 116 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(255 / 255, 130 / 255, 24 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(236 / 255, 198 / 255, 0 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(255 / 255, 27 / 255, 162 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(31 / 255, 87 / 255, 144 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(215 / 255, 241 / 255, 3 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(28 / 255, 129 / 255, 129 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(100 / 255, 213 / 255, 10 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(109 / 255, 27 / 255, 141 / 255, THREE.SRGBColorSpace).toVector4()),                
+                    ];
 
                 const i = _randomGenerator.Int(_colorPairs.length);
 
@@ -230,20 +334,19 @@
                
                 _sceneMask = new THREE.Scene();
                 _sceneSun = new THREE.Scene();
-                // _sceneSunReflection2 = new THREE.Scene();
 
                 // ----------------------
 				
-				var parameters = {
-						minFilter: THREE.LinearFilter,
-						magFilter: THREE.LinearFilter,
-						format: THREE.RGBAFormat,       // RGBA for transparent backgrounds
-						stencilBuffer: true,	        // enable stencil buffer writes
-                        depthBuffer: true,              // enable depth buffer writes
-                        samples: 8                      // multi sampling
-					};
+				// var parameters = {
+				// 		minFilter: THREE.LinearFilter,
+				// 		magFilter: THREE.LinearFilter,
+				// 		format: THREE.RGBAFormat,       // RGBA for transparent backgrounds
+				// 		stencilBuffer: true,	        // enable stencil buffer writes
+                //         depthBuffer: true,              // enable depth buffer writes
+                //         samples: 8                      // multi sampling
+				// 	};
 
-				var renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters );
+				// var renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters );
 
                 // -----
 
@@ -257,9 +360,9 @@
 
                 // -----
 
-                _maskMesh = new THREE.Mesh( new THREE.PlaneGeometry(1, 1, 5, 5) );
+                // _maskMesh = new THREE.Mesh( new THREE.PlaneGeometry(1, 1, 5, 5) );
 
-                _sceneMask.add( _maskMesh );
+                // _sceneMask.add( _maskMesh );
 
                 // -----
 
@@ -273,23 +376,15 @@
                 _composer.addPass(_gradientBackgroundShaderPass);
                 
                 // -----
-                // enable mask
-
-                // var maskPass = new MaskPass( _sceneMask, _camera );
-				// maskPass.inverse = false;            
-
-                // _composer.addPass(maskPass);
-
-                // -----
 
                 _sunSegments = SCRBLR.Utility.CircleResolution(_sunRadius, _camera, _renderer);
 
-                _sunMaterial = new THREE.ShaderMaterial( { uniforms: THREE.UniformsUtils.clone(Shaders.GradientShader.uniforms), vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
+                _sunMaterial = Shaders.GradientShader2.NewShaderMaterial();
 
                 _sunMaterial.uniforms.gradientAngle.value = 270;
                 _sunMaterial.uniforms.useWindowCoordinates.value = false;
-                _sunMaterial.uniforms.color1.value = _sunColorPair.color1;
-                _sunMaterial.uniforms.color2.value = _sunColorPair.color2;
+                _sunMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                _sunMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
 
                 _sunMesh = new THREE.Mesh( new THREE.CircleGeometry(_sunRadius, _sunSegments), _sunMaterial );
                 _sunMesh.position.set(_sunPosition.x, _sunPosition.y, _sunPosition.z);
@@ -298,45 +393,34 @@
                 
                 // -----
 
-                _sunReflection1Segments = SCRBLR.Utility.CircleResolution(_sunReflection1Radius, _camera, _renderer);
+                // _sunReflection1Segments = SCRBLR.Utility.CircleResolution(_sunReflection1Radius, _camera, _renderer);
 
-                _sunReflection1Material = new THREE.ShaderMaterial( { uniforms: THREE.UniformsUtils.clone(Shaders.GradientShader.uniforms), vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
+                // _sunReflection1Material = Shaders.GradientShader2.NewShaderMaterial();
 
-                _sunReflection1Material.uniforms.gradientAngle.value = 90;
-                _sunReflection1Material.uniforms.useWindowCoordinates.value = false;
-                _sunReflection1Material.uniforms.color1.value = _sunReflectionColorPair.color1;
-                _sunReflection1Material.uniforms.color2.value = _sunReflectionColorPair.color2;
+                // _sunReflection1Material.uniforms.gradientAngle.value = 90;
+                // _sunReflection1Material.uniforms.useWindowCoordinates.value = false;
+                // _sunReflection1Material.uniforms.gradient.value[0].color = _sunReflectionColorPair.color1;
+                // _sunReflection1Material.uniforms.gradient.value[1].color = _sunReflectionColorPair.color2;
 
-                _sunReflection1Mesh = new THREE.Mesh( new THREE.CircleGeometry(_sunReflection1Radius, _sunReflection1Segments), _sunReflection1Material );
-                _sunReflection1Mesh.position.set(_sunReflection1Position.x, _sunReflection1Position.y, _sunReflection1Position.z);
+                // _sunReflection1Mesh = new THREE.Mesh( new THREE.CircleGeometry(_sunReflection1Radius, _sunReflection1Segments), _sunReflection1Material );
+                // _sunReflection1Mesh.position.set(_sunReflection1Position.x, _sunReflection1Position.y, _sunReflection1Position.z);
 
-                // _sceneSunReflection2.add( _sunReflection1Mesh );
+                // // _sceneSunReflection2.add( _sunReflection1Mesh );
                 
                 // -----
 
                 _sunReflection2Segments = SCRBLR.Utility.EllipseResolution(_sunReflection2Width, _sunReflection2Height, _camera, _renderer);
 
-                _sunReflection2Material = new THREE.ShaderMaterial( { uniforms: THREE.UniformsUtils.clone(Shaders.GradientShader.uniforms), vertexShader: Shaders.GradientShader.vertexShader, fragmentShader: Shaders.GradientShader.fragmentShader });
+                _sunReflection2Material = Shaders.GradientShader2.NewShaderMaterial();
 
                 _sunReflection2Material.uniforms.gradientAngle.value = 270;
                 _sunReflection2Material.uniforms.useWindowCoordinates.value = false;
-                _sunReflection2Material.uniforms.color1.value = _sunReflectionColorPair.color1;
-                _sunReflection2Material.uniforms.color2.value = _sunReflectionColorPair.color2;
+                _sunReflection2Material.uniforms.gradient.value[0].color = _sunReflectionColorPair.color1;
+                _sunReflection2Material.uniforms.gradient.value[1].color = _sunReflectionColorPair.color2;
 
                 _sunReflection2Mesh = new THREE.Mesh( new SCRBLR.EllipseGeometry({ width : _sunReflection2Width, height : _sunReflection2Height, segments : _sunReflection2Segments }), _sunReflection2Material );
                 _sunReflection2Mesh.position.set(_sunReflection2Position.x, _sunReflection2Position.y, _sunReflection2Position.z);
-
-                // _sceneSunReflection2.add( _sunReflection2Mesh );
                 
-                // -----
-
-                // var renderSunReflection2Pass = new RenderPass(_sceneSunReflection2, _camera );
-				
-                // renderSunReflection2Pass.clear = false;
-				// renderSunReflection2Pass.clearDepth = true;
-				
-                // _composer.addPass( renderSunReflection2Pass );
-
                 // -----
 
                 var renderSunPass = new RenderPass(_sceneSun, _camera );
@@ -348,7 +432,7 @@
 
                 // -----
 
-                const _sunReflectionDisplaceShader = new ShaderPass(Shaders.NoisePixelDisplaceShader);
+                _sunReflectionDisplaceShader = new ShaderPass(Shaders.NoisePixelDisplaceShader);
                 
                 _sunReflectionDisplaceShader.uniforms.octaves.value = 2;
                 _sunReflectionDisplaceShader.uniforms.multiplier.value.x = 8;
@@ -357,6 +441,11 @@
                 _sunReflectionDisplaceShader.uniforms.xOffset.value.y = 124;
                 _sunReflectionDisplaceShader.uniforms.yOffset.value.x = -63;
                 _sunReflectionDisplaceShader.uniforms.yOffset.value.y = 40;
+
+                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.xOffset.value, property: "x", start: -20, target:20, duration:6 }));
+                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.xOffset.value, property: "y", start: 120, target:180, duration:9 }));
+                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.yOffset.value, property: "x", start: -80, target:-20, duration:3 }));
+                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.yOffset.value, property: "y", start: 20, target:80, duration:12 }));
                 
                 _composer.addPass(_sunReflectionDisplaceShader);
                 
@@ -366,11 +455,11 @@
                 
                 // -----
                 
-                Shaders.GradientShader.addGuiFolder(_g.g, _gradientBackgroundShaderPass);
+                // Shaders.GradientShader.addGuiFolder(_g.g, _gradientBackgroundShaderPass);
 
-                Shaders.GradientShader.addGuiFolder(_g.g, _sunReflection1Material);
+                // Shaders.GradientShader.addGuiFolder(_g.g, _sunReflection1Material);
 
-                Shaders.GradientShader.addGuiFolder(_g.g, _sunReflection2Material);
+                // Shaders.GradientShader.addGuiFolder(_g.g, _sunReflection2Material);
              
                 // -----
 
@@ -383,6 +472,9 @@
                 _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.y =  3;
                 _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -16;
                 _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  46;
+
+                // _morphs.push(new Morph({ object: _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value, property: "x", start: -16, target:0, duration:6 }));
+                // _morphs.push(new Morph({ object: _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value, property: "y", start: 20, target:60, duration:10 }));
                 
                 _composer.addPass(_noisePixelRowColumnDisplaceShader);
 
@@ -408,7 +500,18 @@
                 
                 // ----- 
 
-                // _composer.addPass( new ClearMaskPass() );	
+                _vibrantColorsShaderPass = new ShaderPass(Shaders.VibrantColorsShader);
+                _vibrantColorsShaderPass.uniforms.coverPercentage.value = 0.75;
+                _vibrantColorsShaderPass.uniforms.minSaturation.value = -0.015;
+                _vibrantColorsShaderPass.uniforms.maxSaturation.value =  0.015;
+                _vibrantColorsShaderPass.uniforms.minBrightness.value = -0.01;
+                _vibrantColorsShaderPass.uniforms.maxBrightness.value =  0.01;
+                _vibrantColorsShaderPass.uniforms.minContrast.value = -0.01;
+                _vibrantColorsShaderPass.uniforms.maxContrast.value =  0.01;
+               
+                _composer.addPass(_vibrantColorsShaderPass);
+
+                Shaders.VibrantColorsShader.addGuiFolder(_g.g, _vibrantColorsShaderPass);
                 
                 // ----- 
 
@@ -418,16 +521,17 @@
 
                 let colorPickerFolder = _g.g.addFolder("Colors");
 
-                _addColorPairPicker(colorPickerFolder, _backgroundColorPair, _gradientBackgroundShaderPass.uniforms);
-                _addColorPairPicker(colorPickerFolder, _sunColorPair, _sunMaterial.uniforms);
-                _addColorPairPicker(colorPickerFolder, _sunReflectionColorPair, _sunReflection2Material.uniforms);
+                _addColorPairPicker(colorPickerFolder, _backgroundColorPair, _gradientBackgroundShaderPass.uniforms, "Background");
+                _addColorPairPicker(colorPickerFolder, _sunColorPair, _sunMaterial.uniforms, "Sun");
+                _addColorPairPicker(colorPickerFolder, _sunReflectionColorPair, _sunReflection2Material.uniforms, "Reflection");
 
                 // ----------------------
 
                 _g.g.add(_settings, 'downloadWebGLRendererAction').name('Save screen');
                 _g.g.add(_settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
                 _g.g.add(_settings, 'saveTransparentBackground').name('Save transparent background').onChange( function ( val ) { _clearPass.clearAlpha = (val == true ? 0 : 1); } );
-                _g.g.add(_settings, 'enableMask').name('Enable Mask').onChange(function(val) { _composerMaskPass.enabled = val; _composerClearMaskPass.enabled = val; });
+                // _g.g.add(_settings, 'enableMask').name('Enable Mask').onChange(function(val) { _composerMaskPass.enabled = val; _composerClearMaskPass.enabled = val; });
+                _g.g.add(_settings, 'enableMorphing').name('Enable Morphing');
 
                 // ----------------------
 
@@ -479,40 +583,19 @@
                     // _randomPixelRowColumnDisplaceShader.uniforms.time.value += _updatePixelsTimeLimit;
                 }
                 
-                _maskMesh.rotation.z += 0.01;
+                // _maskMesh.rotation.z += 0.005;
 
-                // _sunScale += _sunScaleSpeed * _deltaTimeSeconds * _sunScaleDirection;
+                // _sunReflectionDisplaceShader.uniforms.time.value.x += 0.0001;
+                _sunReflectionDisplaceShader.uniforms.time.value.x += _timeUpdateFactor * _deltaTimeSeconds;
 
-                // if(_sunScale >= _maxSunScale || _sunScale <= _minSunScale)
-                // {
-                //     _sunScale = Math.min(_maxSunScale, Math.max(_minSunScale, _sunScale))
-                //     _sunScaleDirection *= -1;
-                // }
-
-                // _sunMesh.scale.set(_sunScale * _sunRadius, _sunScale * _sunRadius, 1);
-
-                // _randomPixelColumnDisplaceShaderPass1.uniforms.xTime.value += _deltaTimeSeconds * 0.000001;
-
-                // _sunPixelDisplaceOffset += _sunPixelDisplaceOffsetSpeed * _deltaTimeSeconds * _sunPixelDisplaceOffsetDirection;
-
-                // if(_sunPixelDisplaceOffset >= _maxPixelDisplaceOffset || _sunPixelDisplaceOffset <= _minPixelDisplaceOffset)
-                // {
-                //     _sunPixelDisplaceOffset = Math.min(_maxPixelDisplaceOffset, Math.max(_minPixelDisplaceOffset, _sunPixelDisplaceOffset))
-                //     _sunPixelDisplaceOffsetDirection *= -1;
-                //     // console.log("change sun offset direction:" + _sunPixelDisplaceOffsetDirection);
-                //     // console.log("sun offset:" + _sunPixelDisplaceOffset);
-                //     // console.log("_deltaTimeSeconds:" + _deltaTimeSeconds);
-                // }
-
-                // // console.log(_sunPixelDisplaceOffset);
-
-                // _randomPixelDisplaceShaderPass2.uniforms.minXOffset.value = -_sunPixelDisplaceOffset;
-                // _randomPixelDisplaceShaderPass2.uniforms.maxXOffset.value = _sunPixelDisplaceOffset;
-                // _randomPixelDisplaceShaderPass2.uniforms.minYOffset.value = -_sunPixelDisplaceOffset;
-                // _randomPixelDisplaceShaderPass2.uniforms.maxYOffset.value = _sunPixelDisplaceOffset;
-
-                // console.log(_randomPixelColumnDisplaceShaderPass1.uniforms.xTime.value);
-           
+                if(_settings.enableMorphing)
+                {
+                    _morphs.forEach(m => 
+                    {
+                        m.update(_deltaTimeSeconds);
+                    });
+                }
+                      
                 Render();
 
                 _stats.update();

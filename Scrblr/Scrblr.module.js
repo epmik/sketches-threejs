@@ -1,3 +1,6 @@
+
+import "./Core/THREE.Color.extensions.js";
+
 export { Sketch } from './Core/Sketch.js';
 export { Utility } from './Core/Utility.js';
 export { Gui } from './Core/Gui.js';
