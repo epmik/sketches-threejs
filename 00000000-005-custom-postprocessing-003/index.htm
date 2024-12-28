@@ -458,6 +458,9 @@
 				_camera.position.set(0, 2.5, 7.5 );
 				_camera.lookAt(0, 0, 0 );
 
+				_controls = new OrbitControls(_camera, _renderer.domElement);
+				_controls.listenToKeyEvents(_canvasContainer);
+
 				_postprocessingScene = new THREE.Scene();
 
 				_shaderGeometryScene = new THREE.Scene();
@@ -498,14 +501,6 @@
 
 				lights[ 0 ].position.set( 0, 200, 0 );
 				lights[ 1 ].position.set( 100, 200, 100 );
-
-
-				const controls = new OrbitControls(_camera, _renderer.domElement);
-    			controls.update();
-
-
-
-			
 				
 
 				let geometryMaterial = new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } );
@@ -818,6 +813,8 @@
 						_shaderSettingsObject[key].update();
 					}
 				});		
+
+    			_controls.update();
 
 				render();
 
