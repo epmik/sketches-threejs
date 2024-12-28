@@ -360,13 +360,6 @@
 
                 // -----
 
-                // _maskMesh = new THREE.Mesh( new THREE.PlaneGeometry(1, 1, 5, 5) );
-
-                // _sceneMask.add( _maskMesh );
-
-                // -----
-
-
                 _gradientBackgroundShaderPass = new ShaderPass(Shaders.GradientShader);
 
                 _gradientBackgroundShaderPass.uniforms.gradientAngle.value = 90;
@@ -390,22 +383,6 @@
                 _sunMesh.position.set(_sunPosition.x, _sunPosition.y, _sunPosition.z);
 
                 _sceneSun.add( _sunMesh );
-                
-                // -----
-
-                // _sunReflection1Segments = SCRBLR.Utility.CircleResolution(_sunReflection1Radius, _camera, _renderer);
-
-                // _sunReflection1Material = Shaders.GradientShader2.NewShaderMaterial();
-
-                // _sunReflection1Material.uniforms.gradientAngle.value = 90;
-                // _sunReflection1Material.uniforms.useWindowCoordinates.value = false;
-                // _sunReflection1Material.uniforms.gradient.value[0].color = _sunReflectionColorPair.color1;
-                // _sunReflection1Material.uniforms.gradient.value[1].color = _sunReflectionColorPair.color2;
-
-                // _sunReflection1Mesh = new THREE.Mesh( new THREE.CircleGeometry(_sunReflection1Radius, _sunReflection1Segments), _sunReflection1Material );
-                // _sunReflection1Mesh.position.set(_sunReflection1Position.x, _sunReflection1Position.y, _sunReflection1Position.z);
-
-                // // _sceneSunReflection2.add( _sunReflection1Mesh );
                 
                 // -----
 
@@ -454,15 +431,7 @@
                 Shaders.NoisePixelDisplaceShader.addGuiFolder(_g.g, _sunReflectionDisplaceShader);
                 
                 // -----
-                
-                // Shaders.GradientShader.addGuiFolder(_g.g, _gradientBackgroundShaderPass);
-
-                // Shaders.GradientShader.addGuiFolder(_g.g, _sunReflection1Material);
-
-                // Shaders.GradientShader.addGuiFolder(_g.g, _sunReflection2Material);
              
-                // -----
-
                 _noisePixelRowColumnDisplaceShader = new ShaderPass(Shaders.NoisePixelRowColumnDisplaceShader);
                 
                 _noisePixelRowColumnDisplaceShader.uniforms.octaves.value = 2;
@@ -502,16 +471,18 @@
 
                 _vibrantColorsShaderPass = new ShaderPass(Shaders.VibrantColorsShader);
                 _vibrantColorsShaderPass.uniforms.coverPercentage.value = 0.75;
-                _vibrantColorsShaderPass.uniforms.minSaturation.value = -0.015;
-                _vibrantColorsShaderPass.uniforms.maxSaturation.value =  0.015;
-                _vibrantColorsShaderPass.uniforms.minBrightness.value = -0.01;
-                _vibrantColorsShaderPass.uniforms.maxBrightness.value =  0.01;
-                _vibrantColorsShaderPass.uniforms.minContrast.value = -0.01;
-                _vibrantColorsShaderPass.uniforms.maxContrast.value =  0.01;
+                _vibrantColorsShaderPass.uniforms.minHue.value = -0.025;
+                _vibrantColorsShaderPass.uniforms.maxHue.value =  0.025;
+                _vibrantColorsShaderPass.uniforms.minSaturation.value = -0.025;
+                _vibrantColorsShaderPass.uniforms.maxSaturation.value =  0.025;
+                _vibrantColorsShaderPass.uniforms.minBrightness.value = -0.015;
+                _vibrantColorsShaderPass.uniforms.maxBrightness.value =  0.015;
+                _vibrantColorsShaderPass.uniforms.minContrast.value = -0.015;
+                _vibrantColorsShaderPass.uniforms.maxContrast.value =  0.015;
                
                 _composer.addPass(_vibrantColorsShaderPass);
 
-                Shaders.VibrantColorsShader.addGuiFolder(_g.g, _vibrantColorsShaderPass);
+                Shaders.VibrantColorsShader.addGuiFolder(_g.g, _vibrantColorsShaderPass, null, true);
                 
                 // ----- 
 
