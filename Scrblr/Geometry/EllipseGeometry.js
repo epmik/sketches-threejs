@@ -21,7 +21,7 @@ class EllipseGeometry extends BufferGeometry
 		this.options = Object.assign({}, EllipseGeometry.defaultOptions);
 		Object.assign(this.options, options);
 
-		this.options = Math.max( 3, this.options );
+		this.options.segments = Math.max( 3, this.options.segments);
 
 		// buffers
 
@@ -35,25 +35,29 @@ class EllipseGeometry extends BufferGeometry
 		const vertex = new Vector3();
 		const uv = new Vector2();
 
-		const start = MathUtils.degToRad(this.options.startAngleInDegrees);
-		const stop = MathUtils.degToRad(this.options.stopAngleInDegrees);
+		const thetaStart = MathUtils.degToRad(this.options.startAngleInDegrees);
+		const thetaLength = MathUtils.degToRad(this.options.stopAngleInDegrees);
 
 		if (this.options.thickness === undefined)
 		{
+			const hWidth = this.options.width * 0.5;
+			const hHeight = this.options.height * 0.5;
+			const maxRadius = Math.max(hWidth, hHeight);
+	
 			// center point
 
 			vertices.push( 0, 0, 0 );
 			normals.push( 0, 0, 1 );
 			uvs.push( 0.5, 0.5 );
 
-			for ( let s = 0, i = 3; s <= this.options.segments; s ++, i += 3 ) {
-
-				const segment = s / this.options.segments * Math.PI * 2;
+			for (let s = 0, i = 3; s <= this.options.segments; s++, i += 3) 
+			{
+				const segment = thetaStart + s / this.options.segments * thetaLength;
 
 				// vertex
 
-				vertex.x = this.options.width * Math.cos( segment );
-				vertex.y = this.options.height * Math.sin( segment );
+				vertex.x = hWidth * Math.cos( segment );
+				vertex.y = hHeight * Math.sin( segment );
 
 				vertices.push( vertex.x, vertex.y, vertex.z );
 
@@ -63,8 +67,8 @@ class EllipseGeometry extends BufferGeometry
 
 				// uvs
 
-				uv.x = ( vertices[ i ] / this.options.width + 1 ) / 2;
-				uv.y = ( vertices[ i + 1 ] / this.options.height + 1 ) / 2;
+				uv.x = ( vertices[ i ] / maxRadius + 1 ) / 2;
+				uv.y = ( vertices[ i + 1 ] / maxRadius + 1 ) / 2;
 
 				uvs.push( uv.x, uv.y );
 			}
@@ -78,7 +82,59 @@ class EllipseGeometry extends BufferGeometry
 		}
 		else
 		{
-			
+			const hOuterWidth = this.options.width * 0.5;
+			const hOuterHeight = this.options.height * 0.5;
+			const hInnerWidth = (this.options.width - this.options.thickness) * 0.5;
+			const hInnerHeight = (this.options.height - this.options.thickness) * 0.5;
+			const maxOuterRadius = Math.max(hOuterWidth, hOuterHeight);
+			const maxInnerRadius = Math.max(hInnerWidth, hInnerHeight);
+
+			for (let s = 0, i = 3; s <= this.options.segments; s++, i += 3) 
+			{
+				const segment = thetaStart + s / this.options.segments * (thetaLength - thetaStart);
+
+				// inner vertex
+
+				vertex.x = hInnerWidth * Math.cos( segment );
+				vertex.y = hInnerHeight * Math.sin( segment );
+
+				vertices.push( vertex.x, vertex.y, vertex.z );
+
+				// inner normal
+
+				normals.push( 0, 0, 1 );
+
+				// inner uv
+
+				uv.x = ( vertices[ i ] / maxInnerRadius + 1 ) / 2;
+				uv.y = ( vertices[ i + 1 ] / maxInnerRadius + 1 ) / 2;
+
+				uvs.push( uv.x, uv.y );
+
+				// outer vertex
+
+				vertex.x = hOuterWidth * Math.cos( segment );
+				vertex.y = hOuterHeight * Math.sin( segment );
+
+				vertices.push( vertex.x, vertex.y, vertex.z );
+
+				// outer normal
+
+				normals.push( 0, 0, 1 );
+
+				// outer uv
+
+				uv.x = ( vertices[ i ] / maxOuterRadius + 1 ) / 2;
+				uv.y = ( vertices[ i + 1 ] / maxOuterRadius + 1 ) / 2;
+
+				uvs.push( uv.x, uv.y );
+			}
+
+			for (let i = 0; i <= this.options.segments * 2 - 2; i += 2)
+			{
+				indices.push(i, i + 1, i + 3);
+				indices.push(i, i + 2, i + 3);
+			}	
 		}
 
 		// build geometry
