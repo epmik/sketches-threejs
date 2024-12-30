@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - orbit controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<script type="text/javascript" src="/js/date-extensions.js"></script>
+		<script src='https://unpkg.com/three-rt-helper'></script>
+	</head>
+
+	<body>
+        <div id="canvas-container">
+        </div>
+        <div id="gui-container">
+        </div>
+        <div id="info-container">
+            <div id="info-help-container">
+                <div class="clickable" target="F9">Help (F9)</div>
+            </div>
+            <div id="info-text-container">
+                <div class="clickable" target="F9">Toggle this information - F9</div>
+                <div class="clickable" target="F5">Refresh page - F5</div>
+                <div class="clickable" target="F10">Toggle GUI - F10</div>
+                <div class="clickable" target="F11">Toggle fullscreen - F11</div>
+            </div>
+        </div>
+        <script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "../scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
+				}
+			}
+		</script>
+
+        <script type="module">
+
+            import $ from 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/+esm'
+            import * as THREE from 'three';
+			import * as SCRBLR from 'scrblr';
+            import { Graphics } from './js/Graphics.js';
+            import { RandomGenerator } from '/js/RandomGenerator.js';
+			import { OpenSimplexNoiseGenerator } from '/js/OpenSimplexNoiseGenerator.js';
+			import { SummedNoiseGenerator } from '/js/SummedNoiseGenerator.js';
+			import { MathUtility } from '/js/MathUtility.js';
+			import { Color } from '/js/Color.js';
+			import Stats from 'three/addons/libs/stats.module.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			// import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm'
+			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+			import * as Shaders from './.shaders/Export.module.js';
+			import * as Postprocessing from './.postprocessing/Export.module.js';
+            import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+			// import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
+			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+            import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
+            // import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
+            import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+			// import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
+            import { HorizontalBlurShader } from 'three/addons/shaders/HorizontalBlurShader.js';
+            import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js';
+            // import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+            // import { PNG } from 'pngjs';
+
+            const MixShader = {
+
+name: 'MixShader',
+
+uniforms: {
+
+    'tDiffuse': { value: null },
+},
+
+vertexShader: /* glsl */`
+
+    varying vec2 v_Uv;
+
+    void main() {
+
+        v_Uv = uv;
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+    }`,
+
+fragmentShader: /* glsl */`
+
+    #include <common>
+
+    uniform sampler2D tDiffuse;
+
+    varying vec2 v_Uv;
+
+    void main()
+    {
+        vec4 c = texture(tDiffuse, v_Uv);
+
+        if(c.x < 1.0 || c.y < 1.0 || c.z < 1.0)
+        {
+            c = mix(c, vec4(1.0, 1.0, 0.0, 1.0), 0.5);
+        }
+
+        gl_FragColor = c;
+        //gl_FragColor = vec4(c.z, c.z, c.z, 1.0);
+    }`
+
+};
+
+
+            let _screenCapturePrefix = "00000000-001-composer-rendertarget-save";
+            let _renderer, _camera, _stats, _orbitControls, _renderTarget;
+            let _composer, _clearPass, _composerMaskPass, _composerClearMaskPass; 
+            let _minCanvasWidth = 400, _minCanvasHeight = 400;
+            let _canvasWidth = _minCanvasWidth, _canvasHeight = _minCanvasHeight;
+            let _near = 1, _far = 8000, _fov = 60;
+			let _g;
+            let _clock, _deltaTimeSeconds;
+            let _frameCount = 0;
+			let _mouseTimer = null;
+			let _squareCanvas = true;
+
+            let _randomGenerator;       
+            let _noiseGenerator;       
+
+            let _skyScene, _waterScene, _mountainScene;
+
+
+            const _hiresUpscaleFactor = 4.0;
+
+            let _canvasContainer, _guiContainer, _infoContainer;
+
+            let _sphereGeometry, _sphereMesh, _sphereMaterial, _sphereRenderPass, _sphereScene;
+            let _cubeGeometry, _cubeMesh, _cubeMaterial, _cubeRenderPass, _cubeScene;
+            let _mixShaderPass;
+
+            let _settings = 
+            {
+                downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
+                downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(_hiresUpscaleFactor); },
+                downloadWebGLRenderTargetAction: function () { _downloadWebGLRenderTarget(_renderer, _renderTarget); },
+                saveTransparentBackground: true,
+            };
+
+            init(); 
+
+            async function init() 
+            {
+                _canvasContainer = document.getElementById('canvas-container');
+                _guiContainer = document.getElementById('gui-container');
+                _infoContainer = document.getElementById('info-container');
+
+                _randomGenerator = new RandomGenerator();
+                _noiseGenerator = new OpenSimplexNoiseGenerator();
+
+                // --------------------
+
+                _renderer = new THREE.WebGLRenderer( { antialias: true, samples: 8, stencil: true, alpha: true } );
+                _renderer.setPixelRatio( window.devicePixelRatio );
+                _renderer.setClearColor( 0xffffff, 0 );
+
+                console.log("WebGL2RenderingContext: " + _renderer.capabilities.isWebGL2);
+                console.log("GL.MAX_TEXTURE_SIZE: " + _renderer.capabilities.maxTextureSize);
+                console.log("GL.MAX_SAMPLES: " + _renderer.capabilities.maxSamples);
+                console.log("GL.MAX_FRAGMENT_UNIFORM_VECTORS: " + _renderer.capabilities.maxFragmentUniforms);
+                console.log("GL.MAX_VARYING_VECTORS: " + _renderer.capabilities.maxVaryings);
+                console.log("GL.MAX_VERTEX_UNIFORM_VECTORS: " + _renderer.capabilities.maxVertexUniforms);
+
+                _canvasContainer.appendChild( _renderer.domElement );
+
+                // --------------------
+
+				_g = new SCRBLR.Gui( { container : _guiContainer, width: 360 });
+
+				// -----------------------
+
+                // _camera = new THREE.OrthographicCamera( -1, 1, 1, -1, _near, _far);
+                _camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
+                _camera.position.set( 0, 0, 4);
+                _camera.lookAt( 0, 0, 0 );
+
+                // _orbitControls = new OrbitControls( _camera, document.body );
+                _orbitControls = new OrbitControls( _camera, _infoContainer );
+                // _orbitControls = new OrbitControls( _camera, _renderer.domElement );
+				_orbitControls.minDistance = _near;
+				_orbitControls.maxDistance = _far;
+				_orbitControls.maxPolarAngle = Math.PI / 2;
+				_orbitControls.target.set( 0, 0, 0 );
+				_orbitControls.update();   
+
+                _cubeScene = new THREE.Scene();
+                _sphereScene = new THREE.Scene();
+
+                // ----------------------
+				
+                const lights = [];
+
+                lights[ 0 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+                lights[ 1 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+                lights[ 2 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+
+                lights[ 0 ].position.set( 0, 200, 0 );
+                lights[ 1 ].position.set( 100, 200, 100 );
+                lights[ 2 ].position.set( - 100, - 200, - 100 );
+
+                _cubeScene.add( lights[ 0 ] );
+                _cubeScene.add( lights[ 1 ] );
+                _cubeScene.add( lights[ 2 ] );
+
+                // ----------------------
+
+				var parameters = {
+						minFilter: THREE.LinearFilter,
+						magFilter: THREE.LinearFilter,
+						format: THREE.RGBAFormat,       // RGBA for transparent backgrounds
+						stencilBuffer: true,	        // enable stencil buffer writes
+                        depthBuffer: true,              // enable depth buffer writes
+                        samples: 8                      // multi sampling
+					};
+
+				_renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters );
+
+                // -----
+
+                _renderer.autoClear = false;
+				_composer = new EffectComposer( _renderer, _renderTarget );
+				
+                // -----
+
+				_clearPass = new ClearPass(0xffffff, _settings.saveTransparentBackground == true ? 0.0 : 1.0);
+                _composer.addPass( _clearPass );
+
+                // -----
+
+                _cubeGeometry = new THREE.BoxGeometry( 1, 1, 1 ); 
+                // _cubeMaterial = new THREE.MeshBasicMaterial( {color: 0x00ff00} ); 
+                _cubeMaterial = new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } );
+                _cubeMesh = new THREE.Mesh( _cubeGeometry, _cubeMaterial ); 
+
+                _cubeScene.add( _cubeMesh );
+                
+                // -----
+
+                _cubeRenderPass = new RenderPass(_cubeScene, _camera );
+				
+                _cubeRenderPass.clear = false;
+				_cubeRenderPass.clearDepth = true;
+				
+                _composer.addPass( _cubeRenderPass );
+
+                // -----         
+
+                _mixShaderPass = new ShaderPass(MixShader);
+                
+                _composer.addPass(_mixShaderPass);
+
+                // -----         
+
+                _composer.addPass( new OutputPass() );	
+
+                // ----------------------
+
+                _g.g.add(_settings, 'downloadWebGLRendererAction').name('Save screen');
+                _g.g.add(_settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
+                _g.g.add(_settings, 'downloadWebGLRenderTargetAction').name('Save render target');
+                _g.g.add(_settings, 'saveTransparentBackground').name('Save transparent background').onChange( function ( val ) { _clearPass.clearAlpha = (val == true ? 0 : 1); } );
+
+                // ----------------------
+
+                _stats = new Stats();
+                _stats.dom.style.top = '16px';
+                _stats.dom.style.left = '16px';
+                _guiContainer.appendChild( _stats.dom );
+
+                // ----------------------
+
+                window.addEventListener("keydown", onKeyDown, false);
+                window.addEventListener("keyup", onKeyUp, false);
+                window.addEventListener("mousemove", onMouseMove, false);
+                window.addEventListener("mousedown", onMouseDown, false);
+                window.addEventListener("mouseup", onMouseUp, false);
+
+                resize();
+
+                window.addEventListener( 'resize', resize );
+                window.addEventListener( 'focus', function() { console.log('window focus') } );
+                window.addEventListener( 'blur', function() { console.log('window blur') } );
+
+                onMouseMove();
+
+                _renderer.setAnimationLoop( update );
+
+                // ----------------------
+
+                _clock = new THREE.Clock();
+
+                // ----------------------
+            }
+
+            function render()
+            {
+    			_composer.render();
+            }
+
+            function update() 
+            {
+				_deltaTimeSeconds = _clock.getDelta();
+
+                if(_settings.enableMorphing)
+                {
+                    _morphs.forEach(m => 
+                    {
+                        m.update(_deltaTimeSeconds);
+                    });
+                }
+
+                _orbitControls.update();
+
+                _cubeMesh.rotation.x += 0.5 * _deltaTimeSeconds;
+                _cubeMesh.rotation.y += 0.5 * _deltaTimeSeconds;
+           
+                render();
+
+                _stats.update();
+
+                _frameCount++;
+            }
+
+            function onKeyDown(event) 
+            {
+                var keyCode = event.which;
+
+                switch(keyCode)
+                {
+                    case 119: // F8
+                        event.preventDefault();
+						_squareCanvas = !_squareCanvas;
+						resize();
+                        break;
+                    case 120: // F9
+                        event.preventDefault();
+                        _toggleInfo();
+                        break;
+                    case 121: // F10
+                        event.preventDefault();
+                        _toggleGui();
+                        break;
+                    case 122: // F11
+                        event.preventDefault();
+                        _toggleFullscreen(document.body);
+                        break;
+                    default: 
+                        console.log("key down: " + keyCode + ' keyCode');
+                        break;
+                }
+            };            
+
+            function onKeyUp(event) 
+            {
+                // event.preventDefault();
+            };            
+
+            function onMouseDown(event) 
+            {
+                // event.preventDefault();
+
+                switch(event.button)
+                {
+                    case 0:
+                        break;
+                }
+
+                // console.log(event.button);
+                // console.log(event.buttons);
+            }; 
+
+            function onMouseUp(event) 
+            {
+                // event.preventDefault();
+            };  
+
+            function onMouseMove(event) 
+            {
+                // event.preventDefault();
+
+                if (_mouseTimer) 
+                {
+                    window.clearTimeout(_mouseTimer);
+                }
+
+                document.body.style.cursor = "default";
+                $('#info-container').show(0);
+
+                _mouseTimer = window.setTimeout(_hideCursor, 4000);
+
+                // event.clientX    // The X coordinate of the mouse pointer in viewport coordinates.
+                // event.clientY    // The Y coordinate of the mouse pointer in viewport coordinates.
+                // event.altKey     // Returns true if the alt key was down when the mouse event was fired.
+                // event.ctrlKey    // Returns true if the ctrl key was down when the mouse event was fired.
+                // event.shiftKey   // Returns true if the shift key was down when the mouse event was fired.
+                // event.button     // The button number that was pressed (if applicable) when the mouse event was fired.
+                // event.buttons    // The buttons being pressed (if any) when the mouse event was fired.
+                // event.movementX  // The X coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.movementY  // The Y coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.screenX    // The X coordinate of the mouse pointer in screen coordinates.
+                // event.screenY    // The Y coordinate of the mouse pointer in screen coordinates.
+            };            
+
+            function resize() 
+            {
+				if(_squareCanvas)
+				{
+					_canvasHeight = _canvasWidth = window.innerWidth < window.innerHeight ? Math.max(window.innerWidth, _minCanvasWidth) : Math.max(window.innerHeight, _minCanvasHeight);
+				}
+				else
+				{
+					_canvasWidth = Math.max(window.innerWidth, _minCanvasWidth);
+					_canvasHeight = Math.max(window.innerHeight, _minCanvasHeight);
+				}
+
+				_camera.aspect = _canvasWidth / _canvasHeight;
+
+				if(_camera instanceof THREE.OrthographicCamera)
+				{
+					_camera.left = -1 * _camera.aspect;
+					_camera.right = 1 * _camera.aspect;
+				}
+
+				_camera.updateProjectionMatrix();
+
+                _renderTarget.setSize( _canvasWidth, _canvasHeight );
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+				_composer.setSize( _canvasWidth, _canvasHeight );
+
+                SCRBLR.Utility.UpdateResolutionUniforms(new THREE.Vector2(_canvasWidth, _canvasHeight), _composer.passes);
+
+                console.log("canvas size: " + _canvasWidth + "x" + _canvasHeight);             
+            }
+
+			function _downloadWebGLRenderer(hiresScale)
+			{
+                hiresScale = (hiresScale === undefined || hiresScale === null || hiresScale == 0 ? 1 : hiresScale);
+
+                const width = Math.round(1024 * hiresScale);
+                const height = Math.round(1024 * hiresScale);
+
+				const maxW = 4096 > _renderer.capabilities.maxTextureSize ? 4096 : _renderer.capabilities.maxTextureSize;
+				const maxH = 4096 > _renderer.capabilities.maxTextureSize ? 4096 : _renderer.capabilities.maxTextureSize;
+
+				const d = new Date();
+				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
+
+				for (let y = 0; y < height; y += maxH)
+				{
+					for (let x = 0; x < width; x += maxW)
+					{
+						let w = Math.min(width - x, maxW);
+						let h = Math.min(height - y, maxH);
+
+						_renderer.setSize( w, h );
+                        _composer.setSize( w, h );
+
+						_camera.setViewOffset(width, height, x, y, w, h);
+
+                        Render();
+					
+                        _downloadCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
+					}
+				}
+
+                _renderer.setSize( _canvasWidth, _canvasHeight );
+                _composer.setSize( _canvasWidth, _canvasHeight );
+
+                _camera.clearViewOffset();
+			}
+
+			function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
+			{
+                const w = Math.floor(webGLRenderTarget.width);
+                const h = Math.floor(webGLRenderTarget.height);
+
+				let buffer = new Uint8ClampedArray(4 * w * h)
+
+				webGLRenderer.readRenderTargetPixels(webGLRenderTarget, 0, 0, w, h, buffer);
+
+				var canvas = document.createElement('canvas');
+
+				canvas.width = w;
+				canvas.height = h;
+
+				var context = canvas.getContext('2d');
+
+				context.putImageData(new ImageData( buffer, w, h ), 0, 0);
+
+				_downloadCanvasAsPng(canvas);
+			}
+
+			function _downloadCanvasAsPng(canvas, name)
+			{
+				if(name === null || name === undefined || name === "")
+				{
+					var d = new Date();
+
+					name = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
+				}
+
+				canvas.toBlob(function (blob) 
+                {
+                    // console.log(URL.createObjectURL(blob));
+
+                    // PNGImage.readImage(URL.createObjectURL(blob), function (err, image) {
+                    //     if (err) console.log(err);
+
+                    //     // The image is in the 'image' variable if everything went well
+                    // });                    
+
+                    // blob.arrayBuffer().then((arrayBuffer) => 
+                    // {
+                    //     new PNG({ filterType: 4 }).parse(arrayBuffer, function (error, data) 
+                    //     {
+                    //         console.log(error, data);
+                    //     });
+                    // });
+
+					var a = document.createElement('a');
+					var url = URL.createObjectURL(blob);
+					a.href = url;
+					a.download = name;
+					a.click();
+				}, 'image/png', 1.0); 
+			}
+
+            $('.clickable').on('click', function(e) 
+            {    
+                let target = $(this).attr('target');
+
+                switch(target)
+                {
+                    case 'F9':
+                        _toggleInfo();
+                        break;
+                    case 'F10':
+                        _toggleGui();
+                        break;
+                    case 'F11':
+                        _toggleFullscreen();
+                        break;
+                }
+            });
+
+            function _toggleInfo()
+            {
+                $('#info-container').toggle(0);
+                $('#info-help-container').toggle(0);
+                $('#info-text-container').toggle(0);
+            }
+
+            function _toggleGui()
+            {
+                $('#gui-container').toggle(0);
+            }
+
+            function _toggleFullscreen(element)
+            {
+                // https://stackoverflow.com/a/47110257/527843
+
+                if(element === undefined || element === null)
+                {
+                    element = document.body;                    
+                }
+
+                if ((document.fullScreenElement !== undefined && document.fullScreenElement === null) || (document.msFullscreenElement !== undefined && document.msFullscreenElement === null) || (document.mozFullScreen !== undefined && !document.mozFullScreen) || (document.webkitIsFullScreen !== undefined && !document.webkitIsFullScreen)) 
+                {
+                    if (element.requestFullScreen) 
+                    {
+                        element.requestFullScreen();
+                    } 
+                    else if (element.mozRequestFullScreen) 
+                    {
+                        element.mozRequestFullScreen();
+                    }
+                    else if (element.webkitRequestFullScreen) 
+                    {
+                        element.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+                    }
+                    else if (element.msRequestFullscreen) 
+                    {
+                        element.msRequestFullscreen();
+                    }
+                } 
+                else 
+                {
+                    if (document.cancelFullScreen) 
+                    {
+                        document.cancelFullScreen();
+                    } 
+                    else if (document.mozCancelFullScreen) 
+                    {
+                        document.mozCancelFullScreen();
+                    } 
+                    else if (document.webkitCancelFullScreen) 
+                    {
+                        document.webkitCancelFullScreen();
+                    } 
+                    else if (document.msExitFullscreen) 
+                    {
+                        document.msExitFullscreen();
+                    }
+                }            
+            }
+
+            function _hideCursor() 
+            {
+                _mouseTimer = null;
+                document.body.style.cursor = "none";
+                $('#info-container').hide(0);
+            }
+
+        </script>
+    </body>
+</html>        

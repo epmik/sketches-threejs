@@ -15,7 +15,7 @@
             "type": "chrome",
             "request": "launch",
             "name": "Launch Chrome localhost:3000 (npx serve)",
-            "url": "http://localhost:3000/20241229-001-landscape/index.htm",
+            "url": "http://localhost:3000/00000000-001-composer-rendertarget-save/index.htm",
             "webRoot": "${workspaceFolder}"
         }
     ]
