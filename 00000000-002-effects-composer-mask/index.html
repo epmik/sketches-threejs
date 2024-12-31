@@ -71,7 +71,7 @@
 			scene1.add( box );
 
 			const scene2 = new THREE.Scene();
-			torus = new THREE.Mesh( new THREE.PlaneGeometry(4, 4), new THREE.MeshBasicMaterial( { color: 0x0000ff, side: THREE.DoubleSide } ) );
+			torus = new THREE.Mesh( new THREE.BoxGeometry(4, 2, 4), new THREE.MeshBasicMaterial( { color: 0x0000ff, side: THREE.DoubleSide } ) );
 			scene2.add( torus );
 
 			const clearPass = new ClearPass();
@@ -146,8 +146,8 @@
 			box.rotation.x = time;
 			box.rotation.y = time / 2;
 
-			torus.position.x = Math.cos( time / 1.5 * 0.5 ) * 2;
-			torus.position.y = Math.sin( time ) * 2 * 0.5;
+			torus.position.x = Math.cos( time / 1.5 * 0.5 ) * 6;
+			torus.position.y = Math.sin( time ) * 4 * 0.5 ;
 			torus.rotation.x = time / 4;
 			torus.rotation.y = time / 8;
 
