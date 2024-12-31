@@ -68,50 +68,55 @@
             // import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
             // import { PNG } from 'pngjs';
 
-            const MixShader = {
+            const MixShader = 
+            {
+                name: 'MixShader',
 
-name: 'MixShader',
+                uniforms: {
 
-uniforms: {
+                    'tDiffuse': { value: null },
+                },
 
-    'tDiffuse': { value: null },
-},
+                vertexShader: /* glsl */`
 
-vertexShader: /* glsl */`
+                    varying vec2 v_Uv;
 
-    varying vec2 v_Uv;
+                    void main() {
 
-    void main() {
+                        v_Uv = uv;
 
-        v_Uv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
 
-        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                    }`,
 
-    }`,
+                fragmentShader: /* glsl */`
 
-fragmentShader: /* glsl */`
+                    #include <common>
 
-    #include <common>
+                    uniform sampler2D tDiffuse;
 
-    uniform sampler2D tDiffuse;
+                    varying vec2 v_Uv;
 
-    varying vec2 v_Uv;
+                    void main()
+                    {
+                        vec4 c = texture(tDiffuse, v_Uv);
 
-    void main()
-    {
-        vec4 c = texture(tDiffuse, v_Uv);
+                        // check transparency
+                        if(c.w == 1.0)
+                        {
+                            // if not transparent or fully opaque, mix 50% with red
+                            c = mix(c, vec4(1.0, 0.0, 0.0, 1.0), 0.5);
+                        }
 
-        if(c.x < 1.0 || c.y < 1.0 || c.z < 1.0)
-        {
-            c = mix(c, vec4(1.0, 1.0, 0.0, 1.0), 0.5);
-        }
-
-        gl_FragColor = c;
-        //gl_FragColor = vec4(c.z, c.z, c.z, 1.0);
-    }`
-
-};
-
+                        c = mix(c, vec4(1.0, 0.0, 0.0, 1.0), v_Uv.y);
+                        
+                        gl_FragColor = c;
+                        
+                        // gl_FragColor = texture(tDiffuse, v_Uv);
+                        // gl_FragColor = vec4(v_Uv.x, v_Uv.x, v_Uv.x, 1.0);
+                        // gl_FragColor = vec4(c.w, c.w, c.w, 1.0);
+                    }`
+            };
 
             let _screenCapturePrefix = "00000000-001-composer-rendertarget-save";
             let _renderer, _camera, _stats, _orbitControls, _renderTarget;
@@ -224,6 +229,7 @@ fragmentShader: /* glsl */`
 					};
 
 				_renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters );
+                _renderTarget.id = "1024";
 
                 // -----
 
@@ -232,13 +238,14 @@ fragmentShader: /* glsl */`
 				
                 // -----
 
+                // read from temp render target
+                // write to _renderTarget
 				_clearPass = new ClearPass(0xffffff, _settings.saveTransparentBackground == true ? 0.0 : 1.0);
                 _composer.addPass( _clearPass );
 
                 // -----
 
                 _cubeGeometry = new THREE.BoxGeometry( 1, 1, 1 ); 
-                // _cubeMaterial = new THREE.MeshBasicMaterial( {color: 0x00ff00} ); 
                 _cubeMaterial = new THREE.MeshPhongMaterial( { color: 0x156289, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } );
                 _cubeMesh = new THREE.Mesh( _cubeGeometry, _cubeMaterial ); 
 
@@ -467,7 +474,7 @@ fragmentShader: /* glsl */`
 
 						_camera.setViewOffset(width, height, x, y, w, h);
 
-                        Render();
+                        render();
 					
                         _downloadCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
 					}

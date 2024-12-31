@@ -162,7 +162,7 @@
                 }
             }          
 
-            let _screenCapturePrefix = "20241229-001-landscape";
+            let _screenCapturePrefix = "20241230-001-landscape";
             let _renderer, _camera, _stats, _orbitControls, _renderTarget;
             let _composer, _clearPass, _composerMaskPass, _composerClearMaskPass; 
             let _minCanvasWidth = 400, _minCanvasHeight = 400;
@@ -210,6 +210,7 @@
             {
                 downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
                 downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(_hiresUpscaleFactor); },
+                downloadWebGLRenderTargetAction: function () { _downloadWebGLRenderTarget(_renderer, _renderTarget); },
                 horizonHeight: 0.0,
                 saveTransparentBackground: true,
                 enableMask: false,
@@ -327,7 +328,7 @@
 					};
 
 				_renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters );
-                _renderTarget.id = "1024";
+                _renderTarget.id = "target";
 
                 // -----
 
@@ -337,71 +338,17 @@
                 // -----
 
 				_clearPass = new ClearPass(0xffffff, _settings.saveTransparentBackground == true ? 0.0 : 1.0);
+                // write == _renderTarget
                 _composer.addPass( _clearPass );
 
                 // -----
 
-                // _gradientBackgroundShaderPass = new ShaderPass(Shaders.GradientShader.NewShaderMaterial());
-
-                // _gradientBackgroundShaderPass.uniforms.gradientAngle.value = 90;
-                
-                // _gradientBackgroundShaderPass.uniforms.gradient.value[0].color = _backgroundColorPair.color1;
-                
-                // _gradientBackgroundShaderPass.uniforms.gradient.value[1].time = 0.01;
-                // _gradientBackgroundShaderPass.uniforms.gradient.value[1].color = _backgroundColorPair.color1;
-                
-                // _gradientBackgroundShaderPass.uniforms.gradient.value[2].time = 1.0;
-                // _gradientBackgroundShaderPass.uniforms.gradient.value[2].color = _backgroundColorPair.color2;
-
-                // _morphs.push(new Morph({ object: _gradientBackgroundShaderPass.uniforms.gradient.value[1], property: "time", start: 0.01, target:0.50, duration:48 }));
-
-                // _composer.addPass(_gradientBackgroundShaderPass);
-                
-                // -----
-
-                // _randomPixelRowColumnDisplaceShader = new ShaderPass(Shaders.RandomPixelRowColumnDisplaceShader);
-                
-                // _randomPixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -0;
-                // _randomPixelRowColumnDisplaceShader.uniforms.xOffset.value.y =  0;
-                // _randomPixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -16;
-                // _randomPixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  16;
-
-                // _composer.addPass(_randomPixelRowColumnDisplaceShader);
-
-                // Shaders.RandomPixelRowColumnDisplaceShader.addGuiFolder(_g.g, _randomPixelRowColumnDisplaceShader);
-                
-                // -----
-
-                // _sunSegments = SCRBLR.Utility.CircleResolution(_sunRadius, _camera, _renderer);
-
-                // _sunMaterial = Shaders.GradientShader.NewShaderMaterial();
-
-                // _sunMaterial.uniforms.gradientAngle.value = 270;
-                // _sunMaterial.uniforms.useWindowCoordinates.value = false;
-
-                // _sunMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
-                // _sunMaterial.uniforms.gradient.value[1].time = 0.99;
-                // _sunMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
-                // _sunMaterial.uniforms.gradient.value[2].time = 1.00;
-                // _sunMaterial.uniforms.gradient.value[2].color = _sunColorPair.color2;
-
-                // _sunMesh = new THREE.Mesh( new THREE.CircleGeometry(_sunRadius, _sunSegments), _sunMaterial );
-                // _sunMesh.position.set(_sunPosition.x, _sunPosition.y, _sunPosition.z);
-                // _sunMesh.scale.set(_sunScale, _sunScale, 1);
-
-                // _morphs.push(new Morph({ object: _sunMaterial.uniforms.gradient.value[1], property: "time", start: 0.45, target:0.99, duration:90 }));
-                // _morphs.push(new Morph({ object: _sunMesh.position, property: "y", start: 0.00, target:1.00, duration:80 }));
-                // _morphs.push(new Morph({ object: _sunMesh.scale, property: "x", start: 0.25, target:0.75, duration:180 }));
-                // _morphs.push(new Morph({ object: _sunMesh.scale, property: "y", start: 0.25, target:0.75, duration:180 }));
-
-                // _sceneSun.add( _sunMesh );
-          
-                // -----
-
                 _backgroundMaterial = Shaders.GradientShader.NewShaderMaterial();
+                _backgroundMaterial.depthTest = false;
+                _backgroundMaterial.depthWrite = false;
                 _backgroundMaterial.uniforms.gradientAngle.value = 270;
 
-                _backgroundMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                _backgroundMaterial.uniforms.gradient.value[0].color = _sunColorPair.color2;
                 _backgroundMaterial.uniforms.gradient.value[1].time = 0.5;
                 _backgroundMaterial.uniforms.gradient.value[1].color = _sunColorPair.color1;
                 _backgroundMaterial.uniforms.gradient.value[2].time = 1.0;
@@ -414,65 +361,34 @@
           
                 // -----
 
-                _skyMaterial = Shaders.GradientShader.NewShaderMaterial();
-                _skyMaterial.uniforms.gradientAngle.value = 270;
+                // _skyMaterial = Shaders.GradientShader.NewShaderMaterial();
+                // _skyMaterial.depthTest = false;
+                // _skyMaterial.depthWrite = false;
 
-                _skyMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
-                _skyMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
+                // _skyMaterial.uniforms.gradientAngle.value = 270;
 
-                _skyGeometry = new SCRBLR.QuadGeometry();
-                _skyMesh = new THREE.Mesh(_skyGeometry, _skyMaterial);
+                // _skyMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                // _skyMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
 
-                _waterScene.add( _skyMesh );
+                // _skyGeometry = new SCRBLR.QuadGeometry();
+                // _skyMesh = new THREE.Mesh(_skyGeometry, _skyMaterial);
+
+                // _waterScene.add( _skyMesh );
           
-                // -----
+                // // -----
 
-                _waterMaterial = Shaders.GradientShader.NewShaderMaterial();
-                _waterMaterial.uniforms.gradientAngle.value = 90;
+                // _waterMaterial = Shaders.GradientShader.NewShaderMaterial();
+                // _waterMaterial.depthTest = false;
+                // _waterMaterial.depthWrite = false;
+                // _waterMaterial.uniforms.gradientAngle.value = 90;
 
-                _waterMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
-                _waterMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
+                // _waterMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                // _waterMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
 
-                _waterGeometry = new SCRBLR.QuadGeometry();
-                _waterMesh = new THREE.Mesh(_waterGeometry, _waterMaterial);
+                // _waterGeometry = new SCRBLR.QuadGeometry();
+                // _waterMesh = new THREE.Mesh(_waterGeometry, _waterMaterial);
 
-                _waterScene.add( _waterMesh );
-                
-                // -----
-
-                // _quadMaterial = new THREE.MeshBasicMaterial({ wireframe: false, side: THREE.DoubleSide, color: new THREE.Color(1.0, 0.0, 0.0) });
-
-                // _quadGeometry = new SCRBLR.QuadGeometry();
-                // _quadMesh = new THREE.Mesh(_quadGeometry, _quadMaterial);
-                // _quadMesh.position.set(0, -0.5, 0);
-                // _quadMesh.scale.set(0.5, 0.5, 1.0);
-
-                // _sceneSun.add( _quadMesh );
-                
-                // -----
-
-                // _quadMaterial = Shaders.GradientShader.NewShaderMaterial();
-
-                // _quadGeometry = new SCRBLR.QuadGeometry();
-                // _quadMesh = new THREE.Mesh(_quadGeometry, _quadMaterial);
-                // _quadMesh.position.set( 0.5, 0, 0);
-                // _quadMesh.scale.set(0.5, 0.5, 1.0);
-
-                // _sceneSun.add( _quadMesh );
-                
-                // -----
-
-                // const texture = new THREE.TextureLoader().load("../media/textures/758px-Canestra_di_frutta_(Caravaggio).jpg");
-
-                // _quadMaterial = new THREE.MeshBasicMaterial({ wireframe: false, side: THREE.DoubleSide, map: texture });
-
-                // _quadGeometry = new SCRBLR.QuadGeometry();
-                // _quadGeometry.vertex(0, -0.5, 0.25, 0);
-                // _quadMesh = new THREE.Mesh(_quadGeometry, _quadMaterial);
-                // _quadMesh.position.set(-0.5, 0, 0);
-                // _quadMesh.scale.set(0.5, 0.5, 1.0);
-
-                // _sceneSun.add( _quadMesh );
+                // _waterScene.add( _waterMesh );
                 
                 // -----
 
@@ -481,96 +397,72 @@
                 _waterRenderPass.clear = false;
 				_waterRenderPass.clearDepth = true;
 				
+                // write == _renderTarget
                 _composer.addPass( _waterRenderPass );
 
                 // -----         
 
-                _waterNoisePixelDisplacePass = new ShaderPass(Shaders.NoisePixelDisplaceShader);
-                // _waterNoisePixelDisplacePass.needsSwap = false;
-                
+                // _waterNoisePixelDisplacePass = new ShaderPass(Shaders.NoisePixelDisplaceShader);
+                // // _waterNoisePixelDisplacePass.needsSwap = false;
+
                 // _waterNoisePixelDisplacePass.uniforms.octaves.value = 2;
                 // _waterNoisePixelDisplacePass.uniforms.multiplier.value.x = 4;
                 // _waterNoisePixelDisplacePass.uniforms.multiplier.value.y = 6;
                 // _waterNoisePixelDisplacePass.uniforms.xOffset.value.x = 0;
                 // _waterNoisePixelDisplacePass.uniforms.xOffset.value.y = 0;
-                // _waterNoisePixelDisplacePass.uniforms.yOffset.value.x = -37;
-                // _waterNoisePixelDisplacePass.uniforms.yOffset.value.y = 51;
+                // _waterNoisePixelDisplacePass.uniforms.yOffset.value.x = -69;
+                // _waterNoisePixelDisplacePass.uniforms.yOffset.value.y = 62;
+               
+                // _composer.addPass(_waterNoisePixelDisplacePass);
 
-                _waterNoisePixelDisplacePass.uniforms.octaves.value = 2;
-                _waterNoisePixelDisplacePass.uniforms.multiplier.value.x = 4;
-                _waterNoisePixelDisplacePass.uniforms.multiplier.value.y = 6;
-                _waterNoisePixelDisplacePass.uniforms.xOffset.value.x = 0;
-                _waterNoisePixelDisplacePass.uniforms.xOffset.value.y = 0;
-                _waterNoisePixelDisplacePass.uniforms.yOffset.value.x = -69;
-                _waterNoisePixelDisplacePass.uniforms.yOffset.value.y = 62;
-
-                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.xOffset.value, property: "x", start: -20, target:20, duration:6 }));
-                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.xOffset.value, property: "y", start: 120, target:180, duration:9 }));
-                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.yOffset.value, property: "x", start: -80, target:-20, duration:3 }));
-                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.yOffset.value, property: "y", start: 20, target:80, duration:12 }));
-                
-                _composer.addPass(_waterNoisePixelDisplacePass);
-
-                Shaders.NoisePixelDisplaceShader.addGuiFolder(_g.g, _waterNoisePixelDisplacePass);
+                // Shaders.NoisePixelDisplaceShader.addGuiFolder(_g.g, _waterNoisePixelDisplacePass);
                 
                 // -----
              
-                _waterNoisePixelRowColumnDisplacePass = new ShaderPass(Shaders.NoisePixelRowColumnDisplaceShader);
-                // _waterNoisePixelRowColumnDisplacePass.needsSwap = true;
-
-                // _waterNoisePixelRowColumnDisplacePass.uniforms.octaves.value = 4;
+                // _waterNoisePixelRowColumnDisplacePass = new ShaderPass(Shaders.NoisePixelRowColumnDisplaceShader);
+                // // _waterNoisePixelRowColumnDisplacePass.needsSwap = true;
+               
+                // _waterNoisePixelRowColumnDisplacePass.uniforms.octaves.value = 2;
                 // _waterNoisePixelRowColumnDisplacePass.uniforms.amplitude.value = 0.88;
                 // _waterNoisePixelRowColumnDisplacePass.uniforms.multiplier.value.x = 4;
-                // _waterNoisePixelRowColumnDisplacePass.uniforms.multiplier.value.y = 4;
+                // _waterNoisePixelRowColumnDisplacePass.uniforms.multiplier.value.y = 43;
                 // _waterNoisePixelRowColumnDisplacePass.uniforms.xOffset.value.x = -210;
                 // _waterNoisePixelRowColumnDisplacePass.uniforms.xOffset.value.y =  107;
-                // _waterNoisePixelRowColumnDisplacePass.uniforms.yOffset.value.x = -24;
-                // _waterNoisePixelRowColumnDisplacePass.uniforms.yOffset.value.y =  3;
+                // _waterNoisePixelRowColumnDisplacePass.uniforms.yOffset.value.x = -41;
+                // _waterNoisePixelRowColumnDisplacePass.uniforms.yOffset.value.y =  48;
                
-                _waterNoisePixelRowColumnDisplacePass.uniforms.octaves.value = 2;
-                _waterNoisePixelRowColumnDisplacePass.uniforms.amplitude.value = 0.88;
-                _waterNoisePixelRowColumnDisplacePass.uniforms.multiplier.value.x = 4;
-                _waterNoisePixelRowColumnDisplacePass.uniforms.multiplier.value.y = 43;
-                _waterNoisePixelRowColumnDisplacePass.uniforms.xOffset.value.x = -210;
-                _waterNoisePixelRowColumnDisplacePass.uniforms.xOffset.value.y =  107;
-                _waterNoisePixelRowColumnDisplacePass.uniforms.yOffset.value.x = -41;
-                _waterNoisePixelRowColumnDisplacePass.uniforms.yOffset.value.y =  48;
+                // _composer.addPass(_waterNoisePixelRowColumnDisplacePass);
 
-                // _morphs.push(new Morph({ object: _waterNoisePixelRowColumnDisplacePass.uniforms.yOffset.value, property: "x", start: -16, target:0, duration:6 }));
-                // _morphs.push(new Morph({ object: _waterNoisePixelRowColumnDisplacePass.uniforms.yOffset.value, property: "y", start: 20, target:60, duration:10 }));
-                
-                _composer.addPass(_waterNoisePixelRowColumnDisplacePass);
-
-                Shaders.NoisePixelRowColumnDisplaceShader.addGuiFolder(_g.g, _waterNoisePixelRowColumnDisplacePass);
+                // Shaders.NoisePixelRowColumnDisplaceShader.addGuiFolder(_g.g, _waterNoisePixelRowColumnDisplacePass);
                 
                 // -----
 
-                _skyScene.add(_skyMesh);
+                // _skyScene.add(_skyMesh);
 
-                var _skyRenderPass = new RenderPass(_skyScene, _camera );
-                // _skyRenderPass.needsSwap = true;				
-                _skyRenderPass.clear = false;
-				_skyRenderPass.clearDepth = true;
+                // var _skyRenderPass = new RenderPass(_skyScene, _camera );
+                // // _skyRenderPass.needsSwap = true;				
+                // _skyRenderPass.clear = false;
+				// _skyRenderPass.clearDepth = true;
 				
-                _composer.addPass( _skyRenderPass );
+                // _composer.addPass( _skyRenderPass );
                 
                 // -----
 
-                // _composer.addPass(new PostProcessing.CopyWriteToReadBufferPass());
+                _composer.addPass(new PostProcessing.CopyWriteToReadBufferPass());
                 
                 // -----
 
                 _mountainMaterial = Shaders.MountainGradientShader.NewShaderMaterial();
-                _mountainMaterial.uniforms.gradientAngle.value = 270;
+                // _mountainMaterial.uniforms.gradientAngle.value = 270;
 
-                _mountainMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
-                _mountainMaterial.uniforms.gradient.value[0].color.w = 1.0;
-                _mountainMaterial.uniforms.gradient.value[1].time = 0.5;
-                _mountainMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
-                _mountainMaterial.uniforms.gradient.value[1].color.w = 1.00;
-                _mountainMaterial.uniforms.gradient.value[2].time = 1.0;
-                _mountainMaterial.uniforms.gradient.value[2].color = _sunColorPair.color2;
-                _mountainMaterial.uniforms.gradient.value[2].color.w = 1.00;
+                // _mountainMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                // _mountainMaterial.uniforms.gradient.value[0].color.w = 1.0;
+                // _mountainMaterial.uniforms.gradient.value[1].time = 0.5;
+                // _mountainMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
+                // _mountainMaterial.uniforms.gradient.value[1].color.w = 1.00;
+                // _mountainMaterial.uniforms.gradient.value[2].time = 1.0;
+                // _mountainMaterial.uniforms.gradient.value[2].color = _sunColorPair.color2;
+                // _mountainMaterial.uniforms.gradient.value[2].color.w = 1.00;
 
                 _mountainGeometry = new SCRBLR.EllipseGeometry({ width: 0.5, height:0.5, });
                 _mountainMesh = new THREE.Mesh(_mountainGeometry, _mountainMaterial);
@@ -585,73 +477,15 @@
                 _mountainRenderPass.clear = false;
 				_mountainRenderPass.clearDepth = true;
 				
-                // _composer.addPass( _mountainRenderPass );
+                // write == _renderTarget
+                _composer.addPass( _mountainRenderPass );
                 
                 // -----
 
-                // _waterPixelRowColumnDisplacePass = new ShaderPass(Shaders.RandomPixelRowColumnDisplaceShader);
-                
-                // _waterPixelRowColumnDisplacePass.uniforms.xOffset.value.x = -0;
-                // _waterPixelRowColumnDisplacePass.uniforms.xOffset.value.y =  0;
-                // _waterPixelRowColumnDisplacePass.uniforms.yOffset.value.x = -16;
-                // _waterPixelRowColumnDisplacePass.uniforms.yOffset.value.y =  16;
-
-                // _composer.addPass(_waterPixelRowColumnDisplacePass);
-
-                // Shaders.RandomPixelRowColumnDisplaceShader.addGuiFolder(_g.g, _waterPixelRowColumnDisplacePass);
-                
-
-                // _noisePixelRowColumnDisplaceShader = new ShaderPass(Shaders.NoisePixelRowColumnDisplaceShader);
-                
-                // _noisePixelRowColumnDisplaceShader.uniforms.octaves.value = 2;
-                // _noisePixelRowColumnDisplaceShader.uniforms.multiplier.value.x = 12;
-                // _noisePixelRowColumnDisplaceShader.uniforms.multiplier.value.y = 18;
-                // _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -2;
-                // _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.y =  2;
-                // _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -2;
-                // _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  2;
-
-                // _composer.addPass(_noisePixelRowColumnDisplaceShader);
-
-                // Shaders.NoisePixelRowColumnDisplaceShader.addGuiFolder(_g.g, _noisePixelRowColumnDisplaceShader);
-                         
-                // ----- 
-
-                // _randomPixelDisplaceShader = new ShaderPass(Shaders.RandomPixelDisplaceShader);
-                
-                // _randomPixelDisplaceShader.uniforms.minXOffset.value = -0;
-                // _randomPixelDisplaceShader.uniforms.maxXOffset.value =  0;
-                // _randomPixelDisplaceShader.uniforms.minYOffset.value = -16;
-                // _randomPixelDisplaceShader.uniforms.maxYOffset.value =  16;
-
-                // _composer.addPass(_randomPixelDisplaceShader);
-
-                // Shaders.RandomPixelDisplaceShader.addGuiFolder(_g.g, _randomPixelDisplaceShader);
-       
-                // -----
-
-                // _horizontalBlurShaderPass2 = new ShaderPass(Shaders.HorizontalGaussianBlurShader);
-                // _horizontalBlurShaderPass2.uniforms.radius.value = 12;
-               
-                // _morphs.push(new Morph({ object: _horizontalBlurShaderPass2.uniforms.radius, property: "value", start: 2, target:32, duration:60, floorValue: true }));
-
-                // _composer.addPass(_horizontalBlurShaderPass2);
-
-                // _g.AddFolder(_horizontalBlurShaderPass2, "Horizontal Blur Shader", false);
-                
-                // ----- 
-
-                // _verticalBlurShaderPass2 = new ShaderPass(Shaders.VerticalGaussianBlurShader);
-                // _verticalBlurShaderPass2.uniforms.radius.value = 4;
-
-                // _morphs.push(new Morph({ object: _verticalBlurShaderPass2.uniforms.radius, property: "value", start: 2, target:16, duration:72, floorValue: true }));
-               
-                // _composer.addPass(_verticalBlurShaderPass2);
-
-                // _g.AddFolder(_verticalBlurShaderPass2, "Vertical Blur Shader", false);
+                _composer.addPass(new PostProcessing.CopyWriteToReadBufferPass());
                 
                 // -----
-
+             
                 _vibrantColorsShaderPass = new ShaderPass(Shaders.VibrantColorsShader);
                 // _vibrantColorsShaderPass.needsSwap = false;
                 _vibrantColorsShaderPass.uniforms.coverPercentage.value = 0.75;
@@ -683,6 +517,7 @@
 
                 _g.g.add(_settings, 'downloadWebGLRendererAction').name('Save screen');
                 _g.g.add(_settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
+                _g.g.add(_settings, 'downloadWebGLRenderTargetAction').name('Save render target');
                 _g.g.add(_settings, 'saveTransparentBackground').name('Save transparent background').onChange( function ( val ) { _clearPass.clearAlpha = (val == true ? 0 : 1); } );
                 _g.g.add(_settings, 'horizonHeight', -1.0, 1.0, 0.01).name('Horizon Height').onChange( function ( val ) { resizeGeometry(); } );
                 _g.g.add(_settings, 'enableMorphing').name('Enable Morphing');
@@ -717,6 +552,17 @@
                 _clock = new THREE.Clock();
 
                 // ----------------------
+
+                for(let i = 0; i < _composer.passes.length; i++)
+                {
+                    _composer.passes[i].enabled = false;
+                }
+
+                _composer.passes[0].enabled = true;                                 // clear pass
+                _composer.passes[1].enabled = true;                                 // render background
+                _composer.passes[_composer.passes.length - 2].enabled = true;       // vibrant pass
+                _composer.passes[_composer.passes.length - 1].enabled = true;       // output pass
+                
             }
 
             function render()
@@ -832,15 +678,15 @@
                 _backgroundGeometry.vertex(3, _frustumWidth *  0.5, -1, 0);
                 _backgroundGeometry.vertex(2, _frustumWidth *  0.5,  1, 0);
 
-                _skyGeometry.vertex(0, _frustumWidth * -0.5, 1, 0);
-                _skyGeometry.vertex(1, _frustumWidth * -0.5, _settings.horizonHeight, 0);
-                _skyGeometry.vertex(3, _frustumWidth *  0.5, _settings.horizonHeight, 0);
-                _skyGeometry.vertex(2, _frustumWidth *  0.5, 1, 0);
+                // _skyGeometry.vertex(0, _frustumWidth * -0.5, 1, 0);
+                // _skyGeometry.vertex(1, _frustumWidth * -0.5, _settings.horizonHeight, 0);
+                // _skyGeometry.vertex(3, _frustumWidth *  0.5, _settings.horizonHeight, 0);
+                // _skyGeometry.vertex(2, _frustumWidth *  0.5, 1, 0);
 
-                _waterGeometry.vertex(0, _frustumWidth * -0.5, _settings.horizonHeight, 0);
-                _waterGeometry.vertex(1, _frustumWidth * -0.5, -1, 0);
-                _waterGeometry.vertex(3, _frustumWidth *  0.5, -1, 0);
-                _waterGeometry.vertex(2, _frustumWidth *  0.5, _settings.horizonHeight, 0);
+                // _waterGeometry.vertex(0, _frustumWidth * -0.5, _settings.horizonHeight, 0);
+                // _waterGeometry.vertex(1, _frustumWidth * -0.5, -1, 0);
+                // _waterGeometry.vertex(3, _frustumWidth *  0.5, -1, 0);
+                // _waterGeometry.vertex(2, _frustumWidth *  0.5, _settings.horizonHeight, 0);
 
                 _backgroundMaterial.uniforms.gradient.value[1].time = (1.0 + _settings.horizonHeight) * 0.5;
 
@@ -919,23 +765,26 @@
                 _camera.clearViewOffset();
 			}
 
-			// function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
-			// {
-			// 	let buffer = new Uint8ClampedArray(4 * webGLRenderTarget.width * webGLRenderTarget.height)
+			function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
+			{
+                const w = Math.floor(webGLRenderTarget.width);
+                const h = Math.floor(webGLRenderTarget.height);
 
-			// 	webGLRenderer.readRenderTargetPixels(webGLRenderTarget, 0, 0, webGLRenderTarget.width, webGLRenderTarget.height, buffer);
+				let buffer = new Uint8ClampedArray(4 * w * h)
 
-			// 	var canvas = document.createElement('canvas');
+				webGLRenderer.readRenderTargetPixels(webGLRenderTarget, 0, 0, w, h, buffer);
 
-			// 	canvas.width = webGLRenderTarget.width;
-			// 	canvas.height = webGLRenderTarget.height;
+				var canvas = document.createElement('canvas');
 
-			// 	var context = canvas.getContext('2d');
+				canvas.width = w;
+				canvas.height = h;
 
-			// 	context.putImageData(new ImageData( buffer, webGLRenderTarget.width, webGLRenderTarget.height ), 0, 0);
+				var context = canvas.getContext('2d');
 
-			// 	_downloadCanvasAsPng(canvas);
-			// }
+				context.putImageData(new ImageData( buffer, w, h ), 0, 0);
+
+				_downloadCanvasAsPng(canvas);
+			}
 
 			function _downloadCanvasAsPng(canvas, name)
 			{

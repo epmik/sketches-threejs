@@ -3,7 +3,7 @@ import { Pass } from 'three/addons/postprocessing/Pass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { Utility } from 'scrblr';
 
-const MountainGradientShader = {
+const GradientShader = {
 
 	self: this,
 
@@ -73,9 +73,9 @@ const MountainGradientShader = {
 	{
 		return new ShaderMaterial( 
 			{ 
-				uniforms: Utility.DeepCloneUniforms(MountainGradientShader.uniforms), 
-				vertexShader: MountainGradientShader.vertexShader, 
-				fragmentShader: MountainGradientShader.fragmentShader 
+				uniforms: Utility.DeepCloneUniforms(GradientShader.uniforms), 
+				vertexShader: GradientShader.vertexShader, 
+				fragmentShader: GradientShader.fragmentShader 
 			});
 	},
 
@@ -179,8 +179,7 @@ const MountainGradientShader = {
 		// https://stackoverflow.com/a/17479300/527843
 
 		// A single iteration of Bob Jenkins' One-At-A-Time hashing algorithm.
-		uint hash( uint x )
-		{
+		uint hash( uint x ) {
 			x += ( x << 10u );
 			x ^= ( x >>  6u );
 			x += ( x <<  3u );
@@ -199,8 +198,7 @@ const MountainGradientShader = {
 
 		// Construct a float with half-open range [0:1] using low 23 bits.
 		// All zeroes yields 0.0, all ones yields the next smallest representable value below 1.0.
-		float floatConstruct( uint m )
-		{
+		float floatConstruct( uint m ) {
 			const uint ieeeMantissa = 0x007FFFFFu; // binary32 mantissa bitmask
 			const uint ieeeOne      = 0x3F800000u; // 1.0 in IEEE binary32
 
@@ -221,6 +219,30 @@ const MountainGradientShader = {
 		float random( vec2 v, float min, float max ) { return min + ((max - min) * random(v)); }
 		float random( vec3 v, float min, float max ) { return min + ((max - min) * random(v)); }
 		float random( vec4 v, float min, float max ) { return min + ((max - min) * random(v)); }
+
+		// vec4 srgb_to_linear(vec4 color)
+		// {
+		// 	// https://www.reddit.com/r/opengl/comments/6nghtj/comment/dk9g6b4
+
+		// 	float x = pow(color.x, 2.2);
+		// 	float y = pow(color.y, 2.2);
+		// 	float z = pow(color.z, 2.2);
+		// 	float w = pow(color.w, 2.2);
+			
+		// 	return vec4(x, y, z, w);
+		// }
+
+		// vec4 linear_to_srgb(vec4 color)
+		// {
+		// 	// https://www.reddit.com/r/opengl/comments/6nghtj/comment/dk9g6b4
+
+		// 	float x = pow(color.x, 1.0 / 2.2);
+		// 	float y = pow(color.y, 1.0 / 2.2);
+		// 	float z = pow(color.z, 1.0 / 2.2);
+		// 	float w = pow(color.w, 1.0 / 2.2);
+			
+		// 	return vec4(x, y, z, w);
+		// }
 
 		float SRGBToLinear(float c)
 		{
@@ -283,6 +305,7 @@ const MountainGradientShader = {
 			t = t > 0.0 ? ((time - firstEntry.time) / t) : 0.0;
 			
 			return mix(firstEntry.color, lastEntry.color, t);
+			// return vec4(t, t , t, 1);
 		}
 	
 		void main()
@@ -309,9 +332,8 @@ const MountainGradientShader = {
 				factor = distance(v, radialCenter) * (1.0 / radialRadius);
 			}
 
-			gl_FragColor = texture(tDiffuse, v_Uv);
-			// gl_FragColor = mix(texture(tDiffuse, v_Uv), colorAt(factor), 0.5);
+			gl_FragColor = colorAt(factor);
   		}`
 };
 
-export { MountainGradientShader };
+export { GradientShader };

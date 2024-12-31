@@ -309,7 +309,8 @@ const MountainGradientShader = {
 				factor = distance(v, radialCenter) * (1.0 / radialRadius);
 			}
 
-			gl_FragColor = texture(tDiffuse, v_Uv);
+			gl_FragColor = texture(tDiffuse, gl_FragCoord.xy / resolution);
+
 			// gl_FragColor = mix(texture(tDiffuse, v_Uv), colorAt(factor), 0.5);
   		}`
 };
