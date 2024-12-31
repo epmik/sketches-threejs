@@ -120,18 +120,63 @@ class Utility
 		return Utility.TransformVectorToScreenSpace(new Vector3().setFromMatrixPosition(object.matrixWorld), camera, renderer);
 	}
 
-	static UpdateResolutionUniforms(resolution, passes)
+	static UpdateResolutionUniforms(resolution, objects)
 	{
-		for(let i = 0; i < passes.length; i++)
+		if (!Array.isArray(objects))
 		{
-			if(passes[i].uniforms === undefined || passes[i].uniforms.resolution === undefined || passes[i].uniforms.resolution === null)
+			objects = [objects];
+		}
+
+		for(let i = 0; i < objects.length; i++)
+		{
+			if(objects[i].uniforms === undefined || objects[i].uniforms.resolution === undefined || objects[i].uniforms.resolution === null)
 			{
 				continue;
 			}
 
-			passes[i].uniforms.resolution.value.x = resolution.x;
-			passes[i].uniforms.resolution.value.y = resolution.y;
+			objects[i].uniforms.resolution.value.x = resolution.x;
+			objects[i].uniforms.resolution.value.y = resolution.y;
 		}
+	}
+
+	static ByteToSingle(b)
+	{
+		return b * 0.003921568627451;
+	}
+
+	static SingleToByte(s)
+	{
+		return Math.floor(s * 255.0);
+	}
+
+	static SRGBToLinear(c)
+	{
+		if (c instanceof Vector4)
+		{
+			return vec4(SRGBToLinear(c.x), SRGBToLinear(c.y), SRGBToLinear(c.z), c.w);
+		}
+		
+		if (c instanceof Vector3)
+		{
+			return vec3(SRGBToLinear(c.x), SRGBToLinear(c.y), SRGBToLinear(c.z));
+		}
+
+		return (c < 0.04045) ? c * 0.0773993808 : Math.pow(c * 0.9478672986 + 0.0521327014, 2.4);
+	}
+
+	static LinearToSRGB(c)
+	{
+		if (c instanceof Vector4)
+		{
+			return vec4(LinearToSRGB(c.x), LinearToSRGB(c.y), LinearToSRGB(c.z), c.w);
+		}
+		
+		if (c instanceof Vector3)
+		{
+			return vec3(LinearToSRGB(c.x), LinearToSRGB(c.y), LinearToSRGB(c.z));
+		}
+
+		return (c < 0.0031308) ? c * 12.92 : 1.055 * (Math.pow(c, 0.41666)) - 0.055;
 	}
 }
 
