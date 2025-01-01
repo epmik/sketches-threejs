@@ -25,14 +25,18 @@
 		<script type="importmap">
 			{
 				"imports": {
-					"three": "../node_modules/three/build/three.module.js",
-					"three/addons/": "../jsm/"
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "../scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
 				}
 			}
 		</script>
 
 		<script type="module">
 
+            import $ from 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/+esm'
 			import * as THREE from 'three';
 
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';

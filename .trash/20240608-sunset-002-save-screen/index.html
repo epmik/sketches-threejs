@@ -8,7 +8,6 @@
 		<link type="text/css" rel="stylesheet" href="main.css">
 		<style>
 			body {
-				position: relative;
 				background-color: #ccc;
 				color: #000;
 			}
@@ -16,40 +15,30 @@
 			a {
 				color: #f00;
 			}
-			#color-codes{
-				position: absolute;
-				top:0;
-				left:0;
-				width: auto;
-				height: auto;
-				color:#020202;
-				padding: 1rem;				
-			}
 		</style>
 	</head>
 
 	<body>
 
-		<div id="color-codes"></div>
-
 		<script type="importmap">
 			{
 				"imports": {
-					"three": "../node_modules/three/build/three.module.js",
-					"three/addons/": "../jsm/",
-					"jquery": "../node_modules/jquery/dist/jquery.min.js"
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "../scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
 				}
 			}
 		</script>
 
 		<script type="module">
 
+            import $ from 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/+esm'
 			import * as THREE from 'three';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 			import Stats from 'three/addons/libs/stats.module.js';
-			import { prng_alea } from '../../node_modules/esm-seedrandom/esm/alea.min.mjs';
-			import 'jquery';
 
 			let _screenCapturePrefix = "20240608-sunset-002-save-screen";
 			let _camera, _controls, _scene, _renderer;
@@ -57,28 +46,6 @@
 			let _sceneWidth = 1, _sceneHeight = 1;
 			let _near = 1, _far = 1000, _fov = 60;
 			let _gui, _guiActions;
-			let randomSeed = new Date();
-			let random = prng_alea(randomSeed);
-			let _warmHue, _coldHue, _warmColor, _coldColor, _warmSaturation, _coldSaturation, _warmLightness, _coldLightness;
-			let _gradientLineSegmentMesh, _clippedGradientLineSegmentMesh;
-
-			const warmHueCenter = 180;
-			const warmHueDeviation = 120;
-
-			const oppositeHueAngle = 180;
-			const oppositeHueAngleDeviation = 90;
-
-			const warmSaturationCenter = 50;
-			const warmSaturationDeviation = 100;
-
-			const warmLightnessCenter = 50;
-			const warmLightnessDeviation = 100;
-
-			const coldSaturationCenter = 50;
-			const coldSaturationDeviation = 100;
-
-			const coldLightnessCenter = 50;
-			const coldLightnessDeviation = 100;
 
 			init();
 			//render(); // remove when using animation loop
@@ -86,13 +53,13 @@
 			function init() {
 
 				_scene = new THREE.Scene();
-				_scene.background = new THREE.Color( 0xFFFFFF );
+				_scene.background = new THREE.Color( 0xaaaaaa );
 				// scene.fog = new THREE.FogExp2( 0xcccccc, 0.002 );
 
 				_renderer = new THREE.WebGLRenderer( { antialias: true, stencil: true } );
 				_renderer.setPixelRatio( window.devicePixelRatio );
 				_renderer.setSize( _canvasWidth, _canvasHeight );
-				_renderer.setAnimationLoop( update );
+				_renderer.setAnimationLoop( animate );
 				document.body.appendChild( _renderer.domElement );
 
 				_camera = new THREE.PerspectiveCamera( _fov, _sceneWidth / _sceneHeight, _near, _far );
@@ -120,13 +87,11 @@
 
 				// -----------------------
 
-				pickRandomColors();
+				let fromColor = new THREE.Color('rgb(0, 102, 153)');
+            	let toColor = new THREE.Color('rgb(204, 102, 0)');
 
-				// let fromColor = new THREE.Color('rgb(0, 102, 153)');
-            	// let toColor = new THREE.Color('rgb(204, 102, 0)');
-
-				// fromColor = new THREE.Color('rgb(255, 9, 158)');
-            	// toColor = new THREE.Color('rgb(255, 140, 57)');
+				fromColor = new THREE.Color('rgb(255, 9, 158)');
+            	toColor = new THREE.Color('rgb(255, 140, 57)');
 
 				// fromColor = new THREE.Color('rgb(255, 54, 0)');
             	// toColor = new THREE.Color('rgb(255, 144, 0)');
@@ -134,8 +99,8 @@
 				// -----------------------
 				// stencil material
 
-				const stencilMaterial = new THREE.MeshBasicMaterial( { color: 0x000000, side : THREE.DoubleSide } );
-				stencilMaterial.colorWrite = true;	// disable color buffer
+				const stencilMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, side : THREE.DoubleSide } );
+				stencilMaterial.colorWrite = false;	// disable color buffer
 				stencilMaterial.stencilWrite = true;	// enable stencil buffer
 				stencilMaterial.stencilRef = 1;			// value written to the stencil buffer
 				stencilMaterial.stencilFunc = THREE.AlwaysStencilFunc;	// always write to stencil buffer
@@ -148,21 +113,73 @@
 				const stencilCircleGeometry = new THREE.CircleGeometry(0.25, 128);
 				const stencilCircleMesh = new THREE.Mesh( stencilCircleGeometry, stencilMaterial );
 
+				// wireframe
+				// const stencilCircleWireFrameGeometry = new THREE.WireframeGeometry( stencilCircleGeometry );
+  				// const stencilCircleWireFrameMesh = new THREE.LineSegments( stencilCircleWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0x000000, depthTest: false, opacity:0.25, transparent:true } ) );
+
 				// circle group
 				const stencilCircleGroup = new THREE.Group();
 				stencilCircleGroup.add(stencilCircleMesh);
+				// stencilCircleGroup.add(stencilCircleWireFrameMesh);
 				stencilCircleGroup.position.set(0, 0, 0);
 				_scene.add( stencilCircleGroup );	
 
 				// -----------------------
-			
+				// the clipped sphere
+
+				// const clippedSphereGeometry = new THREE.SphereGeometry( 2, 16);
+				// const clippedSphereMaterial = new THREE.MeshBasicMaterial( { color: 0x0000ff, depthTest: false } );
+				// clippedSphereMaterial.stencilWrite = true;	// enable stencil buffer
+				// clippedSphereMaterial.stencilRef = 0;		// value written to the stencil buffer
+				// clippedSphereMaterial.stencilFunc = THREE.LessStencilFunc;	// pass when the value in the stencil buffer matches the write value
+				
+				// const clippedSphereMesh = new THREE.Mesh( clippedSphereGeometry, clippedSphereMaterial );
+
+				// // -----------------------
+				// // the clipped sphere wireframe
+
+				// const clippedSphereMeshWireFrameGeometry = new THREE.WireframeGeometry( clippedSphereGeometry );
+				// const clippedSphereMeshWireFrameMesh = new THREE.LineSegments( clippedSphereMeshWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0xffffff, depthTest: false, opacity:0.25, transparent:true } ) );
+
+				// // the clipped sphere group
+				// const clippedSphereMeshGroup = new THREE.Group();
+				// clippedSphereMeshGroup.add( clippedSphereMesh );
+				// clippedSphereMeshGroup.add( clippedSphereMeshWireFrameMesh );	
+				// clippedSphereMeshGroup.position.set(0, 0, -1.75);
+				// scene.add( clippedSphereMeshGroup );	
+
+				// -----------------------
+				// the clipped plane
+
+				// const clippedPlaneGeometry = new THREE.PlaneGeometry(_sceneWidth, _sceneHeight, 10, 10);
+				// const clippedPlaneMaterial = new THREE.MeshBasicMaterial( { color: 0xffffff, side: THREE.DoubleSide, depthTest: false } );
+				// clippedPlaneMaterial.stencilWrite = true;	// enable stencil buffer
+				// clippedPlaneMaterial.stencilRef = 1;		// value written to the stencil buffer
+				// clippedPlaneMaterial.stencilFunc = THREE.EqualStencilFunc;	// pass when the value in the stencil buffer matches the write value
+				
+				// const clippedPlaneMesh = new THREE.Mesh( clippedPlaneGeometry, clippedPlaneMaterial );
+
+				// // -----------------------
+				// // the clipped plane wireframe
+
+				// const clippedPlaneMeshWireFrameGeometry = new THREE.WireframeGeometry( clippedPlaneGeometry );
+				// const clippedPlaneMeshWireFrameMesh = new THREE.LineSegments( clippedPlaneMeshWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0xffffff, depthTest: false, opacity:0.25, transparent:true } ) );
+
+				// // the clipped plane group
+				// const clippedPlaneMeshGroup = new THREE.Group();
+				// clippedPlaneMeshGroup.add( clippedPlaneMesh );
+				// clippedPlaneMeshGroup.add( clippedPlaneMeshWireFrameMesh );	
+				// clippedPlaneMeshGroup.position.set(0, 0, 0);
+				// scene.add( clippedPlaneMeshGroup );	
+
+				// -----------------------
+
 				const gradientMaterial = new THREE.LineBasicMaterial( { vertexColors: true, side: THREE.DoubleSide, depthTest: false } );				
 
-				_gradientLineSegmentMesh = createGradientLineSegments(_warmColor, _coldColor, gradientMaterial);
+				const gradientLineSegmentMesh = createGradientLineSegments(fromColor, toColor, gradientMaterial);
 
-				_gradientLineSegmentMesh.position.set(0, 0, -1);
-				// _gradientLineSegmentMesh.visible = false;
-				_scene.add( _gradientLineSegmentMesh );				
+				gradientLineSegmentMesh.position.set(0, 0, -1);
+				_scene.add( gradientLineSegmentMesh );				
 
 				// -----------------------
 
@@ -171,62 +188,25 @@
 				clippedGradientMaterial.stencilRef = 1;		// value written to the stencil buffer
 				clippedGradientMaterial.stencilFunc = THREE.EqualStencilFunc;	// pass when the value in the stencil buffer matches the write value
 
-				_clippedGradientLineSegmentMesh = createGradientLineSegments(_coldColor, _warmColor, clippedGradientMaterial);
+				const clippedGradientLineSegmentMesh = createGradientLineSegments(toColor, fromColor, clippedGradientMaterial);
 
-				_clippedGradientLineSegmentMesh.position.set(0, 0, -1);
-				// _clippedGradientLineSegmentMesh.visible = false;
-				_scene.add( _clippedGradientLineSegmentMesh );				
+				clippedGradientLineSegmentMesh.position.set(0, 0, -1);
+				_scene.add( clippedGradientLineSegmentMesh );				
 
 				// -----------------------
 				// gui
 
 				_guiActions = {
-					ProcessScreenCapture: function () { ProcessScreenCapture(); },
-					ToggleRenderMask: function () { ToggleRenderMask(); }
+					ProcessScreenCapture: function () { ProcessScreenCapture(); }
 				};
 
 				_gui = new GUI();
 
-				_gui.add(_guiActions, 'ProcessScreenCapture').name('Capture screen and JSON ...');
-				_gui.add(_guiActions, 'ToggleRenderMask').name('Toggle render mask only');
+				_gui.add(_guiActions, 'ProcessScreenCapture').name('Capture screen ...');
 
 				// -----------------------
 
 				window.addEventListener( 'resize', onWindowResize );
-				document.addEventListener("keydown", onKeyDown, false);
-			}
-
-			function pickRandomColors()
-			{
-				var i = random() < 0.25;
-				
-				_warmHue = parseInt(WrapDegrees(warmHueCenter + (-(warmHueDeviation * 0.5) + (random() * warmHueDeviation))));
-				
-				if(i)
-				{
-					_coldHue = parseInt(WrapDegrees(warmHueCenter + (-(warmHueDeviation * 0.5) + (random() * warmHueDeviation))));
-				}
-				else
-				{
-					_coldHue = parseInt(WrapDegrees(warmHueCenter + oppositeHueAngle + (-(oppositeHueAngleDeviation * 0.5) + (random() * oppositeHueAngleDeviation))));
-				}
-
-				_warmSaturation = parseInt(WrapDegrees(warmSaturationCenter + (-(warmSaturationDeviation * 0.5) + (random() * warmSaturationDeviation))));
-				_coldSaturation = parseInt(WrapDegrees(coldSaturationCenter + (-(coldSaturationDeviation * 0.5) + (random() * coldSaturationDeviation))));
-
-				_warmLightness = parseInt(WrapDegrees(warmLightnessCenter + (-(warmLightnessDeviation * 0.5) + (random() * warmLightnessDeviation))));
-				_coldLightness = parseInt(WrapDegrees(coldLightnessCenter + (-(coldLightnessDeviation * 0.5) + (random() * coldLightnessDeviation))));
-
-				_warmColor = new THREE.Color('hsl('+ _warmHue + ', ' + _warmSaturation + '%, ' + _warmLightness + '%)');
-				_coldColor = new THREE.Color('hsl('+ _coldHue + ', ' + _coldSaturation + '%, ' + _coldLightness + '%)');
-
-				$('#color-codes').html(
-					'<div>' + 
-						'color 1<br />hsl: ' + _warmHue + '° ' + _warmSaturation + '% ' + _warmLightness + '<br />' + 
-						'rgb: ' + Math.round(_warmColor.r * 255) + ' ' + Math.round(_warmColor.g * 255) + ' ' + Math.round(_warmColor.b * 255) + '<br />' + 
-						'color 2<br />hsl: ' + _coldHue + '° ' + _coldSaturation + '% ' + _coldLightness + '<br />' + 
-						'rgb: ' + Math.round(_coldColor.r * 255) + ' ' + Math.round(_coldColor.g * 255) + ' ' + Math.round(_coldColor.b) +
-					'</div>');
 			}
 
 			function createGradientLineSegments(fromColor, toColor, material)
@@ -269,7 +249,7 @@
 
 			}
 
-			function update() {
+			function animate() {
 
 				_controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
 
@@ -283,61 +263,63 @@
 
 			}
 
-			function onKeyDown(event)
-			{
-				var keyCode = event.which;
-
-				switch(keyCode)
-				{
-					case 32: // Enter
-						break;
-					default: 
-						console.log('onKeyDown - keyCode: ' + keyCode);
-						break;
-				}
-			}
-
-			function ToggleRenderMask()
-			{
-				_gradientLineSegmentMesh.visible = !_gradientLineSegmentMesh.visible;
-				_clippedGradientLineSegmentMesh.visible = !_clippedGradientLineSegmentMesh.visible;
-			}
-
 			function ProcessScreenCapture()
 			{
+			/*
+				// open in new window like this
+				//
+				var d = new Date();
+				var w = window.open('', '');
+				w.document.title = ScreenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() + '.png';
+				//w.document.body.style.backgroundColor = "red";
+				var img = new Image();
+				// Without 'preserveDrawingBuffer' set to true, we must render now
+				renderer.render(scene, camera);
+				img.src = renderer.domElement.toDataURL();
+				w.document.body.appendChild(img);  
+			*/
+			/*
+				// download file like this.
+				//
+				var d = new Date();
+				var a = document.createElement('a');
+				// Without 'preserveDrawingBuffer' set to true, we must render now
+				renderer.render(scene, camera);
+				a.href = renderer.domElement.toDataURL().replace("image/png", "image/octet-stream");
+				a.download = ScreenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() + '.png';
+				a.click();
+			*/
+
 				const maxHiresW = 3200;
 				const maxHiresH = 3200;
 
-				const d = new Date();
-
 				if(_canvasWidth > maxHiresW || _canvasHeight > maxHiresH)
 				{
-					ProcessHiresScreenCapture(d);
+					ProcessHiresScreenCapture();
+
+					return;
 				}
-				else
-				{
-					_renderer.render(_scene, _camera);
-					_renderer.domElement.toBlob(function (blob) {
-						var a = document.createElement('a');
-						var url = URL.createObjectURL(blob);
-						a.href = url;
-						a.download = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
-						a.click();
-					}, 'image/png', 1.0);  
-				}
-				
-				const json =  JSON.stringify({ color1value: _warmColor, color2value: _coldColor });
-				const a = document.createElement('a');
-				a.href = URL.createObjectURL( new Blob([json]) );
-				a.download = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.json';
-				a.click();				
+
+				// New version of file download using toBlob.
+				// toBlob should be faster than toDataUrl.
+				// But maybe not because also calling createOjectURL.
+				_renderer.render(_scene, _camera);
+				_renderer.domElement.toBlob(function (blob) {
+					var d = new Date();
+					var a = document.createElement('a');
+				var url = URL.createObjectURL(blob);
+				a.href = url;
+				a.download = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
+				a.click();
+				}, 'image/png', 1.0);   
 			}
 
-			function ProcessHiresScreenCapture(d)
+			function ProcessHiresScreenCapture()
 			{
 				const maxW = 1600;
 				const maxH = 1600;
 
+				const d = new Date();
 				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
 
 				for (let y = 0; y < _canvasHeight; y += maxH)
@@ -347,7 +329,7 @@
 						let w = Math.min(_canvasWidth - x, maxW);
 						let h = Math.min(_canvasHeight - y, maxH);
 
-						// console.log(prefix + '-' + x + '-' + y + '.png');
+						console.log(prefix + '-' + x + '-' + y + '.png');
 
 						_renderer.setSize( w, h );
 
@@ -370,20 +352,6 @@
 
 				_camera.clearViewOffset();
 
-			}
-
-			function WrapDegrees(degrees)
-			{
-				if(degrees < 0)
-				{
-					return WrapDegrees(degrees + 360);
-				}
-				else if(degrees >= 360)
-				{
-					return WrapDegrees(degrees - 360);
-				}
-
-				return degrees;
 			}
 
 		</script>
