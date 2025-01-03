@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - orbit controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<script type="text/javascript" src="/js/date-extensions.js"></script>
+		<script src='https://unpkg.com/three-rt-helper'></script>
+	</head>
+
+	<body>
+        <div id="canvas-container">
+            <div id="gui-container">
+            </div>
+            <div id="info-container">
+                <div id="info-help-container">
+                    <div class="clickable" target="F9">Help (F9)</div>
+                </div>
+                <div id="info-text-container">
+                    <div class="clickable" target="F9">Toggle this information - F9</div>
+                    <div class="clickable" target="F5">Refresh page - F5</div>
+                    <div class="clickable" target="F10">Toggle GUI - F10</div>
+                    <div class="clickable" target="F11">Toggle fullscreen - F11</div>
+                </div>
+            </div>
+        </div>
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"scrblr": "../scrblr/scrblr.module.js",
+					"pngjs": "https://cdn.jsdelivr.net/npm/pngjs@7.0.0/+esm",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/",
+                    "stats-gl": "https://cdn.jsdelivr.net/npm/stats-gl@2.2.8/dist/main.js"
+				}
+			}
+		</script>
+
+        <script type="module">
+
+            import $ from 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/+esm'
+            import * as THREE from 'three';
+			import * as SCRBLR from 'scrblr';
+			// import { Sketch } from './js/sketch.js';
+            import { Graphics } from './js/Graphics.js';
+            import { RandomGenerator } from '/js/RandomGenerator.js';
+			import { OpenSimplexNoiseGenerator } from '/js/OpenSimplexNoiseGenerator.js';
+			import { SummedNoiseGenerator } from '/js/SummedNoiseGenerator.js';
+			import { LinearGradient } from '/js/LinearGradient.js';
+			import { MathUtility } from '/js/MathUtility.js';
+			import { Color } from '/js/Color.js';
+			import Stats from 'three/addons/libs/stats.module.js';
+			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import alea from 'https://cdn.jsdelivr.net/npm/alea@1.0.1/+esm'
+			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+			import * as Shaders from './.shaders/Export.module.js';
+			import * as Postprocessing from './.postprocessing/Export.module.js';
+            import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+			import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
+			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+			import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+            import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
+            import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
+            import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+			import { LuminosityShader } from 'three/addons/shaders/LuminosityShader.js';
+            import { HorizontalBlurShader } from 'three/addons/shaders/HorizontalBlurShader.js';
+            import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js';
+            import { FXAAShader } from 'three/addons/shaders/FXAAShader.js';
+            import { Line2 } from "three/addons/lines/Line2.js";
+            import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+            import { LineMaterial } from "three/addons/lines/LineMaterial.js";
+            import { LineGeometry } from "three/addons/lines/LineGeometry.js";
+            import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
+            import { PNG } from 'pngjs';
+
+            const SkyGradientShader = 
+            {
+
+                uniforms:
+                {
+                    'tDiffuse': { value: null },
+                    'resolution': { value: new THREE.Vector2(800, 800) }, 
+                    'gradient': {
+                        value: [
+                        
+                            { time:  0.0, color: new THREE.Vector4(1, 1, 1, 1) },
+                            { time:  1.0, color: new THREE.Vector4(0, 0, 0, 1) },
+                        ]
+                    },
+                },
+
+                vertexShader: /* glsl */`
+
+                    varying vec2 v_Uv;
+
+                    void main()
+                    {
+                        v_Uv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+                    }`,
+
+                fragmentShader: /* glsl */`
+
+                    struct GradientEntry
+                    {
+                        float time;
+                        vec4 color;
+                    };
+
+                    #define MaxGradients 2
+
+            		uniform sampler2D tDiffuse;
+                    uniform vec2 resolution;
+                    uniform GradientEntry gradient[MaxGradients];
+
+                    varying vec2 v_Uv;
+
+                    void main()
+                    {
+                        vec2 w = gl_FragCoord.xy / resolution;
+
+                        gl_FragColor = mix(texture(tDiffuse, w), gradient[0].color, w.y);
+                        // gl_FragColor = mix(texture(tDiffuse, w), gradient[0].color, 0.25 + (w.y * 0.75));
+                        // gl_FragColor = mix(texture(tDiffuse, w), vec4(1.0, 1.0, 1.0, 1.0), w.y * 0.75);
+                    }`
+                };            
+
+            class ColorPair
+            {
+                color1;
+                color2;
+
+                constructor (color1, color2)
+                {
+                    this.color1 = new THREE.Vector4(241 / 255, 53 / 255, 6 / 255, 1);
+                    this.color2 = new THREE.Vector4(199 / 255, 136 / 255, 0 / 255, 1);
+
+                    if(color1 instanceof ColorPair)
+                    {
+                        this.color1.x = color1.color1.x;
+                        this.color1.y = color1.color1.y;
+                        this.color1.z = color1.color1.z; 
+                        this.color1.w = color1.color1.w;
+
+                        this.color2.x = color1.color2.x;
+                        this.color2.y = color1.color2.y;
+                        this.color2.z = color1.color2.z; 
+                        this.color2.w = color1.color2.w;
+
+                        return;
+                    }
+                    
+                    if(color1 !== undefined && color1 !== null)
+                    {
+                        this.color1.x = color1.x;
+                        this.color1.y = color1.y;
+                        this.color1.z = color1.z; 
+                        this.color1.w = color1.w;
+                    }
+                    
+                    if(color2 !== undefined && color2 !== null)
+                    {
+                        this.color2.x = color2.x;
+                        this.color2.y = color2.y;
+                        this.color2.z = color2.z; 
+                        this.color2.w = color2.w;
+                    }
+                }
+            }  
+
+            class Morph
+            {
+                start;
+                target;
+                duration;
+                time;
+                object;
+                property;
+                floorValue;
+
+                static defaultOptions = 
+                {
+                    start: undefined,
+                    target:1.0,
+                    duration:1.0,
+                    time: 0.0,
+                    floorValue: false,
+                    returnToStart: true,
+                };
+                
+                constructor( options )
+                {
+                    Object.assign(this, Morph.defaultOptions);
+                    Object.assign(this, options);
+
+                    if(this.start === undefined || this.start === null)
+                    {
+                        this.start = this.object[this.property];
+                    }
+
+                    this.time = this.duration * ((this.object[this.property] - this.start) / (this.target - this.start));
+                }
+
+                update (elapsed) 
+                {
+                    this.time += elapsed;
+
+                    if(this.time > this.duration)
+                    {
+                        this.time = this.duration;
+
+                        if(this.returnToStart)
+                        {
+                            this.time = 0;
+                            const s = this.start;
+                            this.start = this.target;
+                            this.target = s;
+                        }
+                    }
+
+                    const t = this.start + (this.target - this.start) * (this.time / this.duration);
+
+                    this.object[this.property] = this.floorValue ? Math.floor(t) : t;
+                }
+            }          
+
+            let _screenCapturePrefix = "20250101-001-sun-and-reflection";
+            let _renderer, _camera, _stats, _orbitControls;
+            let _composer, _clearPass, _composerMaskPass, _composerClearMaskPass; 
+            let _minCanvasWidth = 400, _minCanvasHeight = 400;
+            let _canvasWidth = _minCanvasWidth, _canvasHeight = _minCanvasHeight;
+            let _near = 1, _far = 8000, _fov = 60;
+			let _g;
+            let _clock, _deltaTimeSeconds, _timeUpdateFactor = 0.0150;
+            let _frameCount = 0;
+			let _mouseTimer = null;
+			let _squareCanvas = false;
+            let _morphs = [];
+
+            let _randomGenerator;       
+            let _noiseGenerator;       
+
+            let _backgroundLinearGradient, _sunLinearGradient;
+            let _reflectionScene;
+
+            let _reflectionTopRadius = 0.125, _reflectionTopPosition = new THREE.Vector3(0, -0.125, 0), _reflectionTopMaterial, _reflectionTopMesh;
+            let _reflectionBottomRadius = 0.300, _reflectionBottomPosition = new THREE.Vector3(0, -0.750    , 0), _reflectionBottomMaterial, _reflectionBottomMesh;
+            let _sunScene, _sunRenderPass, _sunRadius = 0.250, _sunPosition = new THREE.Vector3(0, 0.400, 0), _sunMaterial, _sunMesh;
+            let _sunScale = 0.65;
+
+            let _sunReflectionDisplaceShader;
+            let _gradientBackgroundShaderPass, _randomPixelRowColumnDisplaceShader, _noisePixelRowColumnDisplaceShader;
+            let _randomPixelColumnDisplaceShaderPass1, _randomPixelDisplaceShaderPass2;
+            let _horizontalBlurShaderPass2, _verticalBlurShaderPass2, _vibrantColorsShaderPass;
+            let _skyGradientShaderPass;
+
+            const _hiresUpscaleFactor = 4.0;
+
+            let  _colorPairs, _sunColorPair, _backgroundColorPair, _sunReflectionColorPair;
+            let _canvasContainer, _guiContainer;
+
+            let _settings = 
+            {
+                downloadWebGLRendererAction: function () { _downloadWebGLRenderer(); },
+                downloadWebGLRendererHiresAction: function () { _downloadWebGLRenderer(_hiresUpscaleFactor); },
+                saveTransparentBackground: true,
+                enableMask: true,
+                sunRayCount: 720,
+                enableMorphing: true,
+            };
+
+            let _addColorPairPicker = function(folder, colorPair, uniforms, name)
+            {
+                let settings = 
+                {
+                    color1: { r: colorPair.color1.x, g: colorPair.color1.y, b: colorPair.color1.z },
+                    color2: { r: colorPair.color2.x, g: colorPair.color2.y, b: colorPair.color2.z },
+                }                
+
+                folder.addColor(settings, 'color1').name(name + ' color 1').onChange(function(c) { uniforms.gradient.value[0].color.x = c.r; uniforms.gradient.value[0].color.y = c.g; uniforms.gradient.value[0].color.z = c.b; });
+        		folder.addColor(settings, 'color2').name(name + ' color 2').onChange(function(c) { uniforms.gradient.value[1].color.x = c.r; uniforms.gradient.value[1].color.y = c.g; uniforms.gradient.value[1].color.z = c.b; });
+            }
+
+            init(); 
+
+            async function init() {
+
+                _canvasContainer = document.getElementById('canvas-container');
+                _guiContainer = document.getElementById('gui-container');
+
+                _randomGenerator = new RandomGenerator();
+                _noiseGenerator = new OpenSimplexNoiseGenerator();
+
+                // --------------------
+
+                _renderer = new THREE.WebGLRenderer( { antialias: true, samples: 4, stencil: true, alpha: true } );
+                _renderer.setPixelRatio( window.devicePixelRatio );
+                _renderer.setClearColor( 0xffffff, 1 );
+                // _renderer.shadowMap.enabled = true;
+
+                console.log("WebGL2RenderingContext: " + _renderer.capabilities.isWebGL2);
+                console.log("GL.MAX_TEXTURE_SIZE: " + _renderer.capabilities.maxTextureSize);
+                console.log("GL.MAX_SAMPLES: " + _renderer.capabilities.maxSamples);
+                console.log("GL.MAX_FRAGMENT_UNIFORM_VECTORS: " + _renderer.capabilities.maxFragmentUniforms);
+                console.log("GL.MAX_VARYING_VECTORS: " + _renderer.capabilities.maxVaryings);
+                console.log("GL.MAX_VERTEX_UNIFORM_VECTORS: " + _renderer.capabilities.maxVertexUniforms);
+
+                _canvasContainer.appendChild( _renderer.domElement );
+
+                // --------------------
+
+				_g = new SCRBLR.Gui( { container : _guiContainer, width: 360 });
+
+				// -----------------------
+
+                _canvasWidth = Math.min(window.innerWidth, document.documentElement.clientWidth);
+                _canvasHeight = Math.min(window.innerHeight, document.documentElement.clientHeight);
+
+                const aspect = _canvasWidth / _canvasHeight;
+
+                _camera = new THREE.OrthographicCamera( -1 * aspect, 1 * aspect, 1, -1, _near, _far);
+                //_camera = new THREE.PerspectiveCamera( _fov, _canvasWidth / _canvasHeight, _near, _far);
+                _camera.position.set( 0, 0, 10);
+                _camera.lookAt( 0, 0, 0 );
+
+                // _orbitControls = new OrbitControls( _camera, _renderer.domElement );
+				// _orbitControls.minDistance = 2;
+				// _orbitControls.maxDistance = 12;
+				// _orbitControls.maxPolarAngle = Math.PI / 2;
+				// _orbitControls.target.set( 0, 0, 0 );
+				// _orbitControls.update();     
+
+                _colorPairs = [
+                    new ColorPair(
+                        new THREE.Color().setRGB(241 / 255, 53 / 255, 6 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(199 / 255, 136 / 255, 0 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(253 / 255, 56 / 255, 2 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(0 / 255, 30 / 255, 45 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(254 / 255, 2 / 255, 89 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(1 / 255, 24 / 255, 67 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(255 / 255, 130 / 255, 24 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(16 / 255, 98 / 255, 116 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(255 / 255, 130 / 255, 24 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(236 / 255, 198 / 255, 0 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(255 / 255, 27 / 255, 162 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(31 / 255, 87 / 255, 144 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(215 / 255, 241 / 255, 3 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(28 / 255, 129 / 255, 129 / 255, THREE.SRGBColorSpace).toVector4()),
+
+                    new ColorPair(
+                        new THREE.Color().setRGB(100 / 255, 213 / 255, 10 / 255, THREE.SRGBColorSpace).toVector4(), 
+                        new THREE.Color().setRGB(109 / 255, 27 / 255, 141 / 255, THREE.SRGBColorSpace).toVector4()),                
+                    ];
+
+                const i = _randomGenerator.Int(_colorPairs.length);
+
+                _sunColorPair = new ColorPair(_colorPairs[i]);
+                _sunReflectionColorPair = new ColorPair(_colorPairs[i]);
+                _backgroundColorPair = new ColorPair(_colorPairs[i]);
+               
+                _reflectionScene = new THREE.Scene();
+                _sunScene = new THREE.Scene();
+
+                // ----------------------
+				
+				// var parameters = {
+				// 		minFilter: THREE.LinearFilter,
+				// 		magFilter: THREE.LinearFilter,
+				// 		format: THREE.RGBAFormat,       // RGBA for transparent backgrounds
+				// 		stencilBuffer: true,	        // enable stencil buffer writes
+                //         depthBuffer: true,              // enable depth buffer writes
+                //         samples: 8                      // multi sampling
+				// 	};
+
+				// var renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters );
+
+                // -----
+
+                _renderer.autoClear = false;
+				_composer = new EffectComposer( _renderer );
+				
+                // -----
+
+				_clearPass = new ClearPass(0xffffff, _settings.saveTransparentBackground == true ? 0.0 : 1.0);
+                _composer.addPass( _clearPass );
+
+                // -----
+
+                _gradientBackgroundShaderPass = new ShaderPass(Shaders.GradientShader);
+
+                _gradientBackgroundShaderPass.uniforms.gradientAngle.value = 90;
+                _gradientBackgroundShaderPass.uniforms.color1.value = _backgroundColorPair.color1;
+                _gradientBackgroundShaderPass.uniforms.color2.value = _backgroundColorPair.color2;
+
+                _composer.addPass(_gradientBackgroundShaderPass);
+                
+                // -----
+
+                const reflectionTopSegments = SCRBLR.Utility.CircleResolution(_reflectionTopRadius, _camera, _renderer);
+
+                _reflectionTopMaterial = Shaders.GradientShader2.NewShaderMaterial();
+
+                _reflectionTopMaterial.uniforms.gradientAngle.value = 270;
+                _reflectionTopMaterial.uniforms.useWindowCoordinates.value = false;
+                _reflectionTopMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                _reflectionTopMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
+
+                _reflectionTopMesh = new THREE.Mesh( new THREE.CircleGeometry(_reflectionTopRadius, reflectionTopSegments), _reflectionTopMaterial );
+                _reflectionTopMesh.position.set(_reflectionTopPosition.x, _reflectionTopPosition.y, _reflectionTopPosition.z);
+
+                 _morphs.push(new Morph({ object: _reflectionTopMesh.position, property: "y", target:-1.00, duration:40 }));
+
+                _reflectionScene.add( _reflectionTopMesh );
+                
+                // -----
+
+                const reflectionBottomSegments = SCRBLR.Utility.CircleResolution(_reflectionBottomRadius, _camera, _renderer);
+
+                _reflectionBottomMaterial = Shaders.GradientShader2.NewShaderMaterial();
+
+                _reflectionBottomMaterial.uniforms.gradientAngle.value = 270;
+                _reflectionBottomMaterial.uniforms.useWindowCoordinates.value = false;
+                _reflectionBottomMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                _reflectionBottomMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
+
+                _reflectionBottomMesh = new THREE.Mesh( new THREE.CircleGeometry(_reflectionBottomRadius, reflectionBottomSegments), _reflectionBottomMaterial );
+                _reflectionBottomMesh.position.set(_reflectionBottomPosition.x, _reflectionBottomPosition.y, _reflectionBottomPosition.z);
+
+                _morphs.push(new Morph({ object: _reflectionBottomMesh.position, property: "y", target:-1.35, duration:40 }));
+
+                _reflectionScene.add( _reflectionBottomMesh );
+                
+                // -----
+
+                var _reflectionRenderPass = new RenderPass(_reflectionScene, _camera );
+				
+                _reflectionRenderPass.clear = false;
+				_reflectionRenderPass.clearDepth = true;
+				
+                _composer.addPass( _reflectionRenderPass );
+
+                // -----
+
+                _sunReflectionDisplaceShader = new ShaderPass(Shaders.NoisePixelDisplaceShader);
+                
+                _sunReflectionDisplaceShader.uniforms.octaves.value = 2;
+                _sunReflectionDisplaceShader.uniforms.multiplier.value.x = 8;
+                _sunReflectionDisplaceShader.uniforms.multiplier.value.y = 12;
+                _sunReflectionDisplaceShader.uniforms.xOffset.value.x = -60;
+                _sunReflectionDisplaceShader.uniforms.xOffset.value.y = 60;
+                _sunReflectionDisplaceShader.uniforms.yOffset.value.x = -63;
+                _sunReflectionDisplaceShader.uniforms.yOffset.value.y = 40;
+
+                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.xOffset.value, property: "x", start: -20, target:20, duration:6 }));
+                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.xOffset.value, property: "y", start: 120, target:180, duration:9 }));
+                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.yOffset.value, property: "x", start: -80, target:-20, duration:3 }));
+                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.yOffset.value, property: "y", start: 20, target:80, duration:12 }));
+                
+                _composer.addPass(_sunReflectionDisplaceShader);
+                
+                // -----
+                
+                Shaders.NoisePixelDisplaceShader.addGuiFolder(_g.g, _sunReflectionDisplaceShader);
+                
+                // -----
+             
+                _noisePixelRowColumnDisplaceShader = new ShaderPass(Shaders.NoisePixelRowColumnDisplaceShader);
+                
+                _noisePixelRowColumnDisplaceShader.uniforms.octaves.value = 2;
+                _noisePixelRowColumnDisplaceShader.uniforms.multiplier.value.x = 12;
+                _noisePixelRowColumnDisplaceShader.uniforms.multiplier.value.y = 18;
+                _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -4;
+                _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.y =  3;
+                _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -16;
+                _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  46;
+
+                // _morphs.push(new Morph({ object: _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value, property: "x", start: -16, target:0, duration:6 }));
+                // _morphs.push(new Morph({ object: _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value, property: "y", start: 20, target:60, duration:10 }));
+                
+                _composer.addPass(_noisePixelRowColumnDisplaceShader);
+
+                Shaders.NoisePixelRowColumnDisplaceShader.addGuiFolder(_g.g, _noisePixelRowColumnDisplaceShader);
+                
+                // -----
+             
+                _skyGradientShaderPass = new ShaderPass(SkyGradientShader);
+                _skyGradientShaderPass.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                
+                _composer.addPass(_skyGradientShaderPass);
+                
+                // -----
+
+                const sunSegments = SCRBLR.Utility.CircleResolution(_sunRadius, _camera, _renderer);
+
+                _sunMaterial = Shaders.GradientShader2.NewShaderMaterial();
+
+                _sunMaterial.uniforms.gradientAngle.value = 270;
+                _sunMaterial.uniforms.useWindowCoordinates.value = false;
+
+                _sunMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                _sunMaterial.uniforms.gradient.value[1].time = 0.99;
+                _sunMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
+                _sunMaterial.uniforms.gradient.value[2].time = 1.00;
+                _sunMaterial.uniforms.gradient.value[2].color = _sunColorPair.color2;
+
+                _sunMesh = new THREE.Mesh( new THREE.CircleGeometry(_sunRadius, sunSegments), _sunMaterial );
+                _sunMesh.position.set(_sunPosition.x, _sunPosition.y, _sunPosition.z);
+                _sunMesh.scale.set(_sunScale, _sunScale, 1);
+
+                _morphs.push(new Morph({ object: _sunMaterial.uniforms.gradient.value[1], property: "time", start: 0.45, target:0.99, duration:90 }));
+                _morphs.push(new Morph({ object: _sunMesh.position, property: "y", target:1.00, duration:40 }));
+                _morphs.push(new Morph({ object: _sunMesh.scale, property: "x", target:1.25, duration:80 }));
+                _morphs.push(new Morph({ object: _sunMesh.scale, property: "y", target:1.25, duration:80 }));
+
+                _sunScene.add( _sunMesh );
+                
+                // -----
+
+                _sunRenderPass = new RenderPass(_sunScene, _camera );
+				
+                _sunRenderPass.clear = false;
+				_sunRenderPass.clearDepth = true;
+				
+                _composer.addPass( _sunRenderPass );
+
+                // -----
+
+                _horizontalBlurShaderPass2 = new ShaderPass(Shaders.HorizontalGaussianBlurShader);
+                _horizontalBlurShaderPass2.uniforms.radius.value = 16;
+               
+                _composer.addPass(_horizontalBlurShaderPass2);
+
+                _g.AddFolder(_horizontalBlurShaderPass2, "Horizontal Blur Shader", false);
+                
+                // ----- 
+
+                _verticalBlurShaderPass2 = new ShaderPass(Shaders.VerticalGaussianBlurShader);
+                _verticalBlurShaderPass2.uniforms.radius.value = 2;
+               
+                _composer.addPass(_verticalBlurShaderPass2);
+
+                _g.AddFolder(_verticalBlurShaderPass2, "Vertical Blur Shader", false);
+                
+                // ----- 
+
+                _vibrantColorsShaderPass = new ShaderPass(Shaders.VibrantColorsShader);
+                _vibrantColorsShaderPass.uniforms.coverPercentage.value = 0.75;
+                _vibrantColorsShaderPass.uniforms.minHue.value = -0.025;
+                _vibrantColorsShaderPass.uniforms.maxHue.value =  0.025;
+                _vibrantColorsShaderPass.uniforms.minSaturation.value = -0.025;
+                _vibrantColorsShaderPass.uniforms.maxSaturation.value =  0.025;
+                _vibrantColorsShaderPass.uniforms.minBrightness.value = -0.015;
+                _vibrantColorsShaderPass.uniforms.maxBrightness.value =  0.015;
+                _vibrantColorsShaderPass.uniforms.minContrast.value = -0.015;
+                _vibrantColorsShaderPass.uniforms.maxContrast.value =  0.015;
+               
+                _composer.addPass(_vibrantColorsShaderPass);
+
+                Shaders.VibrantColorsShader.addGuiFolder(_g.g, _vibrantColorsShaderPass, null, true);
+                
+                // ----- 
+
+                _composer.addPass( new OutputPass() );	
+
+                // ----------------------
+
+                let colorPickerFolder = _g.g.addFolder("Colors");
+
+                _addColorPairPicker(colorPickerFolder, _backgroundColorPair, _gradientBackgroundShaderPass.uniforms, "Background");
+                _addColorPairPicker(colorPickerFolder, _sunColorPair, _reflectionTopMaterial.uniforms, "Sun");
+
+                // ----------------------
+
+                _g.g.add(_settings, 'downloadWebGLRendererAction').name('Save screen');
+                _g.g.add(_settings, 'downloadWebGLRendererHiresAction').name('Save hires screen');
+                _g.g.add(_settings, 'saveTransparentBackground').name('Save transparent background').onChange( function ( val ) { _clearPass.clearAlpha = (val == true ? 0 : 1); } );
+                // _g.g.add(_settings, 'enableMask').name('Enable Mask').onChange(function(val) { _composerMaskPass.enabled = val; _composerClearMaskPass.enabled = val; });
+                _g.g.add(_settings, 'enableMorphing').name('Enable Morphing');
+                _g.g.add(_reflectionTopMesh, 'visible').name('Toggle Reflection Morphing');
+
+                // ----------------------
+
+                _stats = new Stats();
+                _stats.dom.style.top = '16px';
+                _stats.dom.style.left = '16px';
+                _guiContainer.appendChild( _stats.dom );
+
+                // ----------------------
+
+                window.addEventListener("keydown", onKeyDown, false);
+                window.addEventListener("keyup", onKeyUp, false);
+                window.addEventListener("mousemove", onMouseMove, false);
+                window.addEventListener("mousedown", onMouseDown, false);
+                window.addEventListener("mouseup", onMouseUp, false);
+
+                resize();
+
+                window.addEventListener( 'resize', resize );
+                window.addEventListener( 'focus', function() { console.log('window focus') } );
+                window.addEventListener( 'blur', function() { console.log('window blur') } );
+
+                onMouseMove();
+
+                _renderer.setAnimationLoop( update );
+
+                // ----------------------
+
+                _clock = new THREE.Clock();
+
+                // ----------------------
+            }
+
+            function Render()
+            {
+    			_composer.render();
+            }
+
+            function update() 
+            {
+				_deltaTimeSeconds = _clock.getDelta();
+              
+                _sunReflectionDisplaceShader.uniforms.time.value.x += _timeUpdateFactor * _deltaTimeSeconds;
+
+                if(_settings.enableMorphing)
+                {
+                    _morphs.forEach(m => 
+                    {
+                        m.update(_deltaTimeSeconds);
+                    });
+                }
+                      
+                Render();
+
+                _stats.update();
+
+                _frameCount++;
+            }
+
+            function onKeyDown(event) 
+            {
+                var keyCode = event.which;
+
+                switch(keyCode)
+                {
+                    case 119: // F8
+                        event.preventDefault();
+						_squareCanvas = !_squareCanvas;
+						resize();
+                        break;
+                    case 120: // F9
+                        event.preventDefault();
+                        _toggleInfo();
+                        break;
+                    case 121: // F10
+                        event.preventDefault();
+                        _toggleGui();
+                        break;
+                    case 122: // F11
+                        event.preventDefault();
+                        _toggleFullscreen(document.body);
+                        break;
+                    default: 
+                        console.log("key down: " + keyCode + ' keyCode');
+                        break;
+                }
+            };            
+
+            function onKeyUp(event) 
+            {
+                // event.preventDefault();
+            };            
+
+            function onMouseDown(event) 
+            {
+                // event.preventDefault();
+
+                switch(event.button)
+                {
+                    case 0:
+                        break;
+                }
+
+                // console.log(event.button);
+                // console.log(event.buttons);
+            }; 
+
+            function onMouseUp(event) 
+            {
+                // event.preventDefault();
+            };  
+
+            function onMouseMove(event) 
+            {
+                // event.preventDefault();
+
+                if (_mouseTimer) 
+                {
+                    window.clearTimeout(_mouseTimer);
+                }
+
+                document.body.style.cursor = "default";
+                $('#info-container').show(0);
+
+                _mouseTimer = window.setTimeout(_hideCursor, 4000);
+
+                // event.clientX    // The X coordinate of the mouse pointer in viewport coordinates.
+                // event.clientY    // The Y coordinate of the mouse pointer in viewport coordinates.
+                // event.altKey     // Returns true if the alt key was down when the mouse event was fired.
+                // event.ctrlKey    // Returns true if the ctrl key was down when the mouse event was fired.
+                // event.shiftKey   // Returns true if the shift key was down when the mouse event was fired.
+                // event.button     // The button number that was pressed (if applicable) when the mouse event was fired.
+                // event.buttons    // The buttons being pressed (if any) when the mouse event was fired.
+                // event.movementX  // The X coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.movementY  // The Y coordinate of the mouse pointer relative to the position of the last mousemove event.
+                // event.screenX    // The X coordinate of the mouse pointer in screen coordinates.
+                // event.screenY    // The Y coordinate of the mouse pointer in screen coordinates.
+            };            
+
+            function resize() 
+            {
+				if(_squareCanvas)
+				{
+					_canvasHeight = _canvasWidth = window.innerWidth < window.innerHeight ? Math.max(window.innerWidth, _minCanvasWidth) : Math.max(window.innerHeight, _minCanvasHeight);
+				}
+				else
+				{
+					_canvasWidth = Math.max(window.innerWidth, _minCanvasWidth);
+					_canvasHeight = Math.max(window.innerHeight, _minCanvasHeight);
+				}
+
+				_camera.aspect = _canvasWidth / _canvasHeight;
+
+				if(_camera instanceof THREE.OrthographicCamera)
+				{
+					_camera.left = -1 * _camera.aspect;
+					_camera.right = 1 * _camera.aspect;
+				}
+
+				_camera.updateProjectionMatrix();
+
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+				_composer.setSize( _canvasWidth, _canvasHeight );
+
+                SCRBLR.Utility.UpdateResolutionUniforms(new THREE.Vector2(_canvasWidth, _canvasHeight), _composer.passes);
+
+                console.log("canvas size: " + _canvasWidth + "x" + _canvasHeight);             
+            }
+
+			function _downloadWebGLRenderer(hiresScale)
+			{
+                hiresScale = (hiresScale === undefined || hiresScale === null || hiresScale == 0 ? 1 : hiresScale);
+
+                const width = Math.round(1024 * hiresScale);
+                const height = Math.round(1024 * hiresScale);
+
+				const maxW = 4096 > _renderer.capabilities.maxTextureSize ? 4096 : _renderer.capabilities.maxTextureSize;
+				const maxH = 4096 > _renderer.capabilities.maxTextureSize ? 4096 : _renderer.capabilities.maxTextureSize;
+
+				const d = new Date();
+				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
+
+				for (let y = 0; y < height; y += maxH)
+				{
+					for (let x = 0; x < width; x += maxW)
+					{
+						let w = Math.min(width - x, maxW);
+						let h = Math.min(height - y, maxH);
+
+						_renderer.setSize( w, h );
+                        _composer.setSize( w, h );
+
+						_camera.setViewOffset(width, height, x, y, w, h);
+
+                        Render();
+					
+                        _downloadCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
+					}
+				}
+
+                _renderer.setSize( _canvasWidth, _canvasHeight );
+                _composer.setSize( _canvasWidth, _canvasHeight );
+
+                _camera.clearViewOffset();
+			}
+
+			// function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
+			// {
+			// 	let buffer = new Uint8ClampedArray(4 * webGLRenderTarget.width * webGLRenderTarget.height)
+
+			// 	webGLRenderer.readRenderTargetPixels(webGLRenderTarget, 0, 0, webGLRenderTarget.width, webGLRenderTarget.height, buffer);
+
+			// 	var canvas = document.createElement('canvas');
+
+			// 	canvas.width = webGLRenderTarget.width;
+			// 	canvas.height = webGLRenderTarget.height;
+
+			// 	var context = canvas.getContext('2d');
+
+			// 	context.putImageData(new ImageData( buffer, webGLRenderTarget.width, webGLRenderTarget.height ), 0, 0);
+
+			// 	_downloadCanvasAsPng(canvas);
+			// }
+
+			function _downloadCanvasAsPng(canvas, name)
+			{
+				if(name === null || name === undefined || name === "")
+				{
+					var d = new Date();
+
+					name = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
+				}
+
+				canvas.toBlob(function (blob) 
+                {
+                    // console.log(URL.createObjectURL(blob));
+
+                    // PNGImage.readImage(URL.createObjectURL(blob), function (err, image) {
+                    //     if (err) console.log(err);
+
+                    //     // The image is in the 'image' variable if everything went well
+                    // });                    
+
+                    // blob.arrayBuffer().then((arrayBuffer) => 
+                    // {
+                    //     new PNG({ filterType: 4 }).parse(arrayBuffer, function (error, data) 
+                    //     {
+                    //         console.log(error, data);
+                    //     });
+                    // });
+
+					var a = document.createElement('a');
+					var url = URL.createObjectURL(blob);
+					a.href = url;
+					a.download = name;
+					a.click();
+				}, 'image/png', 1.0); 
+			}
+
+            $('.clickable').on('click', function(e) 
+            {    
+                let target = $(this).attr('target');
+
+                switch(target)
+                {
+                    case 'F9':
+                        _toggleInfo();
+                        break;
+                    case 'F10':
+                        _toggleGui();
+                        break;
+                    case 'F11':
+                        _toggleFullscreen();
+                        break;
+                }
+            });
+
+            function _toggleInfo()
+            {
+                $('#info-help-container').toggle(0);
+                $('#info-text-container').toggle(0);
+            }
+
+            function _toggleGui()
+            {
+                $('#gui-container').toggle(0);
+            }
+
+            function _toggleFullscreen(element)
+            {
+                // https://stackoverflow.com/a/47110257/527843
+
+                if(element === undefined || element === null)
+                {
+                    element = document.body;                    
+                }
+
+                if ((document.fullScreenElement !== undefined && document.fullScreenElement === null) || (document.msFullscreenElement !== undefined && document.msFullscreenElement === null) || (document.mozFullScreen !== undefined && !document.mozFullScreen) || (document.webkitIsFullScreen !== undefined && !document.webkitIsFullScreen)) 
+                {
+                    if (element.requestFullScreen) 
+                    {
+                        element.requestFullScreen();
+                    } 
+                    else if (element.mozRequestFullScreen) 
+                    {
+                        element.mozRequestFullScreen();
+                    }
+                    else if (element.webkitRequestFullScreen) 
+                    {
+                        element.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+                    }
+                    else if (element.msRequestFullscreen) 
+                    {
+                        element.msRequestFullscreen();
+                    }
+                } 
+                else 
+                {
+                    if (document.cancelFullScreen) 
+                    {
+                        document.cancelFullScreen();
+                    } 
+                    else if (document.mozCancelFullScreen) 
+                    {
+                        document.mozCancelFullScreen();
+                    } 
+                    else if (document.webkitCancelFullScreen) 
+                    {
+                        document.webkitCancelFullScreen();
+                    } 
+                    else if (document.msExitFullscreen) 
+                    {
+                        document.msExitFullscreen();
+                    }
+                }            
+            }
+
+            function _hideCursor() 
+            {
+                _mouseTimer = null;
+                document.body.style.cursor = "none";
+                $('#info-container').hide(0);
+            }
+
+        </script>
+    </body>
+</html>        
