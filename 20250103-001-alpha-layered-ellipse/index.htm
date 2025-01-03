@@ -260,6 +260,7 @@
 
             let  _colorPairs, _sunColorPair, _backgroundColorPair, _sunReflectionColorPair;
             let _canvasContainer, _guiContainer;
+            let _timeCounter = 0.0, _timeResetCount = 1.0;
 
             let _settings = 
             {
@@ -396,192 +397,194 @@
                 // -----
 
 				_clearPass = new ClearPass(0xffffff, _settings.saveTransparentBackground == true ? 0.0 : 1.0);
+                _clearPass.enabled = false;
                 _composer.addPass( _clearPass );
 
                 // -----
 
-                _gradientBackgroundShaderPass = new ShaderPass(Shaders.GradientShader);
+                // _gradientBackgroundShaderPass = new ShaderPass(Shaders.GradientShader);
 
-                _gradientBackgroundShaderPass.uniforms.gradientAngle.value = 90;
-                _gradientBackgroundShaderPass.uniforms.color1.value = _backgroundColorPair.color1;
-                _gradientBackgroundShaderPass.uniforms.color2.value = _backgroundColorPair.color2;
+                // _gradientBackgroundShaderPass.uniforms.gradientAngle.value = 90;
+                // _gradientBackgroundShaderPass.uniforms.color1.value = _backgroundColorPair.color1;
+                // _gradientBackgroundShaderPass.uniforms.color2.value = _backgroundColorPair.color2;
 
-                _composer.addPass(_gradientBackgroundShaderPass);
+                // _composer.addPass(_gradientBackgroundShaderPass);
                 
                 // -----
 
-                const reflectionTopSegments = SCRBLR.Utility.CircleResolution(_reflectionTopRadius, _camera, _renderer);
+                // const reflectionTopSegments = SCRBLR.Utility.CircleResolution(_reflectionTopRadius, _camera, _renderer);
 
-                _reflectionTopMaterial = Shaders.GradientShader2.NewShaderMaterial();
+                // _reflectionTopMaterial = Shaders.GradientShader2.NewShaderMaterial();
 
-                _reflectionTopMaterial.uniforms.gradientAngle.value = 270;
-                _reflectionTopMaterial.uniforms.useWindowCoordinates.value = false;
-                _reflectionTopMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
-                _reflectionTopMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
+                // _reflectionTopMaterial.uniforms.gradientAngle.value = 270;
+                // _reflectionTopMaterial.uniforms.useWindowCoordinates.value = false;
+                // _reflectionTopMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                // _reflectionTopMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
 
-                _reflectionTopMesh = new THREE.Mesh( new THREE.CircleGeometry(_reflectionTopRadius, reflectionTopSegments), _reflectionTopMaterial );
-                _reflectionTopMesh.position.set(_reflectionTopPosition.x, _reflectionTopPosition.y, _reflectionTopPosition.z);
+                // _reflectionTopMesh = new THREE.Mesh( new THREE.CircleGeometry(_reflectionTopRadius, reflectionTopSegments), _reflectionTopMaterial );
+                // _reflectionTopMesh.position.set(_reflectionTopPosition.x, _reflectionTopPosition.y, _reflectionTopPosition.z);
 
-                _morphs.push(new Morph({ object: _reflectionTopMesh.position, property: "y", target:-1.00, duration:40 }));
+                // _morphs.push(new Morph({ object: _reflectionTopMesh.position, property: "y", target:-1.00, duration:40 }));
 
-                _reflectionScene.add( _reflectionTopMesh );
+                // _reflectionScene.add( _reflectionTopMesh );
                 
                 // -----
 
-                const reflectionBottomSegments = SCRBLR.Utility.CircleResolution(_reflectionBottomRadius, _camera, _renderer);
+                // const reflectionBottomSegments = SCRBLR.Utility.CircleResolution(_reflectionBottomRadius, _camera, _renderer);
 
-                _reflectionBottomMaterial = Shaders.GradientShader2.NewShaderMaterial();
+                // _reflectionBottomMaterial = Shaders.GradientShader2.NewShaderMaterial();
 
-                _reflectionBottomMaterial.uniforms.gradientAngle.value = 270;
-                _reflectionBottomMaterial.uniforms.useWindowCoordinates.value = false;
-                _reflectionBottomMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
-                _reflectionBottomMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
+                // _reflectionBottomMaterial.uniforms.gradientAngle.value = 270;
+                // _reflectionBottomMaterial.uniforms.useWindowCoordinates.value = false;
+                // _reflectionBottomMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                // _reflectionBottomMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
 
-                _reflectionBottomMesh = new THREE.Mesh( new THREE.CircleGeometry(_reflectionBottomRadius, reflectionBottomSegments), _reflectionBottomMaterial );
-                _reflectionBottomMesh.position.set(_reflectionBottomPosition.x, _reflectionBottomPosition.y, _reflectionBottomPosition.z);
+                // _reflectionBottomMesh = new THREE.Mesh( new THREE.CircleGeometry(_reflectionBottomRadius, reflectionBottomSegments), _reflectionBottomMaterial );
+                // _reflectionBottomMesh.position.set(_reflectionBottomPosition.x, _reflectionBottomPosition.y, _reflectionBottomPosition.z);
 
-                _morphs.push(new Morph({ object: _reflectionBottomMesh.position, property: "y", target:-1.35, duration:40 }));
+                // _morphs.push(new Morph({ object: _reflectionBottomMesh.position, property: "y", target:-1.35, duration:40 }));
 
-                _reflectionScene.add( _reflectionBottomMesh );
+                // _reflectionScene.add( _reflectionBottomMesh );
                 
                 // -----
 
-                var _reflectionRenderPass = new RenderPass(_reflectionScene, _camera );
+                // var _reflectionRenderPass = new RenderPass(_reflectionScene, _camera );
 				
-                _reflectionRenderPass.clear = false;
-				_reflectionRenderPass.clearDepth = true;
+                // _reflectionRenderPass.clear = false;
+				// _reflectionRenderPass.clearDepth = true;
 				
-                _composer.addPass( _reflectionRenderPass );
+                // _composer.addPass( _reflectionRenderPass );
 
                 // -----
 
-                _sunReflectionDisplaceShader = new ShaderPass(Shaders.NoisePixelDisplaceShader);
+                // _sunReflectionDisplaceShader = new ShaderPass(Shaders.NoisePixelDisplaceShader);
                 
-                _sunReflectionDisplaceShader.uniforms.octaves.value = 2;
-                _sunReflectionDisplaceShader.uniforms.multiplier.value.x = 8;
-                _sunReflectionDisplaceShader.uniforms.multiplier.value.y = 12;
-                _sunReflectionDisplaceShader.uniforms.xOffset.value.x = -60;
-                _sunReflectionDisplaceShader.uniforms.xOffset.value.y = 60;
-                _sunReflectionDisplaceShader.uniforms.yOffset.value.x = -63;
-                _sunReflectionDisplaceShader.uniforms.yOffset.value.y = 40;
+                // _sunReflectionDisplaceShader.uniforms.octaves.value = 2;
+                // _sunReflectionDisplaceShader.uniforms.multiplier.value.x = 8;
+                // _sunReflectionDisplaceShader.uniforms.multiplier.value.y = 12;
+                // _sunReflectionDisplaceShader.uniforms.xOffset.value.x = -60;
+                // _sunReflectionDisplaceShader.uniforms.xOffset.value.y = 60;
+                // _sunReflectionDisplaceShader.uniforms.yOffset.value.x = -63;
+                // _sunReflectionDisplaceShader.uniforms.yOffset.value.y = 40;
 
-                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.xOffset.value, property: "x", start: -20, target:20, duration:6 }));
-                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.xOffset.value, property: "y", start: 120, target:180, duration:9 }));
-                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.yOffset.value, property: "x", start: -80, target:-20, duration:3 }));
-                // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.yOffset.value, property: "y", start: 20, target:80, duration:12 }));
+                // // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.xOffset.value, property: "x", start: -20, target:20, duration:6 }));
+                // // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.xOffset.value, property: "y", start: 120, target:180, duration:9 }));
+                // // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.yOffset.value, property: "x", start: -80, target:-20, duration:3 }));
+                // // _morphs.push(new Morph({ object: _sunReflectionDisplaceShader.uniforms.yOffset.value, property: "y", start: 20, target:80, duration:12 }));
                 
-                _composer.addPass(_sunReflectionDisplaceShader);
+                // _composer.addPass(_sunReflectionDisplaceShader);
                 
-                // -----
-                
-                Shaders.NoisePixelDisplaceShader.addGuiFolder(_g.g, _sunReflectionDisplaceShader);
+                // Shaders.NoisePixelDisplaceShader.addGuiFolder(_g.g, _sunReflectionDisplaceShader);
                 
                 // -----
              
-                _noisePixelRowColumnDisplaceShader = new ShaderPass(Shaders.NoisePixelRowColumnDisplaceShader);
+                // _noisePixelRowColumnDisplaceShader = new ShaderPass(Shaders.NoisePixelRowColumnDisplaceShader);
                 
-                _noisePixelRowColumnDisplaceShader.uniforms.octaves.value = 2;
-                _noisePixelRowColumnDisplaceShader.uniforms.multiplier.value.x = 12;
-                _noisePixelRowColumnDisplaceShader.uniforms.multiplier.value.y = 18;
-                _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -4;
-                _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.y =  3;
-                _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -16;
-                _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  46;
+                // _noisePixelRowColumnDisplaceShader.uniforms.octaves.value = 2;
+                // _noisePixelRowColumnDisplaceShader.uniforms.multiplier.value.x = 12;
+                // _noisePixelRowColumnDisplaceShader.uniforms.multiplier.value.y = 18;
+                // _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.x = -4;
+                // _noisePixelRowColumnDisplaceShader.uniforms.xOffset.value.y =  3;
+                // _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.x = -16;
+                // _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value.y =  46;
 
-                // _morphs.push(new Morph({ object: _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value, property: "x", start: -16, target:0, duration:6 }));
-                // _morphs.push(new Morph({ object: _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value, property: "y", start: 20, target:60, duration:10 }));
+                // // _morphs.push(new Morph({ object: _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value, property: "x", start: -16, target:0, duration:6 }));
+                // // _morphs.push(new Morph({ object: _noisePixelRowColumnDisplaceShader.uniforms.yOffset.value, property: "y", start: 20, target:60, duration:10 }));
                 
-                _composer.addPass(_noisePixelRowColumnDisplaceShader);
+                // _composer.addPass(_noisePixelRowColumnDisplaceShader);
 
-                Shaders.NoisePixelRowColumnDisplaceShader.addGuiFolder(_g.g, _noisePixelRowColumnDisplaceShader);
+                // Shaders.NoisePixelRowColumnDisplaceShader.addGuiFolder(_g.g, _noisePixelRowColumnDisplaceShader);
                 
                 // -----
              
-                _skyGradientShaderPass = new ShaderPass(SkyGradientShader);
-                _skyGradientShaderPass.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                // _skyGradientShaderPass = new ShaderPass(SkyGradientShader);
+                // _skyGradientShaderPass.uniforms.gradient.value[0].color = _sunColorPair.color1;
                 
-                _composer.addPass(_skyGradientShaderPass);
+                // _composer.addPass(_skyGradientShaderPass);
                 
                 // -----
 
                 const sunSegments = SCRBLR.Utility.CircleResolution(_sunRadius, _camera, _renderer);
 
                 _sunMaterial = Shaders.GradientShader2.NewShaderMaterial();
+                _sunMaterial = new THREE.MeshBasicMaterial( { color: new THREE.Color(1.0, 0.0, 0.0), transparent: true, opacity : 1.0 / 5.0 });
 
-                _sunMaterial.uniforms.gradientAngle.value = 270;
-                _sunMaterial.uniforms.useWindowCoordinates.value = false;
+                // _sunMaterial.uniforms.gradientAngle.value = 270;
+                // _sunMaterial.uniforms.useWindowCoordinates.value = false;
 
-                _sunMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
-                _sunMaterial.uniforms.gradient.value[1].time = 0.99;
-                _sunMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
-                _sunMaterial.uniforms.gradient.value[2].time = 1.00;
-                _sunMaterial.uniforms.gradient.value[2].color = _sunColorPair.color2;
+                // _sunMaterial.uniforms.gradient.value[0].color = _sunColorPair.color1;
+                // _sunMaterial.uniforms.gradient.value[1].time = 0.99;
+                // _sunMaterial.uniforms.gradient.value[1].color = _sunColorPair.color2;
+                // _sunMaterial.uniforms.gradient.value[2].time = 1.00;
+                // _sunMaterial.uniforms.gradient.value[2].color = _sunColorPair.color2;
 
                 _sunMesh = new THREE.Mesh( new THREE.CircleGeometry(_sunRadius, sunSegments), _sunMaterial );
                 _sunMesh.position.set(_sunPosition.x, _sunPosition.y, _sunPosition.z);
                 _sunMesh.scale.set(_sunScale, _sunScale, 1);
 
-                _morphs.push(new Morph({ object: _sunMaterial.uniforms.gradient.value[1], property: "time", start: 0.45, target:0.99, duration:90 }));
-                _morphs.push(new Morph({ object: _sunMesh.position, property: "y", target:1.00, duration:40 }));
-                _morphs.push(new Morph({ object: _sunMesh.scale, property: "x", target:1.25, duration:80 }));
-                _morphs.push(new Morph({ object: _sunMesh.scale, property: "y", target:1.25, duration:80 }));
+                // _morphs.push(new Morph({ object: _sunMaterial.uniforms.gradient.value[1], property: "time", start: 0.45, target:0.99, duration:90 }));
+                // _morphs.push(new Morph({ object: _sunMesh.position, property: "y", target:1.00, duration:40 }));
+                // _morphs.push(new Morph({ object: _sunMesh.scale, property: "x", target:1.25, duration:80 }));
+                // _morphs.push(new Morph({ object: _sunMesh.scale, property: "y", target:1.25, duration:80 }));
 
                 _sunScene.add( _sunMesh );
-                
+                _sunScene.visible = false;
+
                 // -----
 
                 _sunRenderPass = new RenderPass(_sunScene, _camera );
 				
                 _sunRenderPass.clear = false;
 				_sunRenderPass.clearDepth = true;
-				
+                // _sunRenderPass.enabled = false;
+		
                 _composer.addPass( _sunRenderPass );
 
                 // -----
 
-                _horizontalBlurShaderPass2 = new ShaderPass(Shaders.HorizontalGaussianBlurShader);
-                _horizontalBlurShaderPass2.uniforms.radius.value = 16;
+                // _horizontalBlurShaderPass2 = new ShaderPass(Shaders.HorizontalGaussianBlurShader);
+                // _horizontalBlurShaderPass2.uniforms.radius.value = 16;
                
-                _composer.addPass(_horizontalBlurShaderPass2);
+                // _composer.addPass(_horizontalBlurShaderPass2);
 
-                _g.AddFolder(_horizontalBlurShaderPass2, "Horizontal Blur Shader", false);
+                // _g.AddFolder(_horizontalBlurShaderPass2, "Horizontal Blur Shader", false);
                 
                 // ----- 
 
-                _verticalBlurShaderPass2 = new ShaderPass(Shaders.VerticalGaussianBlurShader);
-                _verticalBlurShaderPass2.uniforms.radius.value = 2;
+                // _verticalBlurShaderPass2 = new ShaderPass(Shaders.VerticalGaussianBlurShader);
+                // _verticalBlurShaderPass2.uniforms.radius.value = 2;
                
-                _composer.addPass(_verticalBlurShaderPass2);
+                // _composer.addPass(_verticalBlurShaderPass2);
 
-                _g.AddFolder(_verticalBlurShaderPass2, "Vertical Blur Shader", false);
+                // _g.AddFolder(_verticalBlurShaderPass2, "Vertical Blur Shader", false);
                 
                 // ----- 
 
-                _vibrantColorsShaderPass = new ShaderPass(Shaders.VibrantColorsShader);
-                _vibrantColorsShaderPass.uniforms.coverPercentage.value = 0.75;
-                _vibrantColorsShaderPass.uniforms.minHue.value = -0.025;
-                _vibrantColorsShaderPass.uniforms.maxHue.value =  0.025;
-                _vibrantColorsShaderPass.uniforms.minSaturation.value = -0.025;
-                _vibrantColorsShaderPass.uniforms.maxSaturation.value =  0.025;
-                _vibrantColorsShaderPass.uniforms.minBrightness.value = -0.015;
-                _vibrantColorsShaderPass.uniforms.maxBrightness.value =  0.015;
-                _vibrantColorsShaderPass.uniforms.minContrast.value = -0.015;
-                _vibrantColorsShaderPass.uniforms.maxContrast.value =  0.015;
+                // _vibrantColorsShaderPass = new ShaderPass(Shaders.VibrantColorsShader);
+                // _vibrantColorsShaderPass.uniforms.coverPercentage.value = 0.75;
+                // _vibrantColorsShaderPass.uniforms.minHue.value = -0.025;
+                // _vibrantColorsShaderPass.uniforms.maxHue.value =  0.025;
+                // _vibrantColorsShaderPass.uniforms.minSaturation.value = -0.025;
+                // _vibrantColorsShaderPass.uniforms.maxSaturation.value =  0.025;
+                // _vibrantColorsShaderPass.uniforms.minBrightness.value = -0.015;
+                // _vibrantColorsShaderPass.uniforms.maxBrightness.value =  0.015;
+                // _vibrantColorsShaderPass.uniforms.minContrast.value = -0.015;
+                // _vibrantColorsShaderPass.uniforms.maxContrast.value =  0.015;
                
-                _composer.addPass(_vibrantColorsShaderPass);
+                // _composer.addPass(_vibrantColorsShaderPass);
 
-                Shaders.VibrantColorsShader.addGuiFolder(_g.g, _vibrantColorsShaderPass, null, true);
+                // Shaders.VibrantColorsShader.addGuiFolder(_g.g, _vibrantColorsShaderPass, null, true);
                 
                 // ----- 
 
-                _composer.addPass( new OutputPass() );	
+                // _composer.addPass( new OutputPass() );	
 
                 // ----------------------
 
                 let colorPickerFolder = _g.g.addFolder("Colors");
 
-                _addColorPairPicker(colorPickerFolder, _backgroundColorPair, _gradientBackgroundShaderPass.uniforms, "Background");
-                _addColorPairPicker(colorPickerFolder, _sunColorPair, _reflectionTopMaterial.uniforms, "Sun");
+                // _addColorPairPicker(colorPickerFolder, _backgroundColorPair, _gradientBackgroundShaderPass.uniforms, "Background");
+                // _addColorPairPicker(colorPickerFolder, _sunColorPair, _reflectionTopMaterial.uniforms, "Sun");
 
                 // ----------------------
 
@@ -590,7 +593,7 @@
                 _g.g.add(_settings, 'saveTransparentBackground').name('Save transparent background').onChange( function ( val ) { _clearPass.clearAlpha = (val == true ? 0 : 1); } );
                 // _g.g.add(_settings, 'enableMask').name('Enable Mask').onChange(function(val) { _composerMaskPass.enabled = val; _composerClearMaskPass.enabled = val; });
                 _g.g.add(_settings, 'enableMorphing').name('Enable Morphing');
-                _g.g.add(_reflectionTopMesh, 'visible').name('Toggle Reflection Morphing');
+                // _g.g.add(_reflectionTopMesh, 'visible').name('Toggle Reflection Morphing');
 
                 // ----------------------
 
@@ -632,8 +635,19 @@
             function update() 
             {
 				_deltaTimeSeconds = _clock.getDelta();
-              
-                _sunReflectionDisplaceShader.uniforms.time.value.x += _timeUpdateFactor * _deltaTimeSeconds;
+
+                _timeCounter -= _deltaTimeSeconds;
+
+                // _sunRenderPass.enabled = false;
+                _sunScene.visible = false;
+
+                if(_timeCounter <= 0.0)
+                {
+                    _timeCounter += _timeResetCount;
+                    _sunScene.visible = true;
+                    // _sunRenderPass.enabled = true;
+                    // console.log("_sunRenderPass.enabled");
+                }
 
                 if(_settings.enableMorphing)
                 {
