@@ -15,7 +15,7 @@
         </div>
         <div id="info-container">
             <div id="info-help-container">
-				// Create a WebGLRenderer with a parameter: { preserveDrawingBuffer: true }
+				// Create a WebGLRenderer with the parameter: { preserveDrawingBuffer: true }
 				<br />
 				renderer = new THREE.WebGLRenderer( { antialias: true, samples:4, stencil: false, alpha: false, depth: true, preserveDrawingBuffer: true } );
 				<br />
@@ -56,24 +56,53 @@
             import { RandomGenerator } from '/js/RandomGenerator.js';
 			import { OpenSimplexNoiseGenerator } from '/js/OpenSimplexNoiseGenerator.js';
 			import { SummedNoiseGenerator } from '/js/SummedNoiseGenerator.js';
-			import Stats from 'stats-gl';
+			// import Stats from 'stats-gl';
+			import Stats from 'three/addons/libs/stats.module.js';
 			import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 			import { Line2 } from 'three/addons/lines/Line2.js';
 			import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 			import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 			import * as GeometryUtils from 'three/addons/utils/GeometryUtils.js';
+			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+            import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+            import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
+			import { GlitchPass } from 'three/addons/postprocessing/GlitchPass.js';
+			import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
-			let renderer, scene, camera;
-			let stats;
-			let gui;
-			let lineRenderTime = 0.0;
-			const lineRenderTimeout = 1.0;
+			let _renderer, _scene, _camera, _composer, _renderTarget, _renderScreenQuad, _renderScreenScene, _renderScreenCamera, _renderScreenMaterial;
+			let _stats;
+			let _gui;
 			let _clock, _deltaTime;
 			let _randomGenerator, _randomGeneratorSeed = 1024;
 			let _noiseGenerator, _noiseGeneratorSeed = 1024;
 			let _guiContainer, _canvasContainer;
 			let _canvasWidth = 800, _canvasHeight = 800;
+
+            let _settings = 
+            {
+				lineRenderTimeout: 1.0,
+                useComposer: false,
+				clearColorBufferAction: function () 
+				{
+					// if(_settings.useComposer) 
+					// {
+					// 	_renderer.setRenderTarget( _renderTarget );						
+					// } 
+				
+					_renderer.setRenderTarget( _renderTarget );
+					_renderer.clear(true, true, true);
+					_renderer.setRenderTarget( null );
+
+					// if(_settings.useComposer) 
+					// {
+					// 	_renderer.setRenderTarget( null );						
+					// } 
+			},
+            };
+
+			let lineRenderTime = _settings.lineRenderTimeout;
 
 			init();
 
@@ -85,29 +114,82 @@
                 _randomGenerator = new RandomGenerator(_randomGeneratorSeed);
                 _noiseGenerator = new OpenSimplexNoiseGenerator(_noiseGeneratorSeed);
 
-				renderer = new THREE.WebGLRenderer( { antialias: true, samples:4, stencil: false, alpha: false, depth: true, preserveDrawingBuffer: true } );
-				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( _canvasWidth, _canvasHeight );
-				renderer.setClearColor( 0x000000, 0.0 );
-				renderer.setAnimationLoop( update );
-				renderer.autoClear = false;
+				// https://stackoverflow.com/a/27747016/527843
+				// WebGL canvases have 2 buffers. The one you're drawing to and the one being displayed. When it comes time to draw the webpage WebGL has 2 options
+				// 		Copy the drawing buffer to the display buffer.
+				// 			This operation is slower obviously as copying thousands or millions pixels is not a free operation
+				// 		Swap the two buffers.
+				// 			This operation is effectively instant as nothing really needs to happen except to swap the contents of 2 variables.
+				// Whether WebGL swaps or copies is up to the browser and various other settings but if preserveDrawingBuffer is false WebGL can swap, if it's true it can't.
+				_renderer = new THREE.WebGLRenderer( { antialias: true, samples:4, stencil: true, alpha: true, depth: true, preserveDrawingBuffer: true } );
+				_renderer.setPixelRatio( window.devicePixelRatio );
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+				_renderer.setClearColor( 0xFFFF00, 1.0 );
+				_renderer.setAnimationLoop( update );
+				_renderer.autoClear = false;
 				
-				_canvasContainer.appendChild( renderer.domElement );
+				_canvasContainer.appendChild( _renderer.domElement );
 
-				scene = new THREE.Scene();
+                // ----------------------
 
-				camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 1000 );
-				camera.position.set( 0, 0, 60 );
+				var parameters = {
+						minFilter: THREE.LinearFilter,
+						magFilter: THREE.LinearFilter,
+						format: THREE.RGBAFormat,       // RGBA for transparent backgrounds
+						stencilBuffer: true,	        // enable stencil buffer writes
+                        depthBuffer: true,              // enable depth buffer writes
+                        samples: 4                      // multi sampling
+					};
 
-				insertLine();
+				_renderTarget = new THREE.WebGLRenderTarget( _canvasWidth, _canvasHeight, parameters );
+                _renderTarget.id = "1024";
+
+                // -----
+
+				const texture = new THREE.TextureLoader().load( '.media/758px-Canestra_di_frutta_(Caravaggio).jpg' );
+				texture.colorSpace = THREE.SRGBColorSpace;
+				texture.minFilter = THREE.LinearFilter;
+
+				_renderScreenMaterial = new THREE.MeshStandardMaterial({
+					map: texture,
+				});
+
+				_renderScreenQuad = new FullScreenQuad( _renderScreenMaterial );
+
+                // -----
+
+				_composer = new EffectComposer( _renderer);				
+
+				_scene = new THREE.Scene();
+				// _renderScreenScene = new THREE.Scene();
+
+				_camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 1000 );
+				_camera.position.set( 0, 0, 60 );
+
+				_renderScreenCamera = new THREE.OrthographicCamera( -1, 1, -1, 1, 1, 1000 );
+				_renderScreenCamera.position.set( 0, 0, 10);
+
+				// _renderScreenScene.add(new THREE.Mesh(_renderScreenQuad, );
+
+                const renderPass = new RenderPass(_scene, _camera );
+				
+                renderPass.clear = false;
+		
+                _composer.addPass( renderPass );
+
+				_composer.addPass( new GlitchPass() );				
+
+				_composer.addPass( new OutputPass() );	
+
+				// insertLine();
 
 				window.addEventListener( 'resize', resize );
 
 				resize();
 
-				stats = new Stats( { horizontal: false } );
-				stats.init( renderer );
-				document.body.appendChild( stats.dom );
+				_stats = new Stats( { horizontal: false } );
+				// _stats.init( _renderer );
+				document.body.appendChild( _stats.dom );
 
 				initGui();
 
@@ -125,11 +207,11 @@
 
 				const color = new THREE.Color();
 
-				positions.push(_randomGenerator.Single(-10, 10), _randomGenerator.Single(-10, 0), 0 );
+				positions.push(_randomGenerator.Single(-50, 50), _randomGenerator.Single(-25, 0), 0 );
 				color.setHSL( _randomGenerator.Single(), 1.0, 0.5, THREE.SRGBColorSpace );
 				colors.push( color.r, color.g, color.b );
 
-				positions.push(_randomGenerator.Single(-10, 10), _randomGenerator.Single(0, 10), 0 );
+				positions.push(_randomGenerator.Single(-50, 50), _randomGenerator.Single(0, 25), 0 );
 				color.setHSL( _randomGenerator.Single(), 1.0, 0.5, THREE.SRGBColorSpace );
 				colors.push( color.r, color.g, color.b );
 
@@ -151,7 +233,7 @@
 
 				const line = new Line2( geometry, matLine );
 				
-				scene.add( line );
+				_scene.add( line );
 			}
 
 			function resize() 
@@ -159,39 +241,55 @@
                 _canvasWidth = Math.min(window.innerWidth, document.documentElement.clientWidth);
                 _canvasHeight = Math.min(window.innerHeight, document.documentElement.clientHeight);
 
-				camera.aspect = _canvasWidth / _canvasHeight;
-				camera.updateProjectionMatrix();
+				_camera.aspect = _canvasWidth / _canvasHeight;
+				_camera.updateProjectionMatrix();
 
-				renderer.setSize( _canvasWidth, _canvasHeight );
+				_renderer.setSize( _canvasWidth, _canvasHeight );
+				_composer.setSize( _canvasWidth, _canvasHeight );
 			}
 
 			function update() 
 			{
 				const elapsed = _clock.getDelta();
 
-				lineRenderTime += elapsed;
+				lineRenderTime -= elapsed;
 
-				if(lineRenderTime >= lineRenderTimeout)
+				if(lineRenderTime <= 0.0)
 				{
-					scene.clear();
-
-					// renderer.clear(true, false, false);
+					_scene.clear();
 
 					insertLine();
 
-					lineRenderTime -= lineRenderTimeout;
+					lineRenderTime += _settings.lineRenderTimeout;
 				}
 
-				renderer.render( scene, camera );
+				if(_settings.useComposer)
+				{
+					_composer.render();
+				}
+				else
+				{
+					// _renderer.setRenderTarget( _renderTarget );
+					// _renderer.render( _scene, _camera );
+					_renderer.setRenderTarget( null );
+					
+					_renderScreenQuad.render(_renderer);
 
-				stats.update();
+					// _renderer.render( _renderScreenScene, _renderScreenCamera );
+				}
+
+				_stats.update();
 			}
 
 			//
 
 			function initGui() {
 
-				gui = new GUI({ container : _guiContainer });
+				_gui = new GUI({ container : _guiContainer });
+
+				_gui.add(_settings, 'lineRenderTimeout').name('Line Render Timeout');
+				_gui.add(_settings, 'useComposer').name('Use Composer');
+				_gui.add(_settings, 'clearColorBufferAction').name('Clear Color Buffer');
 
 				// const param = {
 				// 	'world units': true,
