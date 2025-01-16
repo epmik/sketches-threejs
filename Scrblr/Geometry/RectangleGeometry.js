@@ -1,7 +1,4 @@
-// import { BufferGeometry } from 'three/src/core/BufferGeometry.js';
-// import { Float32BufferAttribute } from 'three/src/core/BufferAttribute.js';
 import * as THREE from 'three';
-
 
 class RectangleGeometry extends THREE.BufferGeometry {
 
