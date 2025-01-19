@@ -359,17 +359,17 @@
                 hires = (hires === undefined || hires === null ? false : hires == true);
 
 				const maxW = hires == true
-                                ? hiresTargetWidth > _renderer.capabilities.maxTextureSize ? hiresTargetWidth : _renderer.capabilities.maxTextureSize
+                                ? hiresTargetWidth < _renderer.capabilities.maxTextureSize ? hiresTargetWidth : _renderer.capabilities.maxTextureSize
                                 : _canvasWidth;
 				const maxH = hires == true
-                                ? hiresTargetHeight > _renderer.capabilities.maxTextureSize ? hiresTargetHeight : _renderer.capabilities.maxTextureSize
+                                ? hiresTargetHeight < _renderer.capabilities.maxTextureSize ? hiresTargetHeight : _renderer.capabilities.maxTextureSize
                                 : _canvasHeight;
 
                 const widthFactor = (maxW / _canvasWidth);
                 const heightFactor = (maxH / _canvasHeight);
 
-                const width = Math.min(widthFactor, heightFactor) * _canvasWidth;
-                const height = Math.min(widthFactor, heightFactor) * _canvasHeight;
+                const width = parseInt(Math.min(widthFactor, heightFactor) * _canvasWidth);
+                const height = parseInt(Math.min(widthFactor, heightFactor) * _canvasHeight);
 
 				const d = new Date();
 				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
