@@ -94,6 +94,12 @@
 
             let _canvasContainer, _guiContainer;
 
+            const hiresTargetWidth = 4096;
+            const hiresTargetHeight = 4096;
+            const HiresTargetModeMaximum = 0;   // 0 == maximum size = hiresTargetWidth or hiresTargetHeight   
+            const HiresTargetModeMinimum = 1;   // 1 == minimum size = hiresTargetWidth or hiresTargetHeight
+            const hiresTargetMode = HiresTargetModeMaximum;            
+
             let _settings = 
             {
                 downloadWebGLRendererAction: function () { _downloadWebGLRenderer(false); },
@@ -120,6 +126,7 @@
                 // _renderer.shadowMap.enabled = true;
 
                 console.log("WebGL2RenderingContext: " + _renderer.capabilities.isWebGL2);
+                console.log("Pixel ratio: " + _renderer.getPixelRatio());
                 console.log("GL.MAX_TEXTURE_SIZE: " + _renderer.capabilities.maxTextureSize);
                 console.log("GL.MAX_SAMPLES: " + _renderer.capabilities.maxSamples);
                 console.log("GL.MAX_FRAGMENT_UNIFORM_VECTORS: " + _renderer.capabilities.maxFragmentUniforms);
@@ -349,10 +356,8 @@
                 // SCRBLR.Utility.UpdateResolutionUniforms(new THREE.Vector2(_canvasWidth, _canvasHeight), _composer.passes);
 
                 console.log("canvas size: " + _canvasWidth + "x" + _canvasHeight);             
+                console.log("_renderTarget size: " + _renderTarget.width + "x" + _renderTarget.height);             
             }
-
-            const hiresTargetWidth = 4096;
-            const hiresTargetHeight = 4096;
 
 			function _downloadWebGLRenderer(hires)
 			{
@@ -368,8 +373,10 @@
                 const widthFactor = (maxW / _canvasWidth);
                 const heightFactor = (maxH / _canvasHeight);
 
-                const width = parseInt(Math.min(widthFactor, heightFactor) * _canvasWidth);
-                const height = parseInt(Math.min(widthFactor, heightFactor) * _canvasHeight);
+                const factor = hiresTargetMode == HiresTargetModeMaximum ? Math.min(widthFactor, heightFactor) : Math.max(widthFactor, heightFactor);
+
+                const width = parseInt(factor * _canvasWidth);
+                const height = parseInt(factor * _canvasHeight);
 
 				const d = new Date();
 				const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
