@@ -15,11 +15,11 @@
             "type": "chrome",
             "request": "launch",
             "name": "Launch Chrome localhost:3000 (npx serve)",
-            // "url": "http://localhost:3000/00000000-001-composer-rendertarget-save/index.htm",
             // "url": "http://localhost:3000/20250101-001-sun-and-reflection/index.htm",
             // "url": "http://localhost:3000/20250114-001-p5-js-example/index.htm",
             //"url": "http://localhost:3000/00000000-000-disable-auto-clear/index.htm",
-            "url": "http://localhost:3000/00000000-003-render-to-texture-003/index.htm",
+            // "url": "http://localhost:3000/00000000-003-render-to-texture-003/index.htm",
+            "url": "http://localhost:3000/00000000-001-composer-rendertarget-save/index.htm",
             "webRoot": "${workspaceFolder}"
         }
     ]
