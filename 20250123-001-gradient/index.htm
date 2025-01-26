@@ -75,58 +75,6 @@
             import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
             import { PNG } from 'pngjs';
 
-            const SkyGradientShader = 
-            {
-
-                uniforms:
-                {
-                    'tDiffuse': { value: null },
-                    'resolution': { value: new THREE.Vector2(800, 800) }, 
-                    'gradient': {
-                        value: [
-                        
-                            { time:  0.0, color: new THREE.Vector4(1, 1, 1, 1) },
-                            { time:  1.0, color: new THREE.Vector4(0, 0, 0, 1) },
-                        ]
-                    },
-                },
-
-                vertexShader: /* glsl */`
-
-                    varying vec2 v_Uv;
-
-                    void main()
-                    {
-                        v_Uv = uv;
-                        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
-                    }`,
-
-                fragmentShader: /* glsl */`
-
-                    struct GradientEntry
-                    {
-                        float time;
-                        vec4 color;
-                    };
-
-                    #define MaxGradients 2
-
-            		uniform sampler2D tDiffuse;
-                    uniform vec2 resolution;
-                    uniform GradientEntry gradient[MaxGradients];
-
-                    varying vec2 v_Uv;
-
-                    void main()
-                    {
-                        vec2 w = gl_FragCoord.xy / resolution;
-
-                        gl_FragColor = mix(texture(tDiffuse, w), gradient[0].color, w.y);
-                        // gl_FragColor = mix(texture(tDiffuse, w), gradient[0].color, 0.25 + (w.y * 0.75));
-                        // gl_FragColor = mix(texture(tDiffuse, w), vec4(1.0, 1.0, 1.0, 1.0), w.y * 0.75);
-                    }`
-                };            
-
             class ColorPair
             {
                 color1;
@@ -250,7 +198,7 @@
             let _sunScale = 0.65;
 
             let _sunReflectionDisplaceShader;
-            let _gradientBackgroundShaderPass, _randomPixelRowColumnDisplaceShader, _noisePixelRowColumnDisplaceShader;
+            let _gradientBackgroundShaderPass, _randomPixelRowColumnDisplaceShader, _noisePixelRowColumnDisplaceShader, _verticalPixelDisplaceShader;
             let _randomPixelColumnDisplaceShaderPass1, _randomPixelDisplaceShaderPass2;
             let _horizontalBlurShaderPass2, _verticalBlurShaderPass2, _vibrantColorsShaderPass;
             let _skyGradientShaderPass;
@@ -403,16 +351,22 @@
                 _gradientBackgroundShaderPass = new ShaderPass(Shaders.GradientShader2);
 
                 _gradientBackgroundShaderPass.uniforms.gradientAngle.value = 90;
+
                 _gradientBackgroundShaderPass.uniforms.gradient.value[0].time = 0.0;
                 _gradientBackgroundShaderPass.uniforms.gradient.value[0].color = new THREE.Vector4(1.0, 0.0, 0.0, 1);
-                _gradientBackgroundShaderPass.uniforms.gradient.value[1].time = 0.1;
+                _gradientBackgroundShaderPass.uniforms.gradient.value[1].time = 1.0;
                 _gradientBackgroundShaderPass.uniforms.gradient.value[1].color = new THREE.Vector4(1.0, 1.0, 0.0, 1);
-                _gradientBackgroundShaderPass.uniforms.gradient.value[2].time = 0.75;
-                _gradientBackgroundShaderPass.uniforms.gradient.value[2].color = new THREE.Vector4(0.0, 0.0, 1.0, 1);
-                _gradientBackgroundShaderPass.uniforms.gradient.value[3].time = 0.90;
-                _gradientBackgroundShaderPass.uniforms.gradient.value[3].color = new THREE.Vector4(0.0, 0.0, 0.0, 1);
-                _gradientBackgroundShaderPass.uniforms.gradient.value[4].time = 1.0;
-                _gradientBackgroundShaderPass.uniforms.gradient.value[4].color = new THREE.Vector4(1.0, 1.0, 1.0, 1);
+
+                // _gradientBackgroundShaderPass.uniforms.gradient.value[0].time = 0.0;
+                // _gradientBackgroundShaderPass.uniforms.gradient.value[0].color = new THREE.Vector4(1.0, 0.0, 0.0, 1);
+                // _gradientBackgroundShaderPass.uniforms.gradient.value[1].time = 0.1;
+                // _gradientBackgroundShaderPass.uniforms.gradient.value[1].color = new THREE.Vector4(1.0, 1.0, 0.0, 1);
+                // _gradientBackgroundShaderPass.uniforms.gradient.value[2].time = 0.75;
+                // _gradientBackgroundShaderPass.uniforms.gradient.value[2].color = new THREE.Vector4(0.0, 0.0, 1.0, 1);
+                // _gradientBackgroundShaderPass.uniforms.gradient.value[3].time = 0.90;
+                // _gradientBackgroundShaderPass.uniforms.gradient.value[3].color = new THREE.Vector4(0.0, 0.0, 0.0, 1);
+                // _gradientBackgroundShaderPass.uniforms.gradient.value[4].time = 1.0;
+                // _gradientBackgroundShaderPass.uniforms.gradient.value[4].color = new THREE.Vector4(1.0, 1.0, 1.0, 1);
 
                 _composer.addPass(_gradientBackgroundShaderPass);
                 
@@ -502,10 +456,27 @@
                 
                 _composer.addPass(_noisePixelRowColumnDisplaceShader);
 
-                Shaders.NoisePixelColumnDisplaceShader.addGuiFolder(_g.g, _noisePixelRowColumnDisplaceShader);
+                Shaders.NoisePixelColumnDisplaceShader.addGuiFolder(_g.g, _noisePixelRowColumnDisplaceShader, null, true);
                 
                 // -----
-             
+
+                _verticalPixelDisplaceShader = new ShaderPass(Shaders.VerticalPixelDisplaceShader);
+                
+                _verticalPixelDisplaceShader.uniforms.octaves.value = 4;
+                _verticalPixelDisplaceShader.uniforms.multiplier.value.x = 3;
+                _verticalPixelDisplaceShader.uniforms.multiplier.value.y = 3;
+                _verticalPixelDisplaceShader.uniforms.yOffset.value.x = -12;
+                _verticalPixelDisplaceShader.uniforms.yOffset.value.y =  12;
+                _verticalPixelDisplaceShader.uniforms.amplitude.value =  1.25;
+
+                // _morphs.push(new Morph({ object: _verticalPixelDisplaceShader.uniforms.yOffset.value, property: "x", start: -16, target:0, duration:6 }));
+                // _morphs.push(new Morph({ object: _verticalPixelDisplaceShader.uniforms.yOffset.value, property: "y", start: 20, target:60, duration:10 }));
+                
+                _composer.addPass(_verticalPixelDisplaceShader);
+
+                Shaders.VerticalPixelDisplaceShader.addGuiFolder(_g.g, _verticalPixelDisplaceShader, null, true);
+                
+                // -----             
                 // _skyGradientShaderPass = new ShaderPass(SkyGradientShader);
                 // _skyGradientShaderPass.uniforms.gradient.value[0].color = _sunColorPair.color1;
                 
@@ -570,16 +541,16 @@
                 _vibrantColorsShaderPass.uniforms.coverPercentage.value = 0.75;
                 _vibrantColorsShaderPass.uniforms.minHue.value = -0.025;
                 _vibrantColorsShaderPass.uniforms.maxHue.value =  0.025;
-                _vibrantColorsShaderPass.uniforms.minSaturation.value = -0.025;
-                _vibrantColorsShaderPass.uniforms.maxSaturation.value =  0.025;
-                _vibrantColorsShaderPass.uniforms.minBrightness.value = -0.015;
-                _vibrantColorsShaderPass.uniforms.maxBrightness.value =  0.015;
-                _vibrantColorsShaderPass.uniforms.minContrast.value = -0.015;
-                _vibrantColorsShaderPass.uniforms.maxContrast.value =  0.015;
+                _vibrantColorsShaderPass.uniforms.minSaturation.value = -0.09;
+                _vibrantColorsShaderPass.uniforms.maxSaturation.value =  0.09;
+                _vibrantColorsShaderPass.uniforms.minBrightness.value = -0.07;
+                _vibrantColorsShaderPass.uniforms.maxBrightness.value =  0.07;
+                _vibrantColorsShaderPass.uniforms.minContrast.value = -0.04;
+                _vibrantColorsShaderPass.uniforms.maxContrast.value =  0.04;
                
                 _composer.addPass(_vibrantColorsShaderPass);
 
-                Shaders.VibrantColorsShader.addGuiFolder(_g.g, _vibrantColorsShaderPass, null, true);
+                Shaders.VibrantColorsShader.addGuiFolder(_g.g, _vibrantColorsShaderPass, null, false);
                 
                 // ----- 
 

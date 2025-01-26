@@ -2,7 +2,7 @@
 import { Vector2, Vector3, Vector4, Color } from "three";
 import { Pass } from 'three/addons/postprocessing/Pass.js';
 
-const NoisePixelColumnDisplaceShader = {
+const VerticalPixelDisplaceShader = {
 
 	uniforms:
 	{
@@ -29,8 +29,8 @@ const NoisePixelColumnDisplaceShader = {
 		folder.add(element.uniforms.resolution.value, 'y', 1, 256, 1.0).name('Y-resolution');
 		folder.add(element.uniforms.yOffset.value, 'x', -256, 0, 1.0).name('Min Y-Offset');
 		folder.add(element.uniforms.yOffset.value, 'y', 0, 256, 1.0).name('Max Y-Offset');
-		folder.add(element.uniforms.multiplier.value, 'x').name('Noise X-Multiplier');
-		// folder.add(element.uniforms.multiplier.value, 'y').name('Noise Y-Multiplier');
+		folder.add(element.uniforms.multiplier.value, 'x', 0, 20, 0.1).name('Noise X-Multiplier');
+		folder.add(element.uniforms.multiplier.value, 'y', 0, 20, 0.1).name('Noise Y-Multiplier');
 		folder.add(element.uniforms.octaves, 'value', 1, 8, 1).name('Noise Octaves');
 		folder.add(element.uniforms.amplitude, 'value', 0.00, 2.00, 0.01).name('Noise Amplitude');
 		folder.add(element.uniforms.frequency, 'value', 0.01, 4.00, 0.01).name('Noise Frequency');
@@ -528,11 +528,11 @@ const NoisePixelColumnDisplaceShader = {
 		{
 			vec2 p = vec2(1.0, 1.0) / resolution.xy;
 
-			float y = v_Uv.y + (p.y * (yOffset.x + ((yOffset.y - yOffset.x) * ((1.0 + summedSimplexNoise((v_Uv.x) * multiplier.x)) * 0.5))));
+			float y = v_Uv.y + (p.y * (yOffset.x + ((yOffset.y - yOffset.x) * ((1.0 + summedSimplexNoise(v_Uv.xy * multiplier.xy)) * 0.5))));
 
 			 gl_FragColor = texture(tDiffuse, vec2(v_Uv.x, y));
 		}`
 
 };
 
-export { NoisePixelColumnDisplaceShader };
+export { VerticalPixelDisplaceShader };

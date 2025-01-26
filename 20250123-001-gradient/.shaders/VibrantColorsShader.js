@@ -57,8 +57,8 @@ const VibrantColorsShader = {
 			coverPercentage: Math.floor(element.uniforms.coverPercentage.value * 100),
 		}
 
-		folder.add(settings, 'minHue', 0, 30, 1).name('Min Hue').onChange(function (c) { element.uniforms.minHue.value = c * -0.0027777777777778; console.log(element.uniforms.minHue.value); });
-		folder.add(settings, 'maxHue', 0, 30, 1).name('Max Hue').onChange(function (c) { element.uniforms.maxHue.value = c *  0.0027777777777778; console.log(element.uniforms.maxHue.value); });
+		folder.add(settings, 'minHue', 0, 30, 1).name('Min Hue').onChange(function (c) { element.uniforms.minHue.value = c * -0.0027777777777778; });
+		folder.add(settings, 'maxHue', 0, 30, 1).name('Max Hue').onChange(function (c) { element.uniforms.maxHue.value = c *  0.0027777777777778; });
 		folder.add(settings, 'minSaturation', 0, 40, 1).name('Min Saturation').onChange(function (c) { element.uniforms.minSaturation.value = c * -0.01; });
 		folder.add(settings, 'maxSaturation', 0, 40, 1).name('Max Saturation').onChange(function (c) { element.uniforms.maxSaturation.value = c *  0.01; });
 		folder.add(settings, 'minBrightness', 0, 40, 1).name('Min Brightness').onChange(function (c) { element.uniforms.minBrightness.value = c * -0.01; });

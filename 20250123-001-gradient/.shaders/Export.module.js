@@ -15,6 +15,7 @@ export { VerticalGaussianBlurShader } from './VerticalGaussianBlurShader.js';
 export { GradientShader2 } from './GradientShader2.js';
 export { VibrantColorsShader } from './VibrantColorsShader.js';
 export { NoisePixelColumnDisplaceShader } from './NoisePixelColumnDisplaceShader.js';
+export { VerticalPixelDisplaceShader } from './VerticalPixelDisplaceShader.js';
 
 import { ShaderChunk } from 'three';
 
