@@ -37,8 +37,8 @@ class RectangleGeometry extends THREE.BufferGeometry {
 		// ]);
 		
 		// this.setIndex(indices);
-		// this.setAttribute('position', new Float32BufferAttribute(vertices, 3));		
-		// this.setAttribute('normal', new Float32BufferAttribute(normals, 3));
+		// this.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));		
+		// this.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
 
 		
 		
@@ -92,9 +92,9 @@ class RectangleGeometry extends THREE.BufferGeometry {
 		}
 
 		this.setIndex( indices );
-		this.setAttribute( 'position', new Float32BufferAttribute( vertices, 3 ) );
-		this.setAttribute('normal', new Float32BufferAttribute(normals, 3));
-		// this.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
+		this.setAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
+		this.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+		// this.setAttribute( 'uv', new THREE.Float32BufferAttribute( uvs, 2 ) );
 	}
 
 	copy( source ) {

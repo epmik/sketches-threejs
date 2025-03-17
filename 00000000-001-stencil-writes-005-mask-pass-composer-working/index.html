@@ -30,26 +30,28 @@
 		import { ClearPass } from 'three/addons/postprocessing/ClearPass.js';
 		import { MaskPass, ClearMaskPass } from 'three/addons/postprocessing/MaskPass.js';
 		import { CopyShader } from 'three/addons/shaders/CopyShader.js';
+		import { ClearDepthPass } from './.js/ClearDepthPass.js';
 
-		let camera, scene, sceneMask, renderer, composer, box;
+		let camera, scene, stencilScene, sceneMask, renderer, composer;
 		let _maskMesh;
 
 		init();
 		animate();
 
-		function init() {
-
+		function init() 
+		{
 			camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 100 );
-			camera.position.x = -0.75;
-			camera.position.z = 0.75;
+			camera.position.y = 0.75;
+			camera.position.z = 4.75;
 				
-				scene = new THREE.Scene();
-				sceneMask = new THREE.Scene();
+			scene = buildScene(0xffff00, 0x072534, new THREE.SphereGeometry(0.5), 8);
+			stencilScene = buildScene(0xff0000, 0x072534, new THREE.BoxGeometry( 1, 1, 1 ), 5);
+			sceneMask = new THREE.Scene();
 				
 		// const texture = new THREE.TextureLoader().load( 'mask.jpeg' );
 			// const material = new THREE.MeshBasicMaterial( { alphaMap: texture, alphaTest: 1 } );
 
-			const geometry = new THREE.PlaneGeometry(1, 1, 5, 5);
+			const geometry = new THREE.PlaneGeometry(4, 4);
 
 			_maskMesh = new THREE.Mesh( geometry );
 
@@ -57,17 +59,35 @@
 			const stencilBoxWireFrameMesh = new THREE.LineSegments( stencilBoxWireFrameGeometry, new THREE.MeshBasicMaterial( { color: 0x000000, depthTest: false, opacity:0.25, transparent:false } ) );
 
 			sceneMask.add( _maskMesh );
+
+			// stencilScene.add(stencilBoxWireFrameMesh);
 				
 				// box
+			// boxes = [];
+
+			// for ( let i = 0; i < 4; i ++ ) 
+			// {
+			// 	const boxGeometry = new THREE.BoxGeometry( 1, 1, 1 );
+			// 	const boxMaterial = new THREE.MeshPhongMaterial( { color: 0xff1100, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } );				
+
+			// 	const box = new THREE.Mesh( boxGeometry, boxMaterial );
+
+			// 	box.position.x = Math.floor( -4 + Math.random() * 8);
+			// 	box.position.y = 0.5;
+			// 	box.position.z = Math.floor( -4 + Math.random() * 8 );
+
+			// 	boxes[i] = box;
+
+			// 	stencilScene.add( box );
+			// }				
 				
-				const boxGeometry = new THREE.BoxGeometry( 1, 1, 1 );
-				const boxMaterial = new THREE.MeshBasicMaterial({ color:0xfffff });
-				
-				box = new THREE.Mesh( boxGeometry, boxMaterial );
-				box.position.z = -1;
-				scene.add( box );
-				scene.add(stencilBoxWireFrameMesh);
-				
+			// let planeFeometry = new THREE.PlaneGeometry( 4, 4 );
+			// let planeMaterial = new THREE.MeshPhongMaterial( { color: 0xff1100, emissive: 0x072534, side: THREE.DoubleSide, flatShading: true } );//new THREE.MeshBasicMaterial( {color: 0xff0000, side: THREE.FrontSide } );
+			// let plane = new THREE.Mesh( planeFeometry, planeMaterial );
+			// plane.position.y = -0.5;
+			// plane.rotateX( - Math.PI / 2 );
+		
+			// stencilScene.add( plane );
 				//
 
 			renderer = new THREE.WebGLRenderer();
@@ -78,15 +98,16 @@
 				
 				const controls = new OrbitControls( camera, renderer.domElement );
 				
-				//
-
 				var clearPass = new ClearPass();
+				
+				var renderScenePass = new RenderPass( scene, camera );
+				renderScenePass.clear = false;
 				
 				var maskPass = new MaskPass( sceneMask, camera );
 				maskPass.inverse = false;
 				
-				var renderPass = new RenderPass( scene, camera );
-				renderPass.clear = false;
+				var renderStencilScenePass = new RenderPass( stencilScene, camera );
+				renderStencilScenePass.clear = false;
 				
 				var clearMaskPass = new ClearMaskPass();
 				var outputPass = new ShaderPass( CopyShader );
@@ -102,21 +123,63 @@
 
 				composer = new EffectComposer( renderer, renderTarget );
 				composer.addPass( clearPass );
+				composer.addPass( renderScenePass );
+				// composer.addPass( new ClearDepthPass() );
 				composer.addPass( maskPass );
-				composer.addPass( renderPass );
+				composer.addPass( renderStencilScenePass );
 				composer.addPass( clearMaskPass );
 				composer.addPass( outputPass );
 
 		}
 
+		function buildScene(color, emissive, geometry, count)
+		{
+			let scene = new THREE.Scene();
+
+			const lights = [];
+
+			lights[ 0 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+			lights[ 0 ].position.set( 200, 50, 100 );
+
+			scene.add( lights[ 0 ] );
+
+			let planeGeometry = new THREE.PlaneGeometry( 10, 10, 10, 10 );
+			let planeMaterial = new THREE.MeshPhongMaterial( { color: color, emissive: emissive, side: THREE.DoubleSide, flatShading: true } );
+			let planeMesh = new THREE.Mesh( planeGeometry, planeMaterial );
+			
+			planeMesh.rotateX(-Math.PI / 2);
+
+			scene.add( planeMesh );
+
+			for ( let i = 0; i < count; i ++ ) 
+			{
+				const boxMaterial = new THREE.MeshPhongMaterial( { color: color, emissive: emissive, side: THREE.DoubleSide, flatShading: true } );				
+
+				const box = new THREE.Mesh( geometry, boxMaterial );
+
+				box.position.x = Math.floor( -4 + Math.random() * 8);
+				box.position.y = 0.5;
+				box.position.z = Math.floor( -4 + Math.random() * 8 );
+				box.rotation.y = Math.random() * Math.PI;
+
+				scene.add( box );
+			}
+
+			return scene;
+		}
+
 		function animate() {
 
 			requestAnimationFrame( animate );
+
+			// for(var i = 0; i < boxes.length; i++)
+			// {
+			// 	boxes[i].rotation.x += 0.01;
+			// 	boxes[i].rotation.y += 0.02;
+			// }
 				
-			box.rotation.x += 0.01;
-			box.rotation.y += 0.02;
 				
-				renderer.clear();
+			renderer.clear();
 			composer.render();
 
 		}

@@ -25,6 +25,11 @@ function init()
 {
 	prng = new Alea();
 
+	prng.value = function (min, max)
+	{
+		return min + (max - min) * prng.next();
+	}
+
 	// var noise = new Noise(Math.random());
 	// simplexNoiseJonasWagner = new SimplexNoise();
 
@@ -60,12 +65,12 @@ function init()
 
 	boxStackSettings = {
 		LayerCount: 100,
-		MinWidth: 2.0,
-		MaxWidth: 30.0,
-		MinDepth: 2.0,
-		MaxDepth: 30.0,
+		MinWidth: 1.0,
+		MaxWidth: 100.0,
+		MinDepth: 1.0,
+		MaxDepth: 100.0,
 		MinHeight: 0.1,
-		MaxHeight: 1.5,
+		MaxHeight: 20,
 		AllowRotation: true,
 		MinTranslationX: 0.0,
 		MaxTranslationX: 10.0,
@@ -171,11 +176,11 @@ function init()
 
 	// --------------------
 
-	var rectangleGeometry = new SCRBLR.RectangleGeometry();
+	// var rectangleGeometry = new SCRBLR.RectangleGeometry();
 
-	var rectangleMesh = new THREE.Mesh(rectangleGeometry, new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+	// var rectangleMesh = new THREE.Mesh(rectangleGeometry, new THREE.MeshBasicMaterial({ color: 0xffff00 }));
 	
-	scene.add(rectangleMesh);
+	// scene.add(rectangleMesh);
 
 	// --------------------
 
