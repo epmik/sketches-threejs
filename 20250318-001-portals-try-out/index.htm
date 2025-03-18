@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js - pointerlock controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<style>
+			#blocker {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0,0,0,0.5);
+			}
+
+			#instructions {
+				width: 100%;
+				height: 100%;
+
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				align-items: center;
+
+				text-align: center;
+				font-size: 14px;
+				cursor: pointer;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="blocker">
+			<div id="instructions">
+				<p style="font-size:36px">
+					Click to play
+				</p>
+				<p>
+					Move: WASD<br/>
+					Jump: SPACE<br/>
+					Look: MOUSE
+				</p>
+			</div>
+		</div>
+
+		<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+				}
+			}
+		</script>
+
+		<script type="module">
+
+			import * as THREE from 'three';
+
+			import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+			import { CameraControls } from './.js/CameraControls.js';
+
+			var scene1, scene2, sceneStencil, camera, renderer, clock, controls;
+var controls;
+var box, plane;
+let moveForward = false;
+			let moveBackward = false;
+			let moveLeft = false;
+			let moveRight = false;
+			let canJump = false;
+			let moveUp = false;
+			let moveDown = false;
+
+			let prevTime = performance.now();
+			const velocity = new THREE.Vector3();
+			const direction = new THREE.Vector3();
+
+init();
+
+function init() {
+
+  var planeGeometry, planeMaterial;
+  var boxGeometry, boxMaterial;
+  var index;
+
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, stencil : true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor (0xffffff);
+  renderer.setAnimationLoop( animate );
+  renderer.autoClear = false;
+
+
+//   scene = new THREE.Scene();
+  scene1 = buildScene({ name: '', color: 0xffff00, emissive: 0x072534, background: new THREE.Color(0x072534), geometry: new THREE.SphereGeometry(0.5), geometryCount: 4 });
+  scene2 = buildScene({ name: '', color: 0xff0000, emissive: 0x072534, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
+
+  sceneStencil = new THREE.Scene();
+
+  clock = new THREE.Clock();
+
+ 
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 10000);
+  camera.position.y = 1.75;
+  camera.position.z = 10;
+ 
+
+  controls = new CameraControls( camera, document.body );
+
+
+  instructions.addEventListener( 'click', function () {
+
+	controls.lock();
+
+	} );
+
+controls.addEventListener( 'lock', function () {
+
+instructions.style.display = 'none';
+blocker.style.display = 'none';
+
+} );
+
+controls.addEventListener( 'unlock', function () {
+
+blocker.style.display = 'block';
+instructions.style.display = '';
+
+} );
+
+// scene.add( controls.object );  
+
+  planeGeometry = new THREE.PlaneGeometry(1, 2);
+
+  // set colorWrite to "true" to see the area/shapes of the stencil test
+  planeMaterial = new THREE.MeshBasicMaterial({
+    color: 0x00ffff,
+    colorWrite: true,  // works for r73 (not r70)
+    depthWrite: false
+  });
+
+  plane = new THREE.Mesh(planeGeometry, planeMaterial);
+  plane.position.y = 1;
+sceneStencil.add(plane);
+
+  document.body.appendChild(renderer.domElement);
+	
+  document.addEventListener( 'keydown', onKeyDown );
+	document.addEventListener( 'keyup', onKeyUp );			
+  window.addEventListener('resize', onWindowResize, false);
+}
+
+function animate() 
+{
+
+  const time = performance.now();
+
+if ( controls.isLocked === true ) {
+
+	// raycaster.ray.origin.copy( controls.object.position );
+	// raycaster.ray.origin.y -= 10;
+
+	// const intersections = raycaster.intersectObjects( objects, false );
+
+	// const onObject = intersections.length > 0;
+
+	const delta = ( time - prevTime ) / 1000;
+
+	velocity.x -= velocity.x * 10.0 * delta;
+	velocity.y -= velocity.y * 10.0 * delta;
+	velocity.z -= velocity.z * 10.0 * delta;
+
+	// velocity.y -= 9.8 * 100.0 * delta; // 100.0 = mass
+
+	direction.z = Number( moveForward ) - Number( moveBackward );
+	direction.y = Number( moveUp ) - Number( moveDown );
+	direction.x = Number( moveRight ) - Number( moveLeft );
+	direction.normalize(); // this ensures consistent movements in all directions
+
+	if ( moveForward || moveBackward ) velocity.z -= direction.z * 40.0 * delta;
+	if ( moveLeft || moveRight ) velocity.x -= direction.x * 40.0 * delta;
+	if ( moveUp || moveDown ) velocity.y -= direction.y * 40.0 * delta;
+
+	// if ( onObject === true ) {
+
+	// 	velocity.y = Math.max( 0, velocity.y );
+	// 	canJump = true;
+
+	// }
+
+	controls.moveRight( - velocity.x * delta );
+	controls.moveUp( - velocity.y * delta );
+	controls.moveForward( - velocity.z * delta );
+
+	// controls.object.position.y += ( velocity.y * delta ); // new behavior
+
+	// if ( controls.object.position.y < 1 ) {
+
+	// 	velocity.y = 0;
+	// 	controls.object.position.y = 1;
+
+	// 	canJump = true;
+
+	// }
+
+}
+
+prevTime = time;
+
+
+
+  renderer.clear();
+	
+  // animate the box
+//   box.position.x = Math.cos(clock.getElapsedTime()) * 10;
+
+  var gl = renderer.getContext();
+
+  // enable stencil test
+  gl.enable(gl.STENCIL_TEST);
+  //renderer.state.setStencilTest( true );
+
+  // config the stencil buffer to collect data for testing
+  gl.stencilFunc(gl.ALWAYS, 1, 0xff);
+  gl.stencilOp(gl.REPLACE, gl.REPLACE, gl.REPLACE);
+
+// 	// render shape for stencil test
+   renderer.render(sceneStencil, camera);
+  
+  // set stencil buffer for testing
+  gl.stencilFunc(gl.EQUAL, 1, 0xff);
+  gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+
+  // render actual scene
+  renderer.render(scene1, camera);
+
+
+  gl.stencilFunc(gl.EQUAL, 0, 0xff);
+  gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+
+//  renderer.render(scene1, camera);
+
+   renderer.render(scene2, camera);
+
+  // disable stencil test
+  gl.disable(gl.STENCIL_TEST);
+}
+
+function onWindowResize() {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+}
+
+function buildScene(options)
+		{
+			// options = { name: '', color:, emissive:, background,  geometry, geometryCount }
+
+			let scene = new THREE.Scene();
+			// scene.background = options.background;
+
+			const lights = [];
+
+			lights[ 0 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+			lights[ 0 ].position.set( 200, 50, 100 );
+
+			scene.add( lights[ 0 ] );
+
+			let planeGeometry = new THREE.PlaneGeometry( 10, 10, 10, 10 );
+			let planeMaterial = new THREE.MeshPhongMaterial( { color: options.color, emissive: options.emissive, side: THREE.DoubleSide, flatShading: true } );
+			let planeMesh = new THREE.Mesh( planeGeometry, planeMaterial );
+			
+			planeMesh.rotateX(-Math.PI / 2);
+
+			scene.add( planeMesh );
+
+			for ( let i = 0; i < options.geometryCount; i ++ ) 
+			{
+				const boxMaterial = new THREE.MeshPhongMaterial( { color: options.color, emissive: options.emissive, side: THREE.DoubleSide, flatShading: true } );				
+
+				const box = new THREE.Mesh( options.geometry, boxMaterial );
+
+				box.position.x = Math.floor( -4 + Math.random() * 8);
+				box.position.y = 0.5;
+				box.position.z = Math.floor( -4 + Math.random() * 8 );
+				box.rotation.y = Math.random() * Math.PI;
+
+				scene.add( box );
+			}
+
+			return scene;
+		}
+
+		function onKeyDown ( event ) 
+		{
+
+switch ( event.code ) {
+
+	case 'ArrowUp':
+	case 'KeyW':
+		moveForward = true;
+		break;
+
+	case 'ArrowLeft':
+	case 'KeyA':
+		moveLeft = true;
+		break;
+
+	case 'ArrowDown':
+	case 'KeyS':
+		moveBackward = true;
+		break;
+
+	case 'ArrowRight':
+	case 'KeyD':
+		moveRight = true;
+		break;
+
+	case 'PageUp':
+	case 'KeyR':
+		moveUp = true;
+		break;
+
+	case 'PageDown':
+	case 'KeyF':
+		moveDown = true;
+		break;
+
+	case 'Space':
+		if ( canJump === true ) velocity.y += 3.50;
+		canJump = false;
+		break;
+
+}
+
+};		
+
+		function onKeyUp( event ) 
+		{
+
+switch ( event.code ) {
+
+	case 'ArrowUp':
+	case 'KeyW':
+		moveForward = false;
+		break;
+
+	case 'ArrowLeft':
+	case 'KeyA':
+		moveLeft = false;
+		break;
+
+	case 'ArrowDown':
+	case 'KeyS':
+		moveBackward = false;
+		break;
+
+	case 'ArrowRight':
+	case 'KeyD':
+		moveRight = false;
+		break;
+
+	case 'PageUp':
+	case 'KeyR':
+		moveUp = false;
+		break;
+
+	case 'PageDown':
+	case 'KeyF':
+		moveDown = false;
+		break;
+
+}
+
+};		
+		</script>
+	</body>
+</html>
