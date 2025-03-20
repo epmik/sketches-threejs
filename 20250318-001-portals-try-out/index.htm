@@ -58,7 +58,8 @@
 			import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 			import { CameraControls } from './.js/CameraControls.js';
 
-			var scene1, scene2, sceneStencil, camera, renderer, clock, controls;
+			var scene, meshGroup1, meshGroup2, scene1, scene2, sceneStencil, playerCamera, playerCameraHelper, portalCamera, portalCameraHelper, renderer, clock, controls;
+			var overviewCamera;
 var controls;
 var box, plane;
 let moveForward = false;
@@ -89,9 +90,17 @@ function init() {
   renderer.autoClear = false;
 
 
-//   scene = new THREE.Scene();
-  scene1 = buildScene({ name: '', color: 0xe28743, emissive: 0x21130d, background: new THREE.Color(0x072534), geometry: new THREE.SphereGeometry(0.5), geometryCount: 4 });
-  scene2 = buildScene({ name: '', color: 0x7D1003, emissive: 0x4A0C05, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
+	let scene = new THREE.Scene();
+
+	const lights = [];
+
+	lights[ 0 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+	lights[ 0 ].position.set( 200, 50, 100 );
+
+	scene.add( lights[ 0 ] );
+
+	meshGroup1 = buildMeshGroup({ name: '', color: 0xe28743, emissive: 0x21130d, background: new THREE.Color(0x072534), geometry: new THREE.SphereGeometry(0.5), geometryCount: 4 });
+	meshGroup2 = buildMeshGroup({ name: '', color: 0x7D1003, emissive: 0x4A0C05, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
 //   scene2 = buildScene({ name: '', color: 0x063970, emissive: 0x21130d, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
 //   scene2 = buildScene({ name: '', color: 0x0D5605, emissive: 0x21130d, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
 
@@ -100,12 +109,26 @@ function init() {
   clock = new THREE.Clock();
 
  
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.y = 1.75;
-  camera.position.z = 5;
+  playerCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  playerCamera.position.y = 1.75;
+  playerCamera.position.z = 5;
+
+  playerCameraHelper = new THREE.CameraHelper( playerCamera );
+  scene.add( playerCameraHelper );  
+ 
+  overviewCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  overviewCamera.position.y = 8;
+  overviewCamera.lookAt(0, 0, 0);
+ 
+  portalCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  portalCamera.position.y = 1.75;
+  portalCamera.position.z = 5;
+
+  portalCameraHelper = new THREE.CameraHelper( portalCamera );
+  scene.add( portalCamera );  
  
 
-  controls = new CameraControls( camera, document.body );
+  controls = new CameraControls( playerCamera, document.body );
 
 
   instructions.addEventListener( 'click', function () {
@@ -225,14 +248,14 @@ prevTime = time;
   gl.stencilOp(gl.REPLACE, gl.REPLACE, gl.REPLACE);
 
 // 	// render shape for stencil test
-   renderer.render(sceneStencil, camera);
+   renderer.render(sceneStencil, playerCamera);
   
   // set stencil buffer for testing
   gl.stencilFunc(gl.EQUAL, 1, 0xff);
   gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
 
   // render actual scene
-  renderer.render(scene1, camera);
+  renderer.render(scene1, playerCamera);
 
 
   gl.stencilFunc(gl.EQUAL, 0, 0xff);
@@ -240,7 +263,7 @@ prevTime = time;
 
 //  renderer.render(scene1, camera);
 
-   renderer.render(scene2, camera);
+   renderer.render(scene2, playerCamera);
 
   // disable stencil test
   gl.disable(gl.STENCIL_TEST);
@@ -248,23 +271,15 @@ prevTime = time;
 
 function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
+  playerCamera.aspect = window.innerWidth / window.innerHeight;
+  playerCamera.updateProjectionMatrix();
 }
 
-function buildScene(options)
+function buildMeshGroup(options)
 		{
 			// options = { name: '', color:, emissive:, background,  geometry, geometryCount }
 
-			let scene = new THREE.Scene();
-			// scene.background = options.background;
-
-			const lights = [];
-
-			lights[ 0 ] = new THREE.DirectionalLight( 0xffffff, 3 );
-			lights[ 0 ].position.set( 200, 50, 100 );
-
-			scene.add( lights[ 0 ] );
+			let group = new THREE.Group();
 
 			let planeGeometry = new THREE.PlaneGeometry( 10, 10, 10, 10 );
 			let planeMaterial = new THREE.MeshPhongMaterial( { color: options.color, emissive: options.emissive, side: THREE.DoubleSide, flatShading: true } );
@@ -272,7 +287,7 @@ function buildScene(options)
 			
 			planeMesh.rotateX(-Math.PI / 2);
 
-			scene.add( planeMesh );
+			group.add( planeMesh );
 
 			for ( let i = 0; i < options.geometryCount; i ++ ) 
 			{
@@ -285,10 +300,10 @@ function buildScene(options)
 				box.position.z = Math.floor( -4 + Math.random() * 8 );
 				box.rotation.y = Math.random() * Math.PI;
 
-				scene.add( box );
+				group.add( box );
 			}
 
-			return scene;
+			return group;
 		}
 
 		function onKeyDown ( event ) 
