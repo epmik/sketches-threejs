@@ -19,7 +19,7 @@
             // "url": "http://localhost:3000/20250114-001-p5-js-example/index.htm",
             //"url": "http://localhost:3000/00000000-000-disable-auto-clear/index.htm",
             // "url": "http://localhost:3000/00000000-003-render-to-texture-003/index.htm",
-            "url": "http://localhost:3000/20250316-001-portals/index.htm",
+            "url": "http://localhost:3000/20250318-001-portals-try-out/index.htm",
             "webRoot": "${workspaceFolder}"
         }
     ]
