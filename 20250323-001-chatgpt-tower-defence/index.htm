@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>three.js - pointerlock controls</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+	<style>
+		#blocker {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, 0.5);
+		}
+
+		#instructions {
+			width: 100%;
+			height: 100%;
+
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+
+			text-align: center;
+			font-size: 14px;
+			cursor: pointer;
+		}
+	</style>
+</head>
+
+<body>
+	<!-- <div id="blocker">
+		<div id="instructions">
+			<p style="font-size:36px">
+				Click to play
+			</p>
+			<p>
+				Move: WASD<br />
+				Jump: SPACE<br />
+				Look: MOUSE
+			</p>
+		</div>
+	</div> -->
+
+	<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+				}
+			}
+		</script>
+
+	<script type="module">
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// Scene Setup
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 20, 40);
+
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+
+// Ground (Larger Area)
+const groundGeometry = new THREE.PlaneGeometry(50, 50);
+const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22, side: THREE.DoubleSide });
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+
+// Lighting
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(10, 10, 10);
+scene.add(light);
+
+// Tower
+const towerGeometry = new THREE.CylinderGeometry(1, 1, 3, 32);
+const towerMaterial = new THREE.MeshStandardMaterial({ color: 0x8B0000 });
+const tower = new THREE.Mesh(towerGeometry, towerMaterial);
+tower.position.set(0, 1.5, 0);
+scene.add(tower);
+
+// UI Elements
+let money = 10000; // Starting money now set to 10000
+let towerHealth = 1000;
+let wave = 1;
+const ui = document.createElement('div');
+ui.style.position = 'absolute';
+ui.style.top = '10px';
+ui.style.left = '10px';
+ui.style.color = 'white';
+ui.style.fontSize = '20px';
+document.body.appendChild(ui);
+
+function updateUI() {
+    ui.innerHTML = `Wave: ${wave} | Health: ${towerHealth} | Money: ${money}`;
+}
+updateUI();
+
+// Multiple Enemies and Waves
+const enemies = [];
+function spawnWave() {
+    for (let i = 0; i < wave * 3; i++) {
+        setTimeout(() => spawnEnemy(), i * 500);
+    }
+    wave++;
+    setTimeout(spawnWave, 10000);
+}
+
+function spawnEnemy() {
+    const enemyGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+    const enemyMaterial = new THREE.MeshStandardMaterial({ color: 0x0000ff });
+    const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
+    
+    // Random position at least 15 units away from tower
+    let angle = Math.random() * Math.PI * 2;
+    let distance = 15 + Math.random() * 10;
+    enemy.position.set(Math.cos(angle) * distance, 0.5, Math.sin(angle) * distance);
+    
+    // Set enemy health to 50
+    enemy.userData.health = 50;
+    
+    scene.add(enemy);
+    enemies.push(enemy);
+}
+
+spawnWave();
+
+// Function to get the nearest enemy relative to the tower
+function getNearestEnemy() {
+    if (enemies.length === 0) return null;
+    let nearest = enemies[0];
+    let minDistance = tower.position.distanceTo(nearest.position);
+    enemies.forEach(enemy => {
+        let d = tower.position.distanceTo(enemy.position);
+        if (d < minDistance) {
+            nearest = enemy;
+            minDistance = d;
+        }
+    });
+    return nearest;
+}
+
+// Projectiles
+const projectiles = [];
+const projectileSpeed = 0.2;
+
+function shootProjectile() {
+    if (money < 10) return;
+    money -= 10;
+    updateUI();
+
+    // Get the nearest enemy from the tower when shooting
+    const target = getNearestEnemy();
+    if (!target) return; // If there is no enemy, do not shoot
+    
+    // Fire multiple projectiles (all aimed at the current nearest enemy)
+    for (let i = 0; i < 3; i++) {
+        const projectileGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+        const projectileMaterial = new THREE.MeshStandardMaterial({ color: 0xffff00 });
+        const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+        projectile.position.set(0, 2, 0);
+        
+        // Calculate direction from projectile to target enemy
+        let direction = new THREE.Vector3().subVectors(target.position, projectile.position).normalize();
+        projectile.userData.direction = direction;
+        
+        // Store the target so we can update direction if needed
+        projectile.userData.target = target;
+        
+        scene.add(projectile);
+        projectiles.push(projectile);
+    }
+}
+
+setInterval(shootProjectile, 1000);
+
+// Game Loop
+let enemySpeed = 0.05;
+function animate() {
+    requestAnimationFrame(animate);
+    
+    // Move enemies toward the tower
+    enemies.forEach((enemy, index) => {
+        let direction = new THREE.Vector3().subVectors(tower.position, enemy.position).normalize();
+        enemy.position.addScaledVector(direction, enemySpeed);
+        
+        // Check if enemy is within tower radius (collision with tower)
+        const distanceToTower = enemy.position.distanceTo(tower.position);
+        if (distanceToTower < 1.5) {
+            scene.remove(enemy);
+            enemies.splice(index, 1);
+            towerHealth -= 10;
+            updateUI();
+            if (towerHealth <= 0) {
+                alert("Game Over!");
+                location.reload();
+            }
+        }
+    });
+
+    // Move projectiles toward their target enemy
+    projectiles.forEach((projectile, pIndex) => {
+        let target = projectile.userData.target;
+        // If the target is no longer available, try to update to the nearest enemy
+        if (!enemies.includes(target)) {
+            target = getNearestEnemy();
+            if (!target) return;
+            projectile.userData.target = target;
+        }
+        let direction = new THREE.Vector3().subVectors(target.position, projectile.position).normalize();
+        projectile.userData.direction = direction;
+        projectile.position.addScaledVector(direction, projectileSpeed);
+        
+        // Collision detection with the target enemy
+        const distance = projectile.position.distanceTo(target.position);
+        if (distance < 0.5) {
+            // Reduce enemy health by 10
+            target.userData.health -= 10;
+            // Remove projectile on hit
+            scene.remove(projectile);
+            projectiles.splice(pIndex, 1);
+            // If enemy is dead, remove enemy and reward money
+            if (target.userData.health <= 0) {
+                scene.remove(target);
+                enemies.splice(enemies.indexOf(target), 1);
+                money += 100;
+                updateUI();
+            }
+        }
+    });
+    
+    renderer.render(scene, camera);
+}
+animate();
+
+// Resize Handling
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+
+	</script>
+</body>
+
+</html>

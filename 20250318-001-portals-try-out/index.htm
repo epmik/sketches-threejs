@@ -59,8 +59,9 @@
 
 		import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 		import { CameraControls } from './.js/CameraControls.js';
+		import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-		var scene, meshGroup1, meshGroup2, scene1, scene2, portalScene, playerCamera, playerCameraHelper, portalCamera, portalCameraHelper, renderer, clock, controls;
+		var scene, meshGroup1, meshGroup2, scene1, scene2, scene3, portalScene, playerCamera, playerCameraHelper, portalCamera, portalCameraHelper, renderer, clock, controls;
 		var overviewCamera, overviewScene;
 		var controls;
 		var box, plane;
@@ -71,6 +72,7 @@
 		let canJump = false;
 		let moveUp = false;
 		let moveDown = false;
+		let gltfLoader = null;
 
 		// viewport
 		let insetWidth;
@@ -82,7 +84,7 @@
 
 		init();
 
-		function init() {
+		async function init() {
 
 			var planeGeometry, planeMaterial;
 			var boxGeometry, boxMaterial;
@@ -92,7 +94,6 @@
 			renderer = new THREE.WebGLRenderer({ antialias: true, stencil: true });
 			renderer.setSize(window.innerWidth, window.innerHeight);
 			renderer.setClearColor(0xffffff);
-			renderer.setAnimationLoop(animate);
 			renderer.autoClear = false;
 
 
@@ -107,8 +108,9 @@
 
 			// meshGroup1 = buildMeshGroup({ name: '', color: 0xe28743, emissive: 0x21130d, background: new THREE.Color(0x072534), geometry: new THREE.SphereGeometry(0.5), geometryCount: 4 });
 			// meshGroup2 = buildMeshGroup({ name: '', color: 0x7D1003, emissive: 0x4A0C05, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
-			scene1 = buildScene({ name: '', color: 0xe28743, emissive: 0x21130d, background: new THREE.Color(0x072534), geometry: new THREE.SphereGeometry(0.5), geometryCount: 4 });
-			scene2 = buildScene({ name: '', color: 0x7D1003, emissive: 0x4A0C05, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
+			scene1 = await loadScene({ name: '20250316-Portal House-001.gltf', color: 0xe28743, emissive: 0x21130d, background: new THREE.Color(0x072534), geometry: new THREE.SphereGeometry(0.5), geometryCount: 4 });
+			scene2 = await loadScene({ name: '20250316-Portal House-002.gltf', color: 0x7D1003, emissive: 0x4A0C05, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
+			scene3 = await loadScene({ name: '20250316-Portal House-003.gltf', color: 0x7D1003, emissive: 0x4A0C05, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
 			//   scene2 = buildScene({ name: '', color: 0x063970, emissive: 0x21130d, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
 			//   scene2 = buildScene({ name: '', color: 0x0D5605, emissive: 0x21130d, background: new THREE.Color(0x072534), geometry: new THREE.BoxGeometry(), geometryCount: 4 });
 
@@ -126,7 +128,7 @@
 			overviewScene.add(playerCameraHelper);
 
 			overviewCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-			overviewCamera.position.y = 48;
+			overviewCamera.position.y = 148;
 			overviewCamera.lookAt(0, 0, 0);
 
 			portalCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -166,14 +168,23 @@
 
 			// set colorWrite to "true" to see the area/shapes of the stencil test
 			planeMaterial = new THREE.MeshBasicMaterial({
-				color: 0x00ffff,
+				color: 0xffffff,
 				colorWrite: true,  // works for r73 (not r70)
-				depthWrite: false
+				depthWrite: true
 			});
 
 			plane = new THREE.Mesh(planeGeometry, planeMaterial);
 			plane.position.y = 1;
 			portalScene.add(plane);
+
+
+			// const loader = new GLTFLoader();
+            // loader.setPath( '.media/' );     
+                
+			// await loader.loadAsync('20250316-Portal House-001.gltf').then((gltf) => 
+			// {
+			// 	scene2 = gltf.scene;
+			// });   			
 
 			document.body.appendChild(renderer.domElement);
 
@@ -182,6 +193,8 @@
 			document.addEventListener('keydown', onKeyDown);
 			document.addEventListener('keyup', onKeyUp);
 			window.addEventListener('resize', onWindowResize, false);
+
+			renderer.setAnimationLoop(animate);
 		}
 
 		function animate() {
@@ -246,60 +259,62 @@
 
 			renderer.clear();
 
-			// animate the box
-			//   box.position.x = Math.cos(clock.getElapsedTime()) * 10;
+			// var gl = renderer.getContext();
 
-			var gl = renderer.getContext();
+			// // enable stencil test
+			// gl.enable(gl.STENCIL_TEST);
 
-			// enable stencil test
-			gl.enable(gl.STENCIL_TEST);
-			//renderer.state.setStencilTest( true );
+			// // config the stencil buffer to collect data for testing
+			// gl.stencilFunc(gl.ALWAYS, 1, 0xff);
+			// gl.stencilOp(gl.REPLACE, gl.REPLACE, gl.REPLACE);
 
-			// config the stencil buffer to collect data for testing
-			gl.stencilFunc(gl.ALWAYS, 1, 0xff);
-			gl.stencilOp(gl.REPLACE, gl.REPLACE, gl.REPLACE);
+			// // 	// render shape for stencil test
+			// renderer.render(portalScene, playerCamera);
 
-			// 	// render shape for stencil test
-			renderer.render(portalScene, playerCamera);
+			// // set stencil buffer for testing
+			// gl.stencilFunc(gl.EQUAL, 1, 0xff);
+			// gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
 
-			// set stencil buffer for testing
-			gl.stencilFunc(gl.EQUAL, 1, 0xff);
-			gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+			// // render actual scene
+			// renderer.render(scene1, playerCamera);
 
-			// render actual scene
-			renderer.render(scene1, playerCamera);
+			// // disable stencil test
+			// gl.disable(gl.STENCIL_TEST);
 
-
-			gl.stencilFunc(gl.EQUAL, 0, 0xff);
-			gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+			// gl.stencilFunc(gl.EQUAL, 0, 0xff);
+			// gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
 
 			//  renderer.render(scene1, camera);
 
-			renderer.render(scene2, playerCamera);
+			renderer.render(scene3, playerCamera);
 
 			// disable stencil test
-			gl.disable(gl.STENCIL_TEST);
+			// gl.disable(gl.STENCIL_TEST);
 
-			// inset scene
 
-			renderer.setClearColor(0xbbbbbb, 0.5);
 
-			renderer.clearDepth(); // important!
 
-			renderer.setScissorTest(true);
+			// // inset scene
 
-			renderer.setScissor(20, 20, insetWidth, insetHeight);
+			// renderer.setClearColor(0xbbbbbb, 0.5);
 
-			renderer.setViewport(20, 20, insetWidth, insetHeight);
+			// // renderer.clearDepth(); // important!
 
-			renderer.clear();
+			// renderer.setScissorTest(true);
 
-			renderer.render(overviewScene, overviewCamera);
+			// renderer.setScissor(20, 20, insetWidth, insetHeight);
 
-			renderer.setScissorTest(false);			
+			// renderer.setViewport(20, 20, insetWidth, insetHeight);
+
+			// renderer.clear();
+
+			// renderer.render(overviewScene, overviewCamera);
+
+			// renderer.setScissorTest(false);			
 		}
 
-		function onWindowResize() {
+		function onWindowResize() 
+		{
 			renderer.setSize(window.innerWidth, window.innerHeight);
 			playerCamera.aspect = window.innerWidth / window.innerHeight;
 			playerCamera.updateProjectionMatrix();
@@ -310,6 +325,33 @@
 
 			overviewCamera.aspect = insetWidth / insetHeight;
 			overviewCamera.updateProjectionMatrix();			
+		}
+
+		async function loadScene(options) 
+		{
+			// options = { name: '', color:, emissive:, background,  geometry, geometryCount }
+
+			if(gltfLoader === undefined || gltfLoader === null)
+			{
+				gltfLoader = new GLTFLoader();
+	            gltfLoader.setPath( '.media/' );     
+			}
+
+			let scene = null;
+                
+			await gltfLoader.loadAsync(options.name).then((gltf) => 
+			{
+				scene = gltf.scene;
+			});   	
+			
+			const lights = [];
+
+			lights[ 0 ] = new THREE.DirectionalLight( 0xffffff, 3 );
+			lights[ 0 ].position.set( 200, 50, 100 );
+
+			scene.add( lights[ 0 ] );
+
+			return scene;
 		}
 
 		function buildScene(options)
