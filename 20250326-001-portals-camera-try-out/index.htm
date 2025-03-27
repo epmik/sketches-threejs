@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>three.js - pointerlock controls</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="main.css">
+	<style>
+		#blocker {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+			background-color: rgba(0, 0, 0, 0.5);
+		}
+
+		#instructions {
+			width: 100%;
+			height: 100%;
+
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+
+			text-align: center;
+			font-size: 14px;
+			cursor: pointer;
+		}
+	</style>
+</head>
+
+<body>
+	<!-- <div id="blocker">
+		<div id="instructions">
+			<p style="font-size:36px">
+				Click to play
+			</p>
+			<p>
+				Move: WASD<br />
+				Jump: SPACE<br />
+				Look: MOUSE
+			</p>
+		</div>
+	</div> -->
+
+	<script type="importmap">
+			{
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+					"three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+				}
+			}
+		</script>
+
+	<script type="module">
+
+		import * as THREE from 'three';
+
+		import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+		import { CameraControls } from './.js/CameraControls.js';
+
+		import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
+
+// Scene setup
+const scene = new THREE.Scene();
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Main Camera (Random Movement & Rotation)
+const mainCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10);
+mainCamera.position.set(0, 3, 5);
+scene.add(mainCamera);
+
+// Create Camera Helper to visualize frustum
+const cameraHelper = new THREE.CameraHelper(mainCamera);
+// scene.add(cameraHelper);
+
+// Top-Down Camera (User Controlled)
+const topDownCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100);
+topDownCamera.position.set(0, 40, 0);
+topDownCamera.lookAt(0, 0, 0);
+scene.add(topDownCamera);
+
+// Controls for the Top-Down Camera
+const controls = new FirstPersonControls(topDownCamera, renderer.domElement);
+controls.lookSpeed = 0;
+controls.movementSpeed = 5;
+
+// Override key handling to allow up/down movement
+const keys = { forward: false, backward: false, left: false, right: false, up: false, down: false };
+
+document.addEventListener("keydown", (event) => {
+    if (event.code === "KeyW") keys.forward = true;
+    if (event.code === "KeyS") keys.backward = true;
+    if (event.code === "KeyA") keys.left = true;
+    if (event.code === "KeyD") keys.right = true;
+    if (event.code === "KeyR") keys.down = true; // Move down
+    if (event.code === "KeyF") keys.up = true; // Move up
+});
+
+document.addEventListener("keyup", (event) => {
+    if (event.code === "KeyW") keys.forward = false;
+    if (event.code === "KeyS") keys.backward = false;
+    if (event.code === "KeyA") keys.left = false;
+    if (event.code === "KeyD") keys.right = false;
+    if (event.code === "KeyR") keys.down = false;
+    if (event.code === "KeyF") keys.up = false;
+});
+
+// Update function to handle movement
+function updateTopDownCamera(delta) {
+    const speed = controls.movementSpeed * delta;
+    const moveDirection = new THREE.Vector3();
+
+    if (keys.forward) moveDirection.z -= speed;
+    if (keys.backward) moveDirection.z += speed;
+    if (keys.left) moveDirection.x -= speed;
+    if (keys.right) moveDirection.x += speed;
+    if (keys.up) moveDirection.y += speed;
+    if (keys.down) moveDirection.y -= speed;
+
+    topDownCamera.position.add(moveDirection);
+}
+
+const groundSize = 40;
+const groundSizeHalf = groundSize / 2;
+// Ground Plane
+const groundPlaneGeometry = new THREE.PlaneGeometry(groundSize, groundSize, groundSizeHalf / 2, groundSizeHalf / 2);
+
+const groundMesh = new THREE.Mesh(
+    groundPlaneGeometry,
+    new THREE.MeshBasicMaterial({ color: 0x555555, wireframe: true })
+);
+groundMesh.rotation.x = -Math.PI / 2;
+scene.add(groundMesh);
+
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+const groundPlaneHelper = new THREE.PlaneHelper(groundPlane, 5, 0xff0000);
+scene.add(groundPlaneHelper);
+
+// Random Cubes
+for (let i = 0; i < 10; i++) {
+    const cube = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshBasicMaterial({ color: Math.random() * 0xffffff })
+    );
+    cube.position.set(
+        THREE.MathUtils.randFloat(-groundSizeHalf, groundSizeHalf),
+        THREE.MathUtils.randFloat(0.5, 5),
+        THREE.MathUtils.randFloat(-groundSizeHalf, groundSizeHalf)
+    );
+    scene.add(cube);
+}
+
+// Frustum Plane Helpers
+const planeHelpers = [];
+const frustumPlanes = {};
+
+for (const key of ["right", "left", "top", "bottom", "near", "far"]) {
+    frustumPlanes[key] = new THREE.Plane();
+    const helper = new THREE.PlaneHelper(frustumPlanes[key], 50, 0xff0000);
+    planeHelpers.push(helper);
+    scene.add(helper);
+}
+
+// Frustum Corner Markers
+const frustumCorners = {};
+const cornerSpheres = {};
+const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+
+for (const key of [
+    "frontBottomLeft", "frontBottomRight", "frontTopLeft", "frontTopRight",
+    "backBottomLeft", "backBottomRight", "backTopLeft", "backTopRight"
+]) {
+    frustumCorners[key] = new THREE.Vector3();
+    cornerSpheres[key] = new THREE.Mesh(new THREE.SphereGeometry(0.25), sphereMaterial);
+    scene.add(cornerSpheres[key]);
+}
+
+// Function to Extract Frustum Planes and Corners
+function updateFrustum() {
+    // Compute View-Projection Matrix
+    const viewProjectionMatrix = new THREE.Matrix4().multiplyMatrices(mainCamera.projectionMatrix, mainCamera.matrixWorldInverse);
+    
+    // Update Frustum Planes
+    const me = viewProjectionMatrix.elements;
+    frustumPlanes.right.set(me[3] - me[0], me[7] - me[4], me[11] - me[8], me[15] - me[12]).normalize();
+    frustumPlanes.left.set(me[3] + me[0], me[7] + me[4], me[11] + me[8], me[15] + me[12]).normalize();
+    frustumPlanes.bottom.set(me[3] + me[1], me[7] + me[5], me[11] + me[9], me[15] + me[13]).normalize();
+    frustumPlanes.top.set(me[3] - me[1], me[7] - me[5], me[11] - me[9], me[15] - me[13]).normalize();
+    frustumPlanes.near.set(me[3] + me[2], me[7] + me[6], me[11] + me[10], me[15] + me[14]).normalize();
+    frustumPlanes.far.set(me[3] - me[2], me[7] - me[6], me[11] - me[10], me[15] - me[14]).normalize();
+
+    // Update Plane Helpers
+    planeHelpers.forEach(helper => helper.updateMatrixWorld(true));
+
+    // Compute Frustum Corners in World Space
+    const invMatrix = new THREE.Matrix4().copy(viewProjectionMatrix).invert();
+    const ndcCorners = {
+        frontBottomLeft: new THREE.Vector3(-1, -1, -1),
+        frontBottomRight: new THREE.Vector3(1, -1, -1),
+        frontTopLeft: new THREE.Vector3(-1, 1, -1),
+        frontTopRight: new THREE.Vector3(1, 1, -1),
+        backBottomLeft: new THREE.Vector3(-1, -1, 1),
+        backBottomRight: new THREE.Vector3(1, -1, 1),
+        backTopLeft: new THREE.Vector3(-1, 1, 1),
+        backTopRight: new THREE.Vector3(1, 1, 1)
+    };
+
+    for (const key in ndcCorners) {
+        frustumCorners[key].copy(ndcCorners[key]).applyMatrix4(invMatrix);
+        cornerSpheres[key].position.copy(frustumCorners[key]);
+    }
+}
+
+function moveMainCamera() {
+    const direction = new THREE.Vector3(
+        THREE.MathUtils.randFloat(-1, 1),
+        0,
+        THREE.MathUtils.randFloat(-1, 1)
+    ).normalize();
+    
+    const speed = 2;
+    const moveTime = 5000; // Move for 2 seconds
+
+    function moveStep() {
+        mainCamera.position.addScaledVector(direction, speed * 0.02); // Move 0.02 * speed units per frame
+        updateFrustum();
+    }
+
+    // Move camera for 2 seconds
+    const moveInterval = setInterval(moveStep, 20);
+
+    setTimeout(() => {
+        clearInterval(moveInterval); // Stop movement
+        rotateMainCamera(); // Rotate after movement
+    }, moveTime);
+}
+
+function rotateMainCamera() {
+    const rotation = new THREE.Euler(
+        0, 
+        THREE.MathUtils.randFloat(-Math.PI, Math.PI),
+        0
+    );
+
+    mainCamera.quaternion.setFromEuler(rotation);
+    moveMainCamera(); // Restart the movement cycle
+}
+
+
+// Start the camera movement loop
+moveMainCamera();
+
+const clock = new THREE.Clock(); // Create a clock to track delta time
+
+// Render Loop
+function animate() 
+{
+    requestAnimationFrame(animate);
+
+	const delta = clock.getDelta(); // Get the time difference since the last frame
+
+    // controls.update(delta);
+	updateTopDownCamera(delta);
+
+	cameraHelper.update();
+    renderer.render(scene, topDownCamera);
+}
+
+animate();
+
+// Handle Window Resize
+window.addEventListener('resize', () => {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    topDownCamera.aspect = window.innerWidth / window.innerHeight;
+    topDownCamera.updateProjectionMatrix();
+});
+
+
+	</script>
+</body>
+
+</html>
