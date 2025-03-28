@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Three.js Portal Scene (r0.169.0)</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      canvas {
+        display: block;
+      }
+      #instructions {
+        position: absolute;
+        top: 50%;
+        width: 100%;
+        text-align: center;
+        color: white;
+        font-size: 20px;
+        z-index: 100;
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="instructions">Click to play</div>
+	<script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+            }
+        }
+    </script>
+
+<script type="module">
+
+    import * as THREE from 'three';
+
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+    import { CameraControls } from './.js/CameraControls.js';
+
+    import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
+
+  let camera, scene, renderer, controls;
+      let portal;
+      const frustum = new THREE.Frustum();
+      const cameraViewProjectionMatrix = new THREE.Matrix4();
+
+      // Variables for keyboard movement
+      const move = { forward: false, backward: false, left: false, right: false };
+      const velocity = new THREE.Vector3();
+      const direction = new THREE.Vector3();
+      const speed = 100;
+      let prevTime = performance.now();
+
+      init();
+      animate();
+
+      function init() {
+        // Create scene and camera
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x808080);
+
+        camera = new THREE.PerspectiveCamera(
+          45,
+          window.innerWidth / window.innerHeight,
+          1,
+          1000
+        );
+        camera.position.set(0, 10, 50);
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Create a 50x50 plane (aligned along the xz-plane)
+        const planeGeometry = new THREE.PlaneGeometry(50, 50);
+        const planeMaterial = new THREE.MeshBasicMaterial({
+          color: 0x999999,
+          side: THREE.DoubleSide
+        });
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+        plane.rotation.x = -Math.PI / 2;
+        scene.add(plane);
+
+        // Create the portal: a quad along the xy-plane
+        const portalGeometry = new THREE.PlaneGeometry(5, 10);
+        const yellowMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffff00,
+          side: THREE.DoubleSide
+        });
+        portal = new THREE.Mesh(portalGeometry, yellowMaterial);
+        // Position the portal (e.g., centered above the plane)
+        portal.position.set(0, 5, 0);
+        // Random rotation around the y-axis
+        portal.rotation.y = Math.random() * Math.PI * 2;
+        scene.add(portal);
+
+        // Optional: add some ambient light
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        // Set up PointerLockControls for mouse look and keyboard movement
+        controls = new PointerLockControls(camera, document.body);
+        const instructions = document.getElementById("instructions");
+
+        instructions.addEventListener("click", function () {
+          controls.lock();
+        });
+
+        controls.addEventListener("lock", function () {
+          instructions.style.display = "none";
+        });
+
+        controls.addEventListener("unlock", function () {
+          instructions.style.display = "block";
+        });
+
+        // Keyboard event listeners for movement
+        document.addEventListener("keydown", onKeyDown, false);
+        document.addEventListener("keyup", onKeyUp, false);
+
+        window.addEventListener("resize", onWindowResize, false);
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+
+      function onKeyDown(event) {
+        switch (event.code) {
+          case "KeyW":
+            move.forward = true;
+            break;
+          case "KeyS":
+            move.backward = true;
+            break;
+          case "KeyA":
+            move.left = true;
+            break;
+          case "KeyD":
+            move.right = true;
+            break;
+        }
+      }
+
+      function onKeyUp(event) {
+        switch (event.code) {
+          case "KeyW":
+            move.forward = false;
+            break;
+          case "KeyS":
+            move.backward = false;
+            break;
+          case "KeyA":
+            move.left = false;
+            break;
+          case "KeyD":
+            move.right = false;
+            break;
+        }
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+
+        const time = performance.now();
+        const delta = (time - prevTime) / 1000;
+        prevTime = time;
+
+        // Update movement based on keyboard input
+        velocity.x -= velocity.x * 10.0 * delta;
+        velocity.z -= velocity.z * 10.0 * delta;
+
+        direction.z = Number(move.forward) - Number(move.backward);
+        direction.x = Number(move.right) - Number(move.left);
+        direction.normalize();
+
+        if (move.forward || move.backward) velocity.z -= direction.z * speed * delta;
+        if (move.left || move.right) velocity.x -= direction.x * speed * delta;
+
+        // Move the camera using PointerLockControls methods
+        controls.moveRight(-velocity.x * delta);
+        controls.moveForward(-velocity.z * delta);
+
+        // // Update the camera's matrices and compute the view-projection matrix
+        // camera.updateMatrixWorld();
+        // cameraViewProjectionMatrix.multiplyMatrices(
+        //   camera.projectionMatrix,
+        //   camera.matrixWorldInverse.copy(camera.matrixWorld).invert()
+        // );
+        // frustum.setFromProjectionMatrix(cameraViewProjectionMatrix);
+
+        // Check if the portal is inside the camera frustum
+        if (isQuadIntersectingFrustum(portal, camera)) {
+          portal.material.color.set(0xff0000); // red when visible
+        } else {
+          portal.material.color.set(0xffff00); // yellow when not visible
+          console.log('yell');
+        }
+
+        renderer.render(scene, camera);
+      }
+
+// Returns an array of unique world-space vertices for the given mesh.
+function getQuadWorldVertices(mesh) {
+  const vertices = [];
+  const posAttr = mesh.geometry.attributes.position;
+  // Transform each vertex to world space.
+  for (let i = 0; i < posAttr.count; i++) {
+    const v = new THREE.Vector3().fromBufferAttribute(posAttr, i);
+    mesh.localToWorld(v);
+    // Only add if not nearly equal to an already added vertex.
+    if (!vertices.some(u => u.distanceToSquared(v) < 1e-6)) {
+      vertices.push(v);
+    }
+  }
+  return vertices;
+}
+
+// Transforms a world-space vertex into normalized device coordinates (NDC).
+function worldToNDC(vertex, mvpMatrix) {
+  const v4 = new THREE.Vector4(vertex.x, vertex.y, vertex.z, 1);
+  v4.applyMatrix4(mvpMatrix);
+  // Perform perspective divide.
+  return new THREE.Vector3(v4.x / v4.w, v4.y / v4.w, v4.z / v4.w);
+}
+
+// Clip a polygon (given as an array of THREE.Vector3 in NDC) against one plane.
+// axis: 'x', 'y', or 'z'. sign: -1 for lower bound (-1), 1 for upper bound (1).
+function clipPolygon(polygon, axis, sign) {
+  const clipped = [];
+  const bound = sign === -1 ? -1 : 1;
+  const len = polygon.length;
+  for (let i = 0; i < len; i++) {
+    const current = polygon[i];
+    const prev = polygon[(i + len - 1) % len];
+    const currentInside = sign === -1 ? current[axis] >= bound : current[axis] <= bound;
+    const prevInside = sign === -1 ? prev[axis] >= bound : prev[axis] <= bound;
+    
+    // If the edge crosses the boundary, compute intersection.
+    if (currentInside !== prevInside) {
+      const t = (bound - prev[axis]) / (current[axis] - prev[axis]);
+      const intersect = prev.clone().lerp(current, t);
+      clipped.push(intersect);
+    }
+    if (currentInside) {
+      clipped.push(current);
+    }
+  }
+  return clipped;
+}
+
+// Returns true if the quad (mesh) intersects the view frustum accurately.
+function isQuadIntersectingFrustum(mesh, camera) {
+  // Compute the view-projection matrix.
+  const vpMatrix = new THREE.Matrix4();
+  vpMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+
+  // Get the quad's unique world vertices.
+  const worldVerts = getQuadWorldVertices(mesh);
+  if (worldVerts.length === 0) return false;
+  
+  // Transform vertices to normalized device coordinates.
+  let polygon = worldVerts.map(v => worldToNDC(v, vpMatrix));
+  
+  // Clip the polygon against the 6 clip planes in NDC.
+  polygon = clipPolygon(polygon, "x", -1);
+  if (polygon.length === 0) return false;
+  polygon = clipPolygon(polygon, "x", 1);
+  if (polygon.length === 0) return false;
+  polygon = clipPolygon(polygon, "y", -1);
+  if (polygon.length === 0) return false;
+  polygon = clipPolygon(polygon, "y", 1);
+  if (polygon.length === 0) return false;
+  polygon = clipPolygon(polygon, "z", -1);
+  if (polygon.length === 0) return false;
+  polygon = clipPolygon(polygon, "z", 1);
+  if (polygon.length === 0) return false;
+
+  // If after clipping we have any vertices left, the quad is at least partially visible.
+  return polygon.length > 0;
+}
+
+    </script>
+  </body>
+</html>

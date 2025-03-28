@@ -75,10 +75,10 @@ scene.add(mainCamera);
 
 // Create Camera Helper to visualize frustum
 const cameraHelper = new THREE.CameraHelper(mainCamera);
-// scene.add(cameraHelper);
+scene.add(cameraHelper);
 
 // Top-Down Camera (User Controlled)
-const topDownCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 100);
+const topDownCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
 topDownCamera.position.set(0, 40, 0);
 topDownCamera.lookAt(0, 0, 0);
 scene.add(topDownCamera);
@@ -161,7 +161,7 @@ const frustumPlanes = {};
 
 for (const key of ["right", "left", "top", "bottom", "near", "far"]) {
     frustumPlanes[key] = new THREE.Plane();
-    const helper = new THREE.PlaneHelper(frustumPlanes[key], 50, 0xff0000);
+    const helper = new THREE.PlaneHelper(frustumPlanes[key], 5, 0xff0000);
     planeHelpers.push(helper);
     scene.add(helper);
 }
@@ -187,12 +187,14 @@ function updateFrustum() {
     
     // Update Frustum Planes
     const me = viewProjectionMatrix.elements;
-    frustumPlanes.right.set(me[3] - me[0], me[7] - me[4], me[11] - me[8], me[15] - me[12]).normalize();
-    frustumPlanes.left.set(me[3] + me[0], me[7] + me[4], me[11] + me[8], me[15] + me[12]).normalize();
-    frustumPlanes.bottom.set(me[3] + me[1], me[7] + me[5], me[11] + me[9], me[15] + me[13]).normalize();
-    frustumPlanes.top.set(me[3] - me[1], me[7] - me[5], me[11] - me[9], me[15] - me[13]).normalize();
-    frustumPlanes.near.set(me[3] + me[2], me[7] + me[6], me[11] + me[10], me[15] + me[14]).normalize();
-    frustumPlanes.far.set(me[3] - me[2], me[7] - me[6], me[11] - me[10], me[15] - me[14]).normalize();
+    frustumPlanes.right.setComponents(me[3] - me[0], me[7] - me[4], me[11] - me[8], me[15] - me[12]).normalize();
+    frustumPlanes.left.setComponents(me[3] + me[0], me[7] + me[4], me[11] + me[8], me[15] + me[12]).normalize();
+    frustumPlanes.bottom.setComponents(me[3] + me[1], me[7] + me[5], me[11] + me[9], me[15] + me[13]).normalize();
+    frustumPlanes.top.setComponents(me[3] - me[1], me[7] - me[5], me[11] - me[9], me[15] - me[13]).normalize();
+    frustumPlanes.near.setComponents(me[3] + me[2], me[7] + me[6], me[11] + me[10], me[15] + me[14]).normalize();
+    frustumPlanes.far.setComponents(me[3] - me[2], me[7] - me[6], me[11] - me[10], me[15] - me[14]).normalize();
+
+    // scene.add(new THREE.PlaneHelper(frustumPlanes.bottom, 5, 0xff0000));
 
     // Update Plane Helpers
     planeHelpers.forEach(helper => helper.updateMatrixWorld(true));
