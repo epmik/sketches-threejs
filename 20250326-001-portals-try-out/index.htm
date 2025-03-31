@@ -94,12 +94,12 @@
       scene.background = new THREE.Color(0x808080);
 
       camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, cameraNear, cameraFar);
-      camera.position.set(0, 10, 50);
+      camera.position.set(0, 1, 5);
       scene.add(camera);
 
       // Create overview camera positioned high above, looking down.
       overviewCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
-      overviewCamera.position.set(0, 200, 0);
+      overviewCamera.position.set(0, 100, 0);
       // Adjust up vector so that when looking down, the "forward" direction is intuitive.
       overviewCamera.up.set(0, 0, -1);
       overviewCamera.lookAt(new THREE.Vector3(0, 0, 0));
@@ -113,9 +113,10 @@
       fillScene(scene, 16);
 
       // Create the portal: a quad along the xy-plane
-      portal = new Portal({ width: 5, height: 10, position : new THREE.Vector3(0, 5, 0), color: 0xff0000, opacity: 0.5 });
-      portal.position.set(0, 5, 0);
-      portal.normal = _sceneRandomGenerator.UnitVector(true, false, true);
+      portal = new Portal({ width: 1, height: 2, color: 0xff0000, opacity: 0.5 });
+      portal.position.set(0, 1, 0);
+      portal.normal.set(0.707, 0, 0.707);// _sceneRandomGenerator.UnitVector(true, false, true);
+      portal.update();
       scene.add(portal);
 
       cameraFrustum = new CameraFrustum(camera);
@@ -310,7 +311,7 @@
       {
         controls.moveRight(-velocity.x * delta);
         controls.moveForward(-velocity.z * delta);
-        camera.position.y += velocity.y * delta;
+        camera.position.y -= velocity.y * delta;
       }
       else if (allowOverviewMovement)
       {
@@ -383,7 +384,7 @@
       }
 
       // Create and add ground plane
-      const planeGeometry = new THREE.PlaneGeometry(50, 50);
+      const planeGeometry = new THREE.PlaneGeometry(10, 10);
       const planeMaterial = new THREE.MeshStandardMaterial({ color: getRandomBrightColor(), side: THREE.DoubleSide });
       const plane = new THREE.Mesh(planeGeometry, planeMaterial);
       plane.rotation.x = -Math.PI / 2; // Make it horizontal
@@ -392,15 +393,15 @@
       // Create and add cubes
       for (let i = 0; i < count; i++) 
       {
-        const cubeGeometry = new THREE.BoxGeometry(2.5, 2.5, 2.5);
+        const cubeGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
         const cubeMaterial = new THREE.MeshStandardMaterial({ color: getRandomBrightColor() });
         const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
 
         // Random position within the 50x50 plane
         cube.position.set(
-          _sceneRandomGenerator.Single(-24, 24), // X position
-          1.25, // Y position (so it sits on the plane)
-          _sceneRandomGenerator.Single(-24, 24)  // Z position
+          _sceneRandomGenerator.Single(-4, 4), // X position
+          0.25, // Y position (so it sits on the plane)
+          _sceneRandomGenerator.Single(-4, 4)  // Z position
         );
 
         // Random rotation
