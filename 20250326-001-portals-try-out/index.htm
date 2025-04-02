@@ -54,6 +54,7 @@
     import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
     import { FirstPersonControls } from 'three/addons/controls/FirstPersonControls.js';
     import { Portal } from './.js/Portal.js';
+    import { PortalHelper } from './.js/PortalHelper.js';
     import { PortalFrustum } from './.js/PortalFrustum.js';
     import { PortalFrustumHelper } from './.js/PortalFrustumHelper.js';
     import { CameraFrustum } from './.js/CameraFrustum.js';
@@ -62,7 +63,7 @@
 
     let camera, scene, renderer, controls, cameraFrustum, cameraFrustumHelper;
     let overviewCamera, overviewControls;
-    let portal;
+    let portal, portalHelper;
     let showOverview = false;
     let allowOverviewMovement = false;
 
@@ -112,12 +113,22 @@
 
       fillScene(scene, 16);
 
-      // Create the portal: a quad along the xy-plane
-      portal = new Portal({ width: 1, height: 2, color: 0xff0000, opacity: 0.5 });
+      // Create and configure the portal.
+      portal = new Portal({
+        width: 1,
+        height: 2,
+        color: 0xff0000,
+        opacity: 0.5
+      });
       portal.position.set(0, 1, 0);
-      portal.normal.set(0.707, 0, 0.707);// _sceneRandomGenerator.UnitVector(true, false, true);
+      portal.normal.set(0.707, 0, 0.707);
       portal.update();
       scene.add(portal);
+
+      // Create the helper for the portal and add it to the scene.
+      portalHelper = new PortalHelper(portal);
+      portalHelper.update();
+      scene.add(portalHelper);
 
       cameraFrustum = new CameraFrustum(camera);
 
