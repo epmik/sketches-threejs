@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Dynamic Portal Game with Modules</title>
+    <style>
+      body { margin: 0; overflow: hidden; }
+      canvas { display: block; }
+    </style>
+    <script type="importmap">
+      {
+          "imports": {
+              "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+              "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+          }
+      }
+    </script>
+  </head>
+  <body>
+    <script type="module">
+      import * as THREE from 'three';
+      import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+      
+      // -------- CONFIGURATION --------
+      const NUM_SCENES = 4; // change to generate more/less scenes
+      const PORTAL_WIDTH = 1;
+      const PORTAL_HEIGHT = 2;
+      const PORTAL_DISTANCE = 5; // distance from scene center to portal
+      
+      // -------- GLOBALS --------
+      let renderer, mainCamera, controls, clock;
+      let currentSceneIndex = 0; // start at scene 0
+      const scenes = []; // holds our scene objects
+      
+      //
+      const move = { forward: false, backward: false, left: false, right: false, up: false, down: false };
+    const velocity = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    const speed = 100;
+
+//  Each scene will store its portals in userData.portals
+      
+      // -------- UTILITY FUNCTIONS --------
+      function createRoom(color) {
+        // Create a simple room with a floor and a directional light.
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(color);
+        
+        // Floor
+        const floorGeo = new THREE.PlaneGeometry(20, 20);
+        const floorMat = new THREE.MeshPhongMaterial({ color: 0x808080 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+        
+        // Light
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(10, 10, 10);
+        scene.add(light);
+        
+        return scene;
+      }
+      
+      function createPortalMesh(renderTarget) {
+        // Create a portal mesh using a plane with the render target texture.
+        const geometry = new THREE.PlaneGeometry(PORTAL_WIDTH, PORTAL_HEIGHT);
+        const material = new THREE.MeshBasicMaterial({
+          map: renderTarget.texture,
+          side: THREE.DoubleSide
+        });
+        return new THREE.Mesh(geometry, material);
+      }
+      
+      // -------- SCENE & PORTAL SETUP --------
+      function generateScenes(num) {
+        // Create a simple chain of scenes:
+        // Scene 0: one portal (to scene 1).
+        // Scenes 1 to n-2: two portals (one back, one forward).
+        // Scene n-1: one portal (back to previous scene).
+        const order = [];
+        for (let i = 0; i < num; i++) order.push(i);
+        // Shuffle order for scenes except for the first (optional)
+        const rest = order.slice(1);
+        for (let i = rest.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [rest[i], rest[j]] = [rest[j], rest[i]];
+        }
+        order.splice(1, rest.length, ...rest);
+        
+        // Create scenes
+        for (let i = 0; i < num; i++) {
+          // Use a distinct background hue for each scene.
+          const hue = (i / num) * 360;
+          const scene = createRoom(`hsl(${hue}, 50%, 50%)`);
+          scene.userData.index = order[i]; // store scene chain index
+          scene.userData.portals = []; // will hold portal data
+          scenes.push(scene);
+        }
+        
+        // Create portals for each scene
+        for (let i = 0; i < num; i++) {
+          const scene = scenes[i];
+          function addPortal(destSceneIndex, position, rotationY) {
+            // Create render target for the portal view.
+            const renderTarget = new THREE.WebGLRenderTarget(512, 512);
+            // Create the portal mesh.
+            const portalMesh = createPortalMesh(renderTarget);
+            portalMesh.position.copy(position);
+            portalMesh.rotation.y = rotationY; // only rotate along Y
+            scene.add(portalMesh);
+            // Create a virtual camera for rendering the destination.
+            const virtualCam = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+            scene.userData.portals.push({
+              mesh: portalMesh,
+              destSceneIndex,
+              renderTarget,
+              virtualCam,
+              destPortal: null // will be assigned later
+            });
+          }
+          
+          // For the first scene: one forward portal.
+          if(i === 0 && num > 1) {
+            addPortal(1, new THREE.Vector3(0, PORTAL_HEIGHT / 2, -PORTAL_DISTANCE), 0);
+          }
+          // For the last scene: one portal going back.
+          else if(i === num - 1 && num > 1) {
+            addPortal(num - 2, new THREE.Vector3(0, PORTAL_HEIGHT / 2, PORTAL_DISTANCE), Math.PI);
+          }
+          // For intermediate scenes: one back and one forward portal.
+          else if(num > 2) {
+            addPortal(i - 1, new THREE.Vector3(-PORTAL_WIDTH - 0.5, PORTAL_HEIGHT / 2, 0), Math.PI / 2);
+            addPortal(i + 1, new THREE.Vector3(PORTAL_WIDTH + 0.5, PORTAL_HEIGHT / 2, 0), -Math.PI / 2);
+          }
+        }
+        
+        // Link destination portal meshes between scenes.
+        scenes.forEach((scene) => {
+          scene.userData.portals.forEach((portal) => {
+            const destScene = scenes[portal.destSceneIndex];
+            // For simplicity, use the first portal in the destination scene that points back.
+            const destPortal = destScene.userData.portals.find(p => p.destSceneIndex === scene.userData.index);
+            portal.destPortal = destPortal ? destPortal.mesh : null;
+          });
+        });
+      }
+      
+      // -------- INITIALIZATION --------
+      function init() {
+        clock = new THREE.Clock();
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        
+        // Main camera & controls (player's view)
+        mainCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        mainCamera.position.set(0, 1.6, 5);
+        controls = new PointerLockControls(mainCamera, document.body);
+        document.addEventListener('click', () => controls.lock());
+        
+        // Generate dynamic scenes
+        generateScenes(NUM_SCENES);
+
+      // Keyboard event listeners for main camera movement.
+      document.addEventListener("keydown", onKeyDown, false);
+      document.addEventListener("keyup", onKeyUp, false);
+
+        window.addEventListener('resize', onWindowResize, false);
+        
+        animate();
+      }
+      
+      function onWindowResize() {
+        mainCamera.aspect = window.innerWidth / window.innerHeight;
+        mainCamera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+      
+      // -------- PORTAL RENDERING --------
+      function updatePortals() {
+        const currentScene = scenes[currentSceneIndex];
+        currentScene.userData.portals.forEach(portal => {
+          const destScene = scenes[portal.destSceneIndex];
+          // Set up the virtual camera for the destination scene.
+          if (portal.destPortal) {
+            portal.destPortal.getWorldPosition(portal.virtualCam.position);
+            const portalNormal = new THREE.Vector3(0, 0, 1).applyQuaternion(portal.destPortal.quaternion);
+            portal.virtualCam.lookAt(portal.virtualCam.position.clone().add(portalNormal));
+          } else {
+            portal.virtualCam.position.set(0, 1.6, 5);
+            portal.virtualCam.lookAt(new THREE.Vector3(0, 1.6, 0));
+          }
+          // Render the destination scene into the portal's render target.
+          renderer.setRenderTarget(portal.renderTarget);
+          renderer.render(destScene, portal.virtualCam);
+          renderer.setRenderTarget(null);
+        });
+      }
+      
+      // -------- SCENE TRANSITION CHECK --------
+      function checkPortalTransition() {
+        const currentScene = scenes[currentSceneIndex];
+        currentScene.userData.portals.forEach(portal => {
+          const portalPos = new THREE.Vector3();
+          portal.mesh.getWorldPosition(portalPos);
+          const distance = mainCamera.position.distanceTo(portalPos);
+          if(distance < 1.0) {
+            // Transition to the destination scene.
+            currentSceneIndex = portal.destSceneIndex;
+            if(portal.destPortal) {
+              const destPos = new THREE.Vector3();
+              portal.destPortal.getWorldPosition(destPos);
+              mainCamera.position.copy(destPos).add(new THREE.Vector3(0, 1.6, 1));
+            }
+          }
+        });
+      }
+
+      function onKeyDown(event) 
+    {
+      switch (event.code)
+      {
+        case "KeyW": case "ArrowUp": move.forward = true; break;
+        case "KeyS": case "ArrowDown": move.backward = true; break;
+        case "KeyA": case "ArrowLeft": move.left = true; break;
+        case "KeyD": case "ArrowRight": move.right = true; break;
+        case "PageUp": case "KeyR": move.up = true; break;
+        case "PageDown": case "KeyF": move.down = true; break;
+      }
+    }
+
+    function onKeyUp(event) 
+    {
+      switch (event.code)
+      {
+        case "KeyW": case "ArrowUp": move.forward = false; break;
+        case "KeyS": case "ArrowDown": move.backward = false; break;
+        case "KeyA": case "ArrowLeft": move.left = false; break;
+        case "KeyD": case "ArrowRight": move.right = false; break;
+        case "PageUp": case "KeyR": move.up = false; break;
+        case "PageDown": case "KeyF": move.down = false; break;
+      }
+    }      
+      // -------- ANIMATION LOOP --------
+      function animate() 
+      {
+        requestAnimationFrame(animate);
+
+        const delta = clock.getDelta();
+
+        velocity.x -= velocity.x * 10.0 * delta;
+        velocity.y -= velocity.y * 10.0 * delta;
+        velocity.z -= velocity.z * 10.0 * delta;
+
+        direction.z = Number(move.forward) - Number(move.backward);
+        direction.x = Number(move.right) - Number(move.left);
+        direction.y = Number(move.up) - Number(move.down);
+        direction.normalize();
+
+        if (move.forward || move.backward) velocity.z -= direction.z * speed * delta;
+        if (move.left || move.right) velocity.x -= direction.x * speed * delta;
+        if (move.up || move.down) velocity.y -= direction.y * speed * delta;
+
+        controls.moveRight(-velocity.x * delta);
+        controls.moveForward(-velocity.z * delta);
+        mainCamera.position.y -= velocity.y * delta;
+        
+        updatePortals();
+        checkPortalTransition();
+    
+        // Render the current scene.
+        renderer.render(scenes[currentSceneIndex], mainCamera);
+      }
+      
+      // -------- START --------
+      init();
+    </script>
+  </body>
+</html>
