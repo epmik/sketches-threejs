@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title></title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<!-- <script type="text/javascript" src="/js/date-extensions.js"></script> -->
+		<!-- <script src='https://unpkg.com/three-rt-helper'></script> -->
+	</head>
+
+	<body>
+        <div id="canvas-container">
+            <div id="gui-container">
+            </div>
+            <div id="info-container">
+                <div id="info-help-container">
+                    <div class="clickable" target="F9">Help (F9)</div>
+                </div>
+                <div id="info-text-container">
+                    <div class="clickable" target="F9">Toggle this information - F9</div>
+                    <div class="clickable" target="F5">Refresh page - F5</div>
+                    <div class="clickable" target="F10">Toggle GUI - F10</div>
+                    <div class="clickable" target="F11">Toggle fullscreen - F11</div>
+                </div>
+            </div>
+        </div>
+
+        <script type="module">
+
+            import $ from 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/+esm'
+            import P5 from 'https://cdn.jsdelivr.net/npm/p5@1.11.2/+esm';
+            import Gui from 'https://cdn.jsdelivr.net/npm/lil-gui@0.20.0/+esm'
+            import { RandomGenerator } from './js/RandomGenerator.js';
+            import { OpenSimplexNoiseGenerator } from './js/OpenSimplexNoiseGenerator.js';
+
+            let _minCanvasWidth = 400, _minCanvasHeight = 400;
+            let _canvasHeight = _minCanvasHeight, _canvasWidth = _minCanvasWidth;
+            let _frameCount = 0;
+			let _mouseTimer = null;
+            let _canvasContainer, _guiContainer;
+
+            let _randomGenerator;       
+            let _noiseGenerator;   
+            
+            let _settings = {
+                squareCanvas: true,
+                orangeBackgroundColor: false,
+            }
+
+            const _gui = new Gui({ container : _guiContainer, width: 360 });
+
+			const Sketch = (p) => 
+			{
+                p.colors = {
+                    white : p.color(255, 255, 255),
+                    orange : p.color(255, 42, 0),
+                    yellow : p.color(254, 149, 0),
+                }
+
+				p.setup = () => 
+				{
+                    _canvasContainer = document.getElementById('canvas-container');
+                    _guiContainer = document.getElementById('gui-container');
+
+                    _randomGenerator = new RandomGenerator();
+                    _noiseGenerator = new OpenSimplexNoiseGenerator();
+
+					p.createCanvas(_canvasWidth, _canvasHeight, "webgl");
+
+                    p.resize();
+
+                    _gui.add( _settings, 'orangeBackgroundColor' );  // Checkbox
+
+                    window.addEventListener( 'focus', function() { console.log('window focus') } );
+                    window.addEventListener( 'blur', function() { console.log('window blur') } );
+
+                    p.mouseMoved();
+				}
+
+                p.draw = () => 
+				{
+                    _frameCount++;
+
+                    p.background(_settings.orangeBackgroundColor ? p.colors.orange : p.colors.yellow);
+
+                    p.noStroke();
+
+                    // p.circle(200,200,100);
+
+                    // p.quad(50, 62, 86, 50, 50, 38, 14, 50);
+
+                    p.fill(_settings.orangeBackgroundColor ? p.colors.yellow : p.colors.orange);
+
+                    // p.drawSpiral(0, 0, 5, 15, 1, 16);
+
+                    // p.drawCircles2(0, 0, 20);
+                    p.drawSpirals3(0, 0, 20);
+
+                    // p.drawSpiral(0, 0, 2);
+				}
+
+                // p.drawSpiral = (x, y, rotations, pointsPerRotation = 10, spiralSpacing = 5) =>
+                // {
+                //     let totalPoints = rotations * pointsPerRotation;
+                //     let angleStep = (Math.PI * 2) / pointsPerRotation;
+
+                //     p.beginShape();
+                //     for (let i = 0; i < totalPoints; i++)
+                //     {
+                //         let angle = i * angleStep;
+                //         let radius = spiralSpacing * angle; // Archimedean spiral: r = a + bθ
+                //         let px = x + Math.cos(angle) * radius;
+                //         let py = y + Math.sin(angle) * radius;
+                //         p.vertex(px, py);
+                //     }
+                //     p.endShape();
+                // }
+
+                p.drawCircles = (x, y, count) =>
+                {
+                    var innerRadius = 5;
+                    var outerRadius = 15;
+
+                    for(let i = 0; i < count; i++)
+                    {
+                        p.drawCirle(x, y, innerRadius, outerRadius);
+
+                        innerRadius += 20;
+                        outerRadius += 20;
+                    }
+                }
+
+                p.drawCircles2 = (x, y, count) =>
+                {
+                    var parameters = {
+                        x: x,
+                        y: y,
+                        radius: 10,
+                        thickness: 10,
+                        angleStart: 0,
+                        angleLength: Math.PI * 2,
+                    };
+
+                    for(let i = 0; i < count; i++)
+                    {
+                        p.drawCirle2(parameters);
+
+                        parameters.radius += 20;
+                        parameters.segments = 0;
+                    }
+                }
+
+                p.drawSpirals2 = (x, y, count) =>
+                {
+                    var parameters = {
+                        x: x,
+                        y: y,
+                        radius: 10,
+                        thickness: 10,
+                        angleStart:0,
+                        angleEvolutions: count,
+                        radiusIncrement: 1,
+                    };
+
+                    var angleLength = parameters.angleEvolutions * Math.PI * 2;
+
+                    if(parameters.segments === undefined || parameters.segments === null || parameters.segments <= 0)
+                    {
+                        parameters.segments = 2 * Math.PI * parameters.radius / 4;
+                    }
+
+                    var segmentSize = Math.PI * 2 / parameters.segments;
+                    var innerRadius = parameters.radius - parameters.thickness * 0.5;
+                    var outerRadius = parameters.radius + parameters.thickness * 0.5;
+           
+                    for(var radians = parameters.angleStart; radians < parameters.angleStart + angleLength; radians += segmentSize)
+                    {
+                        var x1 = x + Math.cos(radians) * innerRadius;
+                        var y1 = y + Math.sin(radians) * innerRadius;
+                        var x3 = x + Math.cos(radians) * outerRadius;
+                        var y3 = y + Math.sin(radians) * outerRadius;
+
+                        innerRadius += parameters.radiusIncrement;
+                        outerRadius += parameters.radiusIncrement;
+
+                        var x2 = x + Math.cos(radians + segmentSize) * innerRadius;
+                        var y2 = y + Math.sin(radians + segmentSize) * innerRadius;
+                        var x4 = x + Math.cos(radians + segmentSize) * outerRadius;
+                        var y4 = y + Math.sin(radians + segmentSize) * outerRadius;
+
+                        p.quad(x1, y1, x2, y2, x4, y4, x3, y3);
+                    }
+         
+                }
+
+                p.drawSpirals3 = (x, y, count) =>
+                {
+                    var parameters = {
+                        x: x,
+                        y: y,
+                        radius: 0,
+                        thickness: 10,
+                        angleStart:Math.PI * -0.25,
+                        angleEvolutions: count,
+                        radiusIncrement: 16,
+                    };
+
+                    if(parameters.radius < parameters.thickness * 0.5)
+                    {
+                        parameters.radius = parameters.thickness * 0.5;
+                    }
+
+                    var angleLength = parameters.angleEvolutions * Math.PI * 2;
+                    var innerRadius = parameters.radius - parameters.thickness * 0.5;
+                    var outerRadius = parameters.radius + parameters.thickness * 0.5;
+                    var radians = 0, segments, segmentSize, increment;
+           
+                    for(var totalRadians = parameters.angleStart; totalRadians < parameters.angleStart + angleLength; )
+                    {
+                        if(radians == 0)
+                        {
+                            segments = 2 * Math.PI * outerRadius / 4;
+                            segmentSize = Math.PI / segments;
+                            increment = parameters.radiusIncrement / 2 / segments;
+                        }
+
+                        var x1 = x + Math.cos(totalRadians) * innerRadius;
+                        var y1 = y + Math.sin(totalRadians) * innerRadius;
+                        var x3 = x + Math.cos(totalRadians) * outerRadius;
+                        var y3 = y + Math.sin(totalRadians) * outerRadius;
+
+                        innerRadius += increment;
+                        outerRadius += increment;
+
+                        var x2 = x + Math.cos(totalRadians + segmentSize) * innerRadius;
+                        var y2 = y + Math.sin(totalRadians + segmentSize) * innerRadius;
+                        var x4 = x + Math.cos(totalRadians + segmentSize) * outerRadius;
+                        var y4 = y + Math.sin(totalRadians + segmentSize) * outerRadius;
+
+                        p.quad(x1, y1, x2, y2, x4, y4, x3, y3);
+
+                        totalRadians += segmentSize;
+                        radians += segmentSize;
+
+                        if(radians >= Math.PI)
+                        {
+                            radians = 0;
+                        }
+                    }         
+                }
+
+                p.drawCirle = (x, y, innerRadius, outerRadius, segments) => 
+                {
+                    if(segments === undefined || segments === null || segments <= 0)
+                    {
+                        segments = 2 * Math.PI * outerRadius / 4;
+                    }
+
+                    var radians = 0;
+                    var segmentSize = Math.PI * 2 / segments;
+
+                    for(radians = 0; radians < Math.PI * 2; radians += segmentSize)
+                    {
+                        var x1 = x + Math.cos(radians) * innerRadius;
+                        var y1 = y + Math.sin(radians) * innerRadius;
+                        var x2 = x + Math.cos(radians + segmentSize) * innerRadius;
+                        var y2 = y + Math.sin(radians + segmentSize) * innerRadius;
+
+                        var x3 = x + Math.cos(radians) * outerRadius;
+                        var y3 = y + Math.sin(radians) * outerRadius;
+                        var x4 = x + Math.cos(radians + segmentSize) * outerRadius;
+                        var y4 = y + Math.sin(radians + segmentSize) * outerRadius;
+
+                        p.quad(x1, y1, x2, y2, x4, y4, x3, y3);
+                    }
+                }
+
+                p.drawCirle2 = (parameters) => 
+                {
+                    if(parameters.radius === undefined || parameters.radius === null || parameters.radius <= 0)
+                    {
+                        parameters.radius = 1;
+                    }
+
+                    if(parameters.thickness === undefined || parameters.thickness === null || parameters.thickness <= 0)
+                    {
+                        parameters.thickness = 0.1;
+                    }
+
+                    if(parameters.angleStart === undefined || parameters.angleStart === null || parameters.angleStart < 0)
+                    {
+                        parameters.angleStart = 0;
+                    }
+                    
+                    if(parameters.angleLength === undefined || parameters.angleLength === null || parameters.angleLength <= 0)
+                    {
+                        parameters.angleLength = Math.PI * 2;
+                    }
+
+                    if(parameters.segments === undefined || parameters.segments === null || parameters.segments <= 0)
+                    {
+                        parameters.segments = 2 * Math.PI * parameters.radius / 4;
+                    }
+
+                    var segmentSize = Math.PI * 2 / parameters.segments;
+                    var innerRadius = parameters.radius - parameters.thickness * 0.5;
+                    var outerRadius = parameters.radius + parameters.thickness * 0.5;
+
+                    for(var radians = parameters.angleStart; radians < parameters.angleStart + parameters.angleLength; radians += segmentSize)
+                    {
+                        var x1 = parameters.x + Math.cos(radians) * innerRadius;
+                        var y1 = parameters.y + Math.sin(radians) * innerRadius;
+                        var x2 = parameters.x + Math.cos(radians + segmentSize) * innerRadius;
+                        var y2 = parameters.y + Math.sin(radians + segmentSize) * innerRadius;
+
+                        var x3 = parameters.x + Math.cos(radians) * outerRadius;
+                        var y3 = parameters.y + Math.sin(radians) * outerRadius;
+                        var x4 = parameters.x + Math.cos(radians + segmentSize) * outerRadius;
+                        var y4 = parameters.y + Math.sin(radians + segmentSize) * outerRadius;
+
+                        p.quad(x1, y1, x2, y2, x4, y4, x3, y3);
+                    }
+                }
+
+                p.drawSpiral = (x, y, innerRadius, outerRadius, radiusFactor, segments) => 
+                {
+                    if(segments === undefined || segments === null || segments <= 0)
+                    {
+                        segments = 2 * Math.PI * outerRadius / 4;
+                    }
+
+                    var radians = 0;
+                    var segmentSize = Math.PI * 2 / segments;
+
+                    for(radians = 0; radians < Math.PI * 2; radians += segmentSize)
+                    {
+                        var x1 = x + Math.cos(radians) * innerRadius;
+                        var y1 = y + Math.sin(radians) * innerRadius;
+                        var x3 = x + Math.cos(radians) * outerRadius;
+                        var y3 = y + Math.sin(radians) * outerRadius;
+
+                        innerRadius += radiusFactor;
+                        outerRadius += radiusFactor;
+
+                        var x2 = x + Math.cos(radians + segmentSize) * innerRadius;
+                        var y2 = y + Math.sin(radians + segmentSize) * innerRadius;
+                        var x4 = x + Math.cos(radians + segmentSize) * outerRadius;
+                        var y4 = y + Math.sin(radians + segmentSize) * outerRadius;
+
+                        p.quad(x1, y1, x2, y2, x4, y4, x3, y3);
+                    }
+                }
+
+                p.keyPressed = (event) => 
+                {
+                    console.log("keyPressed: " + event);
+                    
+                    var keyCode = event.which;
+
+                    switch(keyCode)
+                    {
+                        case 119: // F8
+                            event.preventDefault();
+                            _settings.squareCanvas = !_settings.squareCanvas;
+                            p.resize();
+                            break;
+                        case 120: // F9
+                            event.preventDefault();
+                            _toggleInfo();
+                            break;
+                        case 121: // F10
+                            event.preventDefault();
+                            _toggleGui();
+                            break;
+                        case 122: // F11
+                            event.preventDefault();
+                            _toggleFullscreen(document.body);
+                            break;
+                        default: 
+                            console.log("key down: " + keyCode + ' keyCode');
+                            break;
+                    }
+
+                }
+
+                p.keyReleased = (event) => 
+                {
+                }
+
+                p.mouseWheel = (event) => 
+                {
+                    console.log("mouseWheel: " + event);
+                }
+
+                p.mouseReleased = (event) => 
+                {
+                }
+
+                p.mousePressed = (event) => 
+                {
+                    console.log("mousePressed: " + event);
+                }
+
+                p.mouseMoved = (event) => 
+                {
+                    if (_mouseTimer) 
+                    {
+                        window.clearTimeout(_mouseTimer);
+                    }
+
+                    document.body.style.cursor = "default";
+                    $('#info-container').show(0);
+
+                    _mouseTimer = window.setTimeout(_hideCursor, 4000);
+                }
+
+                p.resize = () =>
+                {
+                    if(_settings.squareCanvas)
+                    {
+                        _canvasHeight = _canvasWidth = window.innerWidth < window.innerHeight ? Math.max(window.innerWidth, _minCanvasWidth) : Math.max(window.innerHeight, _minCanvasHeight);
+                    }
+                    else
+                    {
+                        _canvasWidth = Math.max(window.innerWidth, _minCanvasWidth);
+                        _canvasHeight = Math.max(window.innerHeight, _minCanvasHeight);
+                    }
+
+                    // _camera.aspect = _canvasWidth / _canvasHeight;
+
+                    // if(_camera instanceof THREE.OrthographicCamera)
+                    // {
+                    //     _camera.left = -1 * _camera.aspect;
+                    //     _camera.right = 1 * _camera.aspect;
+                    // }
+
+                    // _camera.updateProjectionMatrix();
+
+                    // _renderer.setSize( _canvasWidth, _canvasHeight );
+                    // _composer.setSize( _canvasWidth, _canvasHeight );
+
+                    // SCRBLR.Utility.UpdateResolutionUniforms(new THREE.Vector2(_canvasWidth, _canvasHeight), _composer.passes);
+
+					p.resizeCanvas(_canvasWidth, _canvasHeight);
+                    // _offscreenGraphics.resizeCanvas(_canvasWidth, _canvasHeight);
+
+                    console.log("canvas size: " + _canvasWidth + "x" + _canvasHeight);             
+                }
+
+				p.windowResized = () => 
+				{
+                    p.resize();
+				}
+			}
+
+			new P5(Sketch, document.getElementById('canvas-container'));
+
+			// function _downloadWebGLRenderer(hiresScale)
+			// {
+            //     hiresScale = (hiresScale === undefined || hiresScale === null || hiresScale == 0 ? 1 : hiresScale);
+
+            //     const width = Math.round(1024 * hiresScale);
+            //     const height = Math.round(1024 * hiresScale);
+
+			// 	const maxW = 4096 > _renderer.capabilities.maxTextureSize ? 4096 : _renderer.capabilities.maxTextureSize;
+			// 	const maxH = 4096 > _renderer.capabilities.maxTextureSize ? 4096 : _renderer.capabilities.maxTextureSize;
+
+			// 	const d = new Date();
+			// 	const prefix = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss();
+
+			// 	for (let y = 0; y < height; y += maxH)
+			// 	{
+			// 		for (let x = 0; x < width; x += maxW)
+			// 		{
+			// 			let w = Math.min(width - x, maxW);
+			// 			let h = Math.min(height - y, maxH);
+
+			// 			_renderer.setSize( w, h );
+            //             _composer.setSize( w, h );
+
+			// 			_camera.setViewOffset(width, height, x, y, w, h);
+
+            //             Render();
+					
+            //             _downloadCanvasAsPng(_renderer.domElement, prefix + '-' + x + '-' + y + '.png');
+			// 		}
+			// 	}
+
+            //     _renderer.setSize( _canvasWidth, _canvasHeight );
+            //     _composer.setSize( _canvasWidth, _canvasHeight );
+
+            //     _camera.clearViewOffset();
+			// }
+
+			// function _downloadWebGLRenderTarget(webGLRenderer, webGLRenderTarget)
+			// {
+			// 	let buffer = new Uint8ClampedArray(4 * webGLRenderTarget.width * webGLRenderTarget.height)
+
+			// 	webGLRenderer.readRenderTargetPixels(webGLRenderTarget, 0, 0, webGLRenderTarget.width, webGLRenderTarget.height, buffer);
+
+			// 	var canvas = document.createElement('canvas');
+
+			// 	canvas.width = webGLRenderTarget.width;
+			// 	canvas.height = webGLRenderTarget.height;
+
+			// 	var context = canvas.getContext('2d');
+
+			// 	context.putImageData(new ImageData( buffer, webGLRenderTarget.width, webGLRenderTarget.height ), 0, 0);
+
+			// 	_downloadCanvasAsPng(canvas);
+			// }
+
+			// function _downloadCanvasAsPng(canvas, name)
+			// {
+			// 	if(name === null || name === undefined || name === "")
+			// 	{
+			// 		var d = new Date();
+
+			// 		name = _screenCapturePrefix + '-' + d.yyyymmdd() + '.' + d.hhmmss() +  '.png';
+			// 	}
+
+			// 	canvas.toBlob(function (blob) 
+            //     {
+            //         // console.log(URL.createObjectURL(blob));
+
+            //         // PNGImage.readImage(URL.createObjectURL(blob), function (err, image) {
+            //         //     if (err) console.log(err);
+
+            //         //     // The image is in the 'image' variable if everything went well
+            //         // });                    
+
+            //         // blob.arrayBuffer().then((arrayBuffer) => 
+            //         // {
+            //         //     new PNG({ filterType: 4 }).parse(arrayBuffer, function (error, data) 
+            //         //     {
+            //         //         console.log(error, data);
+            //         //     });
+            //         // });
+
+			// 		var a = document.createElement('a');
+			// 		var url = URL.createObjectURL(blob);
+			// 		a.href = url;
+			// 		a.download = name;
+			// 		a.click();
+			// 	}, 'image/png', 1.0); 
+			// }
+
+            $('.clickable').on('click', function(e) 
+            {    
+                let target = $(this).attr('target');
+
+                switch(target)
+                {
+                    case 'F9':
+                        _toggleInfo();
+                        break;
+                    case 'F10':
+                        _toggleGui();
+                        break;
+                    case 'F11':
+                        _toggleFullscreen();
+                        break;
+                }
+            });
+
+            function _toggleInfo()
+            {
+                $('#info-help-container').toggle(0);
+                $('#info-text-container').toggle(0);
+            }
+
+            function _toggleGui()
+            {
+                $('#gui-container').toggle(0);
+            }
+
+            function _toggleFullscreen(element)
+            {
+                // https://stackoverflow.com/a/47110257/527843
+
+                if(element === undefined || element === null)
+                {
+                    element = document.body;                    
+                }
+
+                if ((document.fullScreenElement !== undefined && document.fullScreenElement === null) || (document.msFullscreenElement !== undefined && document.msFullscreenElement === null) || (document.mozFullScreen !== undefined && !document.mozFullScreen) || (document.webkitIsFullScreen !== undefined && !document.webkitIsFullScreen)) 
+                {
+                    if (element.requestFullScreen) 
+                    {
+                        element.requestFullScreen();
+                    } 
+                    else if (element.mozRequestFullScreen) 
+                    {
+                        element.mozRequestFullScreen();
+                    }
+                    else if (element.webkitRequestFullScreen) 
+                    {
+                        element.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+                    }
+                    else if (element.msRequestFullscreen) 
+                    {
+                        element.msRequestFullscreen();
+                    }
+                } 
+                else 
+                {
+                    if (document.cancelFullScreen) 
+                    {
+                        document.cancelFullScreen();
+                    } 
+                    else if (document.mozCancelFullScreen) 
+                    {
+                        document.mozCancelFullScreen();
+                    } 
+                    else if (document.webkitCancelFullScreen) 
+                    {
+                        document.webkitCancelFullScreen();
+                    } 
+                    else if (document.msExitFullscreen) 
+                    {
+                        document.msExitFullscreen();
+                    }
+                }            
+            }
+
+            function _hideCursor() 
+            {
+                _mouseTimer = null;
+                document.body.style.cursor = "none";
+                $('#info-container').hide(0);
+            }
+
+        </script>
+    </body>
+</html>        
