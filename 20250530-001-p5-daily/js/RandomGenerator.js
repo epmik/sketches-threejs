@@ -29,8 +29,10 @@ class RandomGenerator {
         return this._seed;
     }
 
-    ReSeed(seed) {
-        if (seed == null) { // Handles both null and undefined
+    ReSeed(seed) 
+    {
+        if (seed == null) // Handles both null and undefined
+        { 
             seed = RandomGenerator.SeedRoot++;
         }
         this._seed = seed;
