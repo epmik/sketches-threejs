@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title></title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" href="main.css">
+		<script type="text/javascript" src="/js/date-extensions.js"></script>
+		<!-- <script src='https://unpkg.com/three-rt-helper'></script> -->
+	</head>
+
+	<body>
+        <div id="canvas-container">
+            <div id="gui-container">
+            </div>
+            <div id="info-container">
+                <div id="info-help-container">
+                    <div class="clickable" target="F9">Help (F9)</div>
+                </div>
+                <div id="info-text-container">
+                    <div class="clickable" target="F9">Toggle this information - F9</div>
+                    <div class="clickable" target="F5">Refresh page - F5</div>
+                    <div class="clickable" target="F10">Toggle GUI - F10</div>
+                    <div class="clickable" target="F11">Toggle fullscreen - F11</div>
+                </div>
+            </div>
+        </div>
+
+        <script type="module">
+
+            import $ from 'https://cdn.jsdelivr.net/npm/jquery@3.7.1/+esm'
+            import P5 from 'https://cdn.jsdelivr.net/npm/p5@1.11.2/+esm';
+            import Gui from 'https://cdn.jsdelivr.net/npm/lil-gui@0.20.0/+esm'
+            import { RandomGenerator } from './js/RandomGenerator.js';
+            import { OpenSimplexNoiseGenerator } from './js/OpenSimplexNoiseGenerator.js';
+
+            let _frameCount = 0;
+			let _mouseTimer = null;
+
+            class CircleForm 
+            {
+                static FormIdRoot = 0;
+
+                static RandomRadius(p)
+                {
+                    return p.random.Int(p.settings.minRadius, p.settings.maxRadius);
+                }
+
+                static RandomSpeed(p)
+                {
+                    return p.random.Int(p.settings.minSpeed, p.settings.maxSpeed);
+                }
+
+                static RandomAngle(p, min = 0.0, max = Math.PI * 2)
+                {
+                    return p.random.Single(min, max);
+                }
+
+                static RandomAngleStep(p)
+                {
+                    let step = p.random.Single(p.settings.minAngleStep, p.settings.maxAngleStep);
+                    
+                    if(p.random.Bool() == true)
+                    {
+                        step = -step; // Randomly reverse the angle step direction
+                    }
+
+                    return step;
+                }
+
+                constructor(p, x = null, y = null, radius = null, speed = null, angle = null, angleStep = null)
+                {
+                    if(x === null || x < 0 || x >= p.settings.offscreenCanvasWidth)
+                    {
+                        x = p.random.Int(0, p.settings.offscreenCanvasWidth);
+                    }
+
+                    if(y === null || y < 0 || y >= p.settings.offscreenCanvasHeight)
+                    {
+                        y = p.random.Int(0, p.settings.offscreenCanvasHeight);
+                    }
+
+                    radius = radius || CircleForm.RandomRadius(p);
+                    speed = speed || CircleForm.RandomSpeed(p);
+                    angle = angle || CircleForm.RandomAngle(p, 0, Math.PI * 2);
+                    angleStep = angleStep || CircleForm.RandomAngleStep(p);
+
+                    this.id = CircleForm.FormIdRoot++;
+                    this.x = x;
+                    this.y = y;
+                    this.radius = radius;
+                    this.speed = speed;
+                    this.angle = angle;
+                    this.angleStep = angleStep;
+                    this.color = p.color(0, 0, 0, 1);
+                }
+
+                setColor(color)
+                {
+                    if(color === undefined || color === null)
+                    {
+                        color = p.color(0, 0, 0, 1);
+                    }
+
+                    this.color = color;
+                }
+
+                draw(sketch, graphics) 
+                {
+                    // graphics.noFill();
+                    // graphics.stroke(0, 0, 0);
+                    // graphics.strokeWeight(1);
+
+                    // graphics.circle(this.x, this.y, this.radius * 2.0);
+                }
+            }
+
+            class MoveStraightBehaviour
+            {
+                update(p, form) 
+                {
+                    let elapsed =  p.elapsedFrameTime();
+
+                    form.x += Math.cos(form.angle) * form.speed * elapsed;
+                    form.y += Math.sin(form.angle) * form.speed * elapsed;                    
+                }
+            }
+
+            class ConstrainToCanvasBehaviour
+            {
+                update(p, form) 
+                {
+                    if(form.x > -form.radius && form.x < p.settings.offscreenCanvasWidth + form.radius && form.y > -form.radius && form.y < p.settings.offscreenCanvasHeight + form.radius)
+                    {
+                        return; // No need to constrain if within bounds
+                    }
+
+                    form.radius = CircleForm.RandomRadius(p);
+                    form.speed = CircleForm.RandomSpeed(p);
+                    form.angleStep = CircleForm.RandomAngleStep(p);
+
+                    if(p.settings.resetFormsOnEdge)
+                    {
+                        console.log("Resetting form to edge");
+
+                        let edge = p.random.Int(0, 4);
+
+                        switch(edge)
+                        {
+                            case 0: // Left edge
+                                form.x = 0;
+                                form.y = p.random.Int(0, p.settings.offscreenCanvasHeight);
+                                form.angle = CircleForm.RandomAngle(p, -p.Ninety, p.Ninety);
+                                break;
+                            case 1: // Right edge
+                                form.x = p.settings.offscreenCanvasWidth;
+                                form.y = p.random.Int(0, p.settings.offscreenCanvasHeight);
+                                form.angle = CircleForm.RandomAngle(p, p.Ninety, p.HundredEighty + p.Ninety);
+                                break;
+                            case 2: // Top edge
+                                form.x = p.random.Int(0, p.settings.offscreenCanvasWidth);
+                                form.y = 0;
+                                form.angle = CircleForm.RandomAngle(p, 0, p.HundredEighty);
+                                break;
+                            case 3: // Bottom edge
+                                form.x = p.random.Int(0, p.settings.offscreenCanvasWidth);
+                                form.y = p.settings.offscreenCanvasHeight;
+                                form.angle = CircleForm.RandomAngle(p, p.HundredEighty, p.HundredEighty + p.HundredEighty);
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        console.log("Resetting form to random position and angle");
+
+                        form.x = p.random.Int(0, p.settings.offscreenCanvasWidth);
+                        form.y = p.random.Int(0, p.settings.offscreenCanvasHeight);
+                        form.angle = CircleForm.RandomAngle(p);
+                    }
+                }
+            }
+
+            class OverlappingCirclesCenterVisual
+            {
+                draw(sketch, graphics) 
+                {
+                    for(let i = 0; i < sketch.settings.visibleFormCount; i++)
+                    {
+                        let inner = sketch.forms[i];
+
+                        for(let j = 0; j < sketch.settings.visibleFormCount; j++)
+                        {
+                            let outer = sketch.forms[j];
+
+                            if(inner.id === outer.id)
+                            {
+                                continue;
+                            }
+
+                            let result = sketch.intersectResult(inner, outer);
+
+                            if(result.intersects)
+                            {
+                                let factor = result.distance / result.maxDistance;
+
+                                // let c = p.lerpColor(inner.color, outer.color, factor);
+                                let c = sketch.lerpColor(sketch.colors.white, sketch.colors.red, factor);
+
+                                if(sketch.settings.useAlphaForVisuals)
+                                {
+                                    c.setAlpha(1);
+                                }
+                                else
+                                {
+                                    c.setAlpha(255);
+                                }
+
+                                graphics.stroke(c);
+                                graphics.strokeWeight(1);
+                                
+                                graphics.line(outer.x, outer.y, inner.x, inner.y);
+
+                                let elapsed =  sketch.elapsedFrameTime();
+
+                                inner.angle += inner.angleStep * elapsed; 
+                                outer.angle += outer.angleStep * elapsed; 
+                            }
+                        }; 
+                    }; 
+                }
+            }
+
+			const Sketch = (sketch) => 
+			{            
+                sketch.settings = 
+                {
+                    offscreenCanvasWidth: 8192,
+                    offscreenCanvasHeight: 8192,
+                    randomSeed: null,
+                    saveCanvasPrefix: '20250615-001-p5-daily',
+                    visibleFormCount: 8,
+                    totalFormCount: 1024,
+                    minRadius: 1000,
+                    maxRadius:2500,
+                    minSpeed:240,
+                    maxSpeed:1280,
+                    resetFormsOnEdge: false,
+                    useAlphaForVisuals: true,
+                    useAngleStepWhenIntersecting: true,
+                    minAngleStep:Math.PI * 0.01,    // 1.8 degrees
+                    maxAngleStep:Math.PI * 0.125,   // 22.5 degrees
+                    useFixedFrameTime: true, // If true, uses a fixed elapsed frame time for each frame
+                    fixedElapsedTime: 1.0 / 128.0, // 1024 FPS
+                }
+
+                sketch.colors = {
+                    white : sketch.color(255, 255, 255),
+                    red : sketch.color(255, 42, 0),
+                }
+
+                sketch.forms = [];
+                sketch.behaviours = [];
+                sketch.visuals = [];
+
+                sketch.Ninety = Math.PI * 0.5;
+                sketch.HundredEighty = Math.PI;
+                
+                sketch.offscreenGraphics = null,
+
+				sketch.setup = () => 
+				{
+                    sketch.canvasContainer = document.getElementById('canvas-container');
+                    sketch.guiContainer = document.getElementById('gui-container');
+
+                    sketch.random = new RandomGenerator(sketch.settings.randomSeed);
+                    sketch.noiseGenerator = new OpenSimplexNoiseGenerator();
+
+                    console.log("Random seed: " + sketch.random.Seed());
+
+					sketch.createCanvas(800, 800);
+
+                    sketch.offscreenGraphics = sketch.createGraphics(sketch.settings.offscreenCanvasWidth, sketch.settings.offscreenCanvasHeight);
+
+                    sketch.resize();
+
+
+                    sketch.gui = new Gui({ container : sketch.guiContainer, width: 360 });
+
+                    sketch.gui.add(sketch.settings, 'visibleFormCount', 2, sketch.settings.totalFormCount, 1);  // int
+                    sketch.gui.add(sketch.settings, 'minRadius', 1, 8192, 1);  // int
+                    sketch.gui.add(sketch.settings, 'maxRadius', 1, 8192, 1);  // int
+                    sketch.gui.add(sketch.settings, 'minSpeed', 1, 8192, 1);  // int
+                    sketch.gui.add(sketch.settings, 'maxSpeed', 1, 8192, 1);  // int
+                    sketch.gui.add(sketch.settings, 'resetFormsOnEdge');  // boolean
+                    sketch.gui.add(sketch.settings, 'useAlphaForVisuals');  // boolean
+                    sketch.gui.add(sketch.settings, 'useAngleStepWhenIntersecting');  // boolean
+                    sketch.gui.add(sketch.settings, 'useFixedFrameTime');  // boolean
+                    sketch.gui.add(sketch, 'saveSketch', 'saveSketch');  // int
+
+
+                    window.addEventListener( 'focus', function() { console.log('window focus') } );
+                    window.addEventListener( 'blur', function() { console.log('window blur') } );
+
+                    sketch.mouseMoved();
+
+                    for(let i = 0; i < sketch.settings.totalFormCount; i++)
+                    {
+                        sketch.forms.push(new CircleForm(sketch));
+                    }
+
+                    sketch.behaviours[0] = new MoveStraightBehaviour();
+                    sketch.behaviours[1] = new ConstrainToCanvasBehaviour();
+
+                    sketch.visuals[0] = new OverlappingCirclesCenterVisual();
+
+                    sketch.offscreenGraphics.background(255, 255, 255);
+                }
+
+                sketch.intersect = (a, b) => 
+				{
+                    return sketch.dist(a.x, a.y, b.x, b.y) < a.radius + b.radius;
+				}
+
+                sketch.intersectResult = (a, b) => 
+				{
+                    let maxDistance = a.radius + b.radius;
+                    let distance = sketch.dist(a.x, a.y, b.x, b.y);
+
+                    return { 
+                        intersects: distance <= maxDistance, 
+                        distance: distance,
+                        maxDistance: maxDistance,
+                    };
+				}
+
+                sketch.elapsedFrameTime = () =>
+                {
+                    return sketch.settings.useFixedFrameTime ? sketch.settings.fixedElapsedTime : sketch.deltaTime / 1000; // Convert milliseconds to seconds
+                }
+
+                sketch.draw = () => 
+				{
+                    _frameCount++;
+
+                    sketch.offscreenGraphics.push();
+
+                    // sketch.offscreenGraphics.translate(-sketch.settings.offscreenCanvasWidth, -sketch.settings.offscreenCanvasHeight);
+
+                    for(let i = 0; i < sketch.settings.visibleFormCount; i++)
+                    {
+                        let form = sketch.forms[i];
+
+                        sketch.behaviours.forEach(behaviour => 
+                        {
+                            behaviour.update(sketch, form);
+                        });
+
+                        form.draw(sketch, sketch.offscreenGraphics);
+                    }
+
+                    sketch.visuals.forEach(visual => 
+                    {
+                        visual.draw(sketch, sketch.offscreenGraphics);
+                    });
+
+                    sketch.offscreenGraphics.pop();
+
+
+
+                    
+
+                    sketch.push();
+
+                    sketch.image(sketch.offscreenGraphics, 0, 0, sketch.width, sketch.height, 0, 0, sketch.offscreenGraphics.width, sketch.offscreenGraphics.height);
+
+                    sketch.pop();
+				}
+
+                sketch.keyPressed = (event) => 
+                {
+                    console.log("keyPressed: " + event);
+                    
+                    var keyCode = event.which;
+
+                    switch(keyCode)
+                    {
+                        case 83: // s/S
+                            event.preventDefault();
+                            sketch.saveSketch();
+                            break;
+                        case 119: // F8
+                            event.preventDefault();
+                            break;
+                        case 120: // F9
+                            event.preventDefault();
+                            // _toggleInfo();
+                            break;
+                        case 121: // F10
+                            event.preventDefault();
+                            // _toggleGui();
+                            break;
+                        case 122: // F11
+                            event.preventDefault();
+                            // _toggleFullscreen(document.body);
+                            break;
+                        default: 
+                            console.log("key pressed: " + keyCode + ' keyCode');
+                            break;
+                    }
+
+                }
+
+                sketch.keyReleased = (event) => 
+                {
+                }
+
+                sketch.mouseWheel = (event) => 
+                {
+                    console.log("mouseWheel: " + event);
+                }
+
+                sketch.mouseReleased = (event) => 
+                {
+                }
+
+                sketch.mousePressed = (event) => 
+                {
+                    console.log("mousePressed: " + event);
+                }
+
+                sketch.mouseMoved = (event) => 
+                {
+                    if (_mouseTimer) 
+                    {
+                        window.clearTimeout(_mouseTimer);
+                    }
+
+                    document.body.style.cursor = "default";
+                    $('#info-container').show(0);
+
+                    _mouseTimer = window.setTimeout(_hideCursor, 4000);
+                }
+
+                sketch.resize = () =>
+                {
+					sketch.resizeCanvas(800, 800);
+
+                    // sketch.offscreenGraphics.resizeCanvas(sketch.settings.offscreenCanvasWidth, sketch.settings.offscreenCanvasHeight);
+
+                    console.log("screen canvas size: " + sketch.width + "x" + sketch.height);             
+                }
+
+				sketch.windowResized = () => 
+				{
+                    sketch.resize();
+				}
+			
+                sketch.saveSketch = () => 
+                {
+                    const date = new Date();
+                    const name = sketch.settings.saveCanvasPrefix + '-' + date.yyyymmdd() + '.' + date.hhmmss() + '.png';
+                    
+                    sketch.save(sketch.offscreenGraphics, name);
+                }
+            }
+
+			new P5(Sketch, document.getElementById('canvas-container'));
+
+            $('.clickable').on('click', function(e) 
+            {    
+                let target = $(this).attr('target');
+
+                switch(target)
+                {
+                    case 'F9':
+                        _toggleInfo();
+                        break;
+                    case 'F10':
+                        _toggleGui();
+                        break;
+                    case 'F11':
+                        _toggleFullscreen();
+                        break;
+                }
+            });
+
+            function _toggleInfo()
+            {
+                $('#info-help-container').toggle(0);
+                $('#info-text-container').toggle(0);
+            }
+
+            function _toggleGui()
+            {
+                $('#gui-container').toggle(0);
+            }
+
+            function _toggleFullscreen(element)
+            {
+                // https://stackoverflow.com/a/47110257/527843
+
+                if(element === undefined || element === null)
+                {
+                    element = document.body;                    
+                }
+
+                if ((document.fullScreenElement !== undefined && document.fullScreenElement === null) || (document.msFullscreenElement !== undefined && document.msFullscreenElement === null) || (document.mozFullScreen !== undefined && !document.mozFullScreen) || (document.webkitIsFullScreen !== undefined && !document.webkitIsFullScreen)) 
+                {
+                    if (element.requestFullScreen) 
+                    {
+                        element.requestFullScreen();
+                    } 
+                    else if (element.mozRequestFullScreen) 
+                    {
+                        element.mozRequestFullScreen();
+                    }
+                    else if (element.webkitRequestFullScreen) 
+                    {
+                        element.webkitRequestFullScreen(Element.ALLOW_KEYBOARD_INPUT);
+                    }
+                    else if (element.msRequestFullscreen) 
+                    {
+                        element.msRequestFullscreen();
+                    }
+                } 
+                else 
+                {
+                    if (document.cancelFullScreen) 
+                    {
+                        document.cancelFullScreen();
+                    } 
+                    else if (document.mozCancelFullScreen) 
+                    {
+                        document.mozCancelFullScreen();
+                    } 
+                    else if (document.webkitCancelFullScreen) 
+                    {
+                        document.webkitCancelFullScreen();
+                    } 
+                    else if (document.msExitFullscreen) 
+                    {
+                        document.msExitFullscreen();
+                    }
+                }            
+            }
+
+            function _hideCursor() 
+            {
+                _mouseTimer = null;
+                document.body.style.cursor = "none";
+                $('#info-container').hide(0);
+            }
+
+        </script>
+    </body>
+</html>        

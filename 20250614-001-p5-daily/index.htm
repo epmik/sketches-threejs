@@ -64,6 +64,7 @@
                     this.radius = radius;
                     this.speed = speed;
                     this.angle = angle;
+                    this.angleStep = p.settings.useAngleStepWhenIntersecting ? p.random.Single(p.settings.minAngleStep, p.settings.maxAngleStep) : 0.0;
                     this.color = p.color(0, 0, 0, 1);
                 }
 
@@ -89,7 +90,7 @@
             {
                 update(p, form) 
                 {
-                    let elapsed =  p.deltaTime / 1000; // Convert milliseconds to seconds
+                    let elapsed =  p.elapsedFrameTime();
 
                     form.x += Math.cos(form.angle) * form.speed * elapsed;
                     form.y += Math.sin(form.angle) * form.speed * elapsed;                    
@@ -100,8 +101,24 @@
             {
                 update(p, form) 
                 {
-                    if(form.x < 0 || form.x >= p.settings.canvasWidth || form.y < 0 || form.y >= p.settings.canvasHeight)
+                    if(form.x > -form.radius && form.x < p.settings.canvasWidth + form.radius && form.y > -form.radius && form.y < p.settings.canvasHeight + form.radius)
                     {
+                        return; // No need to constrain if within bounds
+                    }
+
+                    form.radius = p.random.Single(p.settings.minRadius, p.settings.maxRadius);
+                    form.speed = p.random.Single(p.settings.minSpeed, p.settings.maxSpeed);
+                    form.angleStep = p.random.Single(p.settings.minAngleStep, p.settings.maxAngleStep);
+
+                    if(p.random.Bool() == true)
+                    {
+                        form.angleStep = -form.angleStep; // Randomly reverse the angle step direction
+                    }
+
+                    if(p.settings.resetFormsOnEdge)
+                    {
+                        console.log("Resetting form to edge");
+
                         let edge = p.random.Int(0, 4);
 
                         switch(edge)
@@ -128,6 +145,14 @@
                                 break;
                         }
                     }
+                    else
+                    {
+                        console.log("Resetting form to random position and angle");
+
+                        form.x = p.random.Int(0, p.settings.canvasWidth);
+                        form.y = p.random.Int(0, p.settings.canvasHeight);
+                        form.angle = p.random.Single(0, Math.PI * 2); // Random angle between 0 and 2*PI
+                    }
                 }
             }
 
@@ -148,11 +173,29 @@
 
                             if(result.intersects)
                             {
-                                let grey = result.distance / result.maxDistance * 255;
+                                let factor = result.distance / result.maxDistance;
 
-                                p.stroke(grey);
+                                // let c = p.lerpColor(inner.color, outer.color, factor);
+                                let c = p.lerpColor(p.colors.white, p.colors.red, factor);
+
+                                if(p.settings.useAlphaForVisuals)
+                                {
+                                    c.setAlpha(1);
+                                }
+                                else
+                                {
+                                    c.setAlpha(255);
+                                }
+
+                                p.stroke(c);
                                 p.strokeWeight(1);
+                                
                                 p.line(outer.x, outer.y, inner.x, inner.y);
+
+                                let elapsed =  p.elapsedFrameTime();
+
+                                inner.angle += inner.angleStep * elapsed; 
+                                outer.angle += outer.angleStep * elapsed; 
                             }
 
                         }); 
@@ -165,17 +208,26 @@
 			{            
                 p.settings = 
                 {
-                    canvasWidth: 4096,
-                    canvasHeight:4096,
-                    randomSeed: 1,
-                    saveCanvasPrefix: '20250530-001-p5-daily',
-                    formCount: 1024,
+                    canvasWidth: 2048,
+                    canvasHeight:2048,
+                    randomSeed: null,
+                    saveCanvasPrefix: '20250614-001-p5-daily',
+                    formCount: 128,
+                    minRadius: 50,
+                    maxRadius:250,
+                    minSpeed:10,
+                    maxSpeed:250,
+                    resetFormsOnEdge: false,
+                    useAlphaForVisuals: true,
+                    useAngleStepWhenIntersecting: true,
+                    minAngleStep:Math.PI * 0.01,    // 1.8 degrees
+                    maxAngleStep:Math.PI * 0.125,   // 22.5 degrees
+                    useFixedFrameTime: true, // If true, uses a fixed elapsed time for each frame, useful for debugging
                 }
 
                 p.colors = {
                     white : p.color(255, 255, 255),
-                    orange : p.color(255, 42, 0),
-                    yellow : p.color(254, 149, 0),
+                    red : p.color(255, 42, 0),
                 }
 
                 p.forms = [];
@@ -184,6 +236,7 @@
 
                 p.Ninety = Math.PI * 0.5;
                 p.HundredEighty = Math.PI;
+                p.FixedElapsedTime = 1.0 / 60.0; // 60 FPS
                 
 
 				p.setup = () => 
@@ -194,6 +247,8 @@
                     p.random = new RandomGenerator(p.settings.randomSeed);
                     p.noiseGenerator = new OpenSimplexNoiseGenerator();
 
+                    console.log("Random seed: " + p.random.Seed());
+
 					p.createCanvas(p.settings.canvasWidth, p.settings.canvasHeight, "webgl");
 
                     p.resize();
@@ -201,8 +256,11 @@
 
                     p.gui = new Gui({ container : p.guiContainer, width: 360 });
 
-                    // p.gui.add(p.settings, 'formCount');  // boolean
                     p.gui.add(p.settings, 'formCount', 1, 4096);  // int
+                    p.gui.add(p.settings, 'resetFormsOnEdge');  // boolean
+                    p.gui.add(p.settings, 'useAlphaForVisuals');  // boolean
+                    p.gui.add(p.settings, 'useAngleStepWhenIntersecting');  // boolean
+                    p.gui.add(p.settings, 'useFixedFrameTime');  // boolean
                     p.gui.add(p, 'saveSketch', 'saveSketch');  // int
 
 
@@ -241,6 +299,11 @@
                     };
 				}
 
+                p.elapsedFrameTime = () =>
+                {
+                    return p.settings.useFixedFrameTime ? p.FixedElapsedTime : p.deltaTime / 1000; // Convert milliseconds to seconds
+                }
+
                 p.draw = () => 
 				{
                     _frameCount++;
@@ -264,274 +327,8 @@
                         visual.draw(p);
                     });
 
-                    //p.background(_settings.orangeBackgroundColor ? p.colors.orange : p.colors.yellow);
-
-                    // console.log(p.pmouseX, p.pmouseY);
-
-                    // p.noFill();
-
-                    // p.circle(p.pmouseX, p.pmouseY, 100);
-
-                    // p.noStroke();
-
-                    // p.fill(_settings.orangeBackgroundColor ? p.colors.yellow : p.colors.orange);
-
-                    // p.drawSpirals3(0, 0, 20);
-
                     p.pop();
 				}
-
-                // p.drawSpiral = (x, y, rotations, pointsPerRotation = 10, spiralSpacing = 5) =>
-                // {
-                //     let totalPoints = rotations * pointsPerRotation;
-                //     let angleStep = (Math.PI * 2) / pointsPerRotation;
-
-                //     p.beginShape();
-                //     for (let i = 0; i < totalPoints; i++)
-                //     {
-                //         let angle = i * angleStep;
-                //         let radius = spiralSpacing * angle; // Archimedean spiral: r = a + bθ
-                //         let px = x + Math.cos(angle) * radius;
-                //         let py = y + Math.sin(angle) * radius;
-                //         p.vertex(px, py);
-                //     }
-                //     p.endShape();
-                // }
-
-                p.drawCircles = (x, y, count) =>
-                {
-                    var innerRadius = 5;
-                    var outerRadius = 15;
-
-                    for(let i = 0; i < count; i++)
-                    {
-                        p.drawCirle(x, y, innerRadius, outerRadius);
-
-                        innerRadius += 20;
-                        outerRadius += 20;
-                    }
-                }
-
-                p.drawCircles2 = (x, y, count) =>
-                {
-                    var parameters = {
-                        x: x,
-                        y: y,
-                        radius: 10,
-                        thickness: 10,
-                        angleStart: 0,
-                        angleLength: Math.PI * 2,
-                    };
-
-                    for(let i = 0; i < count; i++)
-                    {
-                        p.drawCirle2(parameters);
-
-                        parameters.radius += 20;
-                        parameters.segments = 0;
-                    }
-                }
-
-                p.drawSpirals2 = (x, y, count) =>
-                {
-                    var parameters = {
-                        x: x,
-                        y: y,
-                        radius: 10,
-                        thickness: 10,
-                        angleStart:0,
-                        angleEvolutions: count,
-                        radiusIncrement: 1,
-                    };
-
-                    var angleLength = parameters.angleEvolutions * Math.PI * 2;
-
-                    if(parameters.segments === undefined || parameters.segments === null || parameters.segments <= 0)
-                    {
-                        parameters.segments = 2 * Math.PI * parameters.radius / 4;
-                    }
-
-                    var segmentSize = Math.PI * 2 / parameters.segments;
-                    var innerRadius = parameters.radius - parameters.thickness * 0.5;
-                    var outerRadius = parameters.radius + parameters.thickness * 0.5;
-           
-                    for(var radians = parameters.angleStart; radians < parameters.angleStart + angleLength; radians += segmentSize)
-                    {
-                        var x1 = x + Math.cos(radians) * innerRadius;
-                        var y1 = y + Math.sin(radians) * innerRadius;
-                        var x3 = x + Math.cos(radians) * outerRadius;
-                        var y3 = y + Math.sin(radians) * outerRadius;
-
-                        innerRadius += parameters.radiusIncrement;
-                        outerRadius += parameters.radiusIncrement;
-
-                        var x2 = x + Math.cos(radians + segmentSize) * innerRadius;
-                        var y2 = y + Math.sin(radians + segmentSize) * innerRadius;
-                        var x4 = x + Math.cos(radians + segmentSize) * outerRadius;
-                        var y4 = y + Math.sin(radians + segmentSize) * outerRadius;
-
-                        p.quad(x1, y1, x2, y2, x4, y4, x3, y3);
-                    }
-         
-                }
-
-                p.drawSpirals3 = (x, y, count) =>
-                {
-                    var parameters = {
-                        x: x,
-                        y: y,
-                        radius: 0,
-                        thickness: 10,
-                        angleStart:Math.PI * -0.25,
-                        angleEvolutions: count,
-                        radiusIncrement: 16,
-                    };
-
-                    if(parameters.radius < parameters.thickness * 0.5)
-                    {
-                        parameters.radius = parameters.thickness * 0.5;
-                    }
-
-                    var angleLength = parameters.angleEvolutions * Math.PI * 2;
-                    var innerRadius = parameters.radius - parameters.thickness * 0.5;
-                    var outerRadius = parameters.radius + parameters.thickness * 0.5;
-                    var radians = 0, segments, segmentSize, increment;
-           
-                    for(var totalRadians = parameters.angleStart; totalRadians < parameters.angleStart + angleLength; )
-                    {
-                        if(radians == 0)
-                        {
-                            segments = 2 * Math.PI * outerRadius / 4;
-                            segmentSize = Math.PI / segments;
-                            increment = parameters.radiusIncrement / 2 / segments;
-                        }
-
-                        var x1 = x + Math.cos(totalRadians) * innerRadius;
-                        var y1 = y + Math.sin(totalRadians) * innerRadius;
-                        var x3 = x + Math.cos(totalRadians) * outerRadius;
-                        var y3 = y + Math.sin(totalRadians) * outerRadius;
-
-                        innerRadius += increment;
-                        outerRadius += increment;
-
-                        var x2 = x + Math.cos(totalRadians + segmentSize) * innerRadius;
-                        var y2 = y + Math.sin(totalRadians + segmentSize) * innerRadius;
-                        var x4 = x + Math.cos(totalRadians + segmentSize) * outerRadius;
-                        var y4 = y + Math.sin(totalRadians + segmentSize) * outerRadius;
-
-                        p.quad(x1, y1, x2, y2, x4, y4, x3, y3);
-
-                        totalRadians += segmentSize;
-                        radians += segmentSize;
-
-                        if(radians >= Math.PI)
-                        {
-                            radians = 0;
-                        }
-                    }         
-                }
-
-                p.drawCirle = (x, y, innerRadius, outerRadius, segments) => 
-                {
-                    if(segments === undefined || segments === null || segments <= 0)
-                    {
-                        segments = 2 * Math.PI * outerRadius / 4;
-                    }
-
-                    var radians = 0;
-                    var segmentSize = Math.PI * 2 / segments;
-
-                    for(radians = 0; radians < Math.PI * 2; radians += segmentSize)
-                    {
-                        var x1 = x + Math.cos(radians) * innerRadius;
-                        var y1 = y + Math.sin(radians) * innerRadius;
-                        var x2 = x + Math.cos(radians + segmentSize) * innerRadius;
-                        var y2 = y + Math.sin(radians + segmentSize) * innerRadius;
-
-                        var x3 = x + Math.cos(radians) * outerRadius;
-                        var y3 = y + Math.sin(radians) * outerRadius;
-                        var x4 = x + Math.cos(radians + segmentSize) * outerRadius;
-                        var y4 = y + Math.sin(radians + segmentSize) * outerRadius;
-
-                        p.quad(x1, y1, x2, y2, x4, y4, x3, y3);
-                    }
-                }
-
-                p.drawCirle2 = (parameters) => 
-                {
-                    if(parameters.radius === undefined || parameters.radius === null || parameters.radius <= 0)
-                    {
-                        parameters.radius = 1;
-                    }
-
-                    if(parameters.thickness === undefined || parameters.thickness === null || parameters.thickness <= 0)
-                    {
-                        parameters.thickness = 0.1;
-                    }
-
-                    if(parameters.angleStart === undefined || parameters.angleStart === null || parameters.angleStart < 0)
-                    {
-                        parameters.angleStart = 0;
-                    }
-                    
-                    if(parameters.angleLength === undefined || parameters.angleLength === null || parameters.angleLength <= 0)
-                    {
-                        parameters.angleLength = Math.PI * 2;
-                    }
-
-                    if(parameters.segments === undefined || parameters.segments === null || parameters.segments <= 0)
-                    {
-                        parameters.segments = 2 * Math.PI * parameters.radius / 4;
-                    }
-
-                    var segmentSize = Math.PI * 2 / parameters.segments;
-                    var innerRadius = parameters.radius - parameters.thickness * 0.5;
-                    var outerRadius = parameters.radius + parameters.thickness * 0.5;
-
-                    for(var radians = parameters.angleStart; radians < parameters.angleStart + parameters.angleLength; radians += segmentSize)
-                    {
-                        var x1 = parameters.x + Math.cos(radians) * innerRadius;
-                        var y1 = parameters.y + Math.sin(radians) * innerRadius;
-                        var x2 = parameters.x + Math.cos(radians + segmentSize) * innerRadius;
-                        var y2 = parameters.y + Math.sin(radians + segmentSize) * innerRadius;
-
-                        var x3 = parameters.x + Math.cos(radians) * outerRadius;
-                        var y3 = parameters.y + Math.sin(radians) * outerRadius;
-                        var x4 = parameters.x + Math.cos(radians + segmentSize) * outerRadius;
-                        var y4 = parameters.y + Math.sin(radians + segmentSize) * outerRadius;
-
-                        p.quad(x1, y1, x2, y2, x4, y4, x3, y3);
-                    }
-                }
-
-                p.drawSpiral = (x, y, innerRadius, outerRadius, radiusFactor, segments) => 
-                {
-                    if(segments === undefined || segments === null || segments <= 0)
-                    {
-                        segments = 2 * Math.PI * outerRadius / 4;
-                    }
-
-                    var radians = 0;
-                    var segmentSize = Math.PI * 2 / segments;
-
-                    for(radians = 0; radians < Math.PI * 2; radians += segmentSize)
-                    {
-                        var x1 = x + Math.cos(radians) * innerRadius;
-                        var y1 = y + Math.sin(radians) * innerRadius;
-                        var x3 = x + Math.cos(radians) * outerRadius;
-                        var y3 = y + Math.sin(radians) * outerRadius;
-
-                        innerRadius += radiusFactor;
-                        outerRadius += radiusFactor;
-
-                        var x2 = x + Math.cos(radians + segmentSize) * innerRadius;
-                        var y2 = y + Math.sin(radians + segmentSize) * innerRadius;
-                        var x4 = x + Math.cos(radians + segmentSize) * outerRadius;
-                        var y4 = y + Math.sin(radians + segmentSize) * outerRadius;
-
-                        p.quad(x1, y1, x2, y2, x4, y4, x3, y3);
-                    }
-                }
 
                 p.keyPressed = (event) => 
                 {
