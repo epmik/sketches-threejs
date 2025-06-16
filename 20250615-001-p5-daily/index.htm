@@ -113,6 +113,14 @@
 
                     // graphics.circle(this.x, this.y, this.radius * 2.0);
                 }
+
+                debugDraw(sketch, graphics) 
+                {
+                    graphics.noFill();
+                    graphics.stroke(2555, 0, 0);
+                    graphics.strokeWeight(10);
+                    graphics.circle(this.x, this.y, this.radius * 2.0);
+                }
             }
 
             class MoveStraightBehaviour
@@ -201,14 +209,11 @@
 
                             if(result.intersects)
                             {
-                                let factor = result.distance / result.maxDistance;
-
-                                // let c = p.lerpColor(inner.color, outer.color, factor);
-                                let c = sketch.lerpColor(sketch.colors.white, sketch.colors.red, factor);
+                                let c = sketch.colors.red;
 
                                 if(sketch.settings.useAlphaForVisuals)
                                 {
-                                    c.setAlpha(1);
+                                    c.setAlpha(result.distance / result.maxDistance * 255);
                                 }
                                 else
                                 {
@@ -238,10 +243,10 @@
                     offscreenCanvasHeight: 8192,
                     randomSeed: null,
                     saveCanvasPrefix: '20250615-001-p5-daily',
-                    visibleFormCount: 8,
+                    visibleFormCount: 256,
                     totalFormCount: 1024,
-                    minRadius: 1000,
-                    maxRadius:2500,
+                    minRadius: 25,
+                    maxRadius:75,
                     minSpeed:240,
                     maxSpeed:1280,
                     resetFormsOnEdge: false,
@@ -251,6 +256,7 @@
                     maxAngleStep:Math.PI * 0.125,   // 22.5 degrees
                     useFixedFrameTime: true, // If true, uses a fixed elapsed frame time for each frame
                     fixedElapsedTime: 1.0 / 128.0, // 1024 FPS
+                    enableDebugDraw: true,
                 }
 
                 sketch.colors = {
@@ -258,16 +264,30 @@
                     red : sketch.color(255, 42, 0),
                 }
 
+                sketch.media = {
+                    textures : [
+                        'eric-soubeyrand-GGCYBMYu7a0-unsplash.jpg',
+                        'dawid-zawila--G3rw6Y02D0-unsplash.jpg',
+                        'igor-kasalovic-tNDvFkxkBHo-unsplash.jpg',
+                        'premium_photo-1747852228947-34162c2193c8.jpg'
+                    ],
+                }
+
                 sketch.forms = [];
                 sketch.behaviours = [];
                 sketch.visuals = [];
+
+                sketch.palette = null;
+                sketch.paletteIndex = null;
 
                 sketch.Ninety = Math.PI * 0.5;
                 sketch.HundredEighty = Math.PI;
                 
                 sketch.offscreenGraphics = null,
+                
+                sketch.debugGraphics = null,
 
-				sketch.setup = () => 
+    			sketch.setup = async () => 
 				{
                     sketch.canvasContainer = document.getElementById('canvas-container');
                     sketch.guiContainer = document.getElementById('gui-container');
@@ -280,6 +300,8 @@
 					sketch.createCanvas(800, 800);
 
                     sketch.offscreenGraphics = sketch.createGraphics(sketch.settings.offscreenCanvasWidth, sketch.settings.offscreenCanvasHeight);
+
+                    sketch.debugGraphics = sketch.createGraphics(sketch.settings.offscreenCanvasWidth, sketch.settings.offscreenCanvasHeight);
 
                     sketch.resize();
 
@@ -295,8 +317,17 @@
                     sketch.gui.add(sketch.settings, 'useAlphaForVisuals');  // boolean
                     sketch.gui.add(sketch.settings, 'useAngleStepWhenIntersecting');  // boolean
                     sketch.gui.add(sketch.settings, 'useFixedFrameTime');  // boolean
-                    sketch.gui.add(sketch, 'saveSketch', 'saveSketch');  // int
+                    sketch.gui.add(sketch, 'saveSketch', 'saveSketch');
+                    sketch.gui.add(sketch, 'clearSketch', 'clearSketch');
+                    sketch.gui.add(sketch, 'reSeed', 'reSeed');
+                    sketch.gui.add(sketch.settings, 'enableDebugDraw');  // boolean
 
+                    if(sketch.paletteIndex === null || sketch.paletteIndex < 0 || sketch.paletteIndex >= sketch.media.textures.length)
+                    {
+                        sketch.paletteIndex = sketch.random.Int(0, sketch.media.textures.length);
+                    }
+
+                    sketch.palette = await sketch.loadPalette(sketch.media.textures[sketch.paletteIndex], 256, 256);
 
                     window.addEventListener( 'focus', function() { console.log('window focus') } );
                     window.addEventListener( 'blur', function() { console.log('window blur') } );
@@ -313,7 +344,7 @@
 
                     sketch.visuals[0] = new OverlappingCirclesCenterVisual();
 
-                    sketch.offscreenGraphics.background(255, 255, 255);
+                    sketch.offscreenGraphics.background(255, 255, 255, 255);
                 }
 
                 sketch.intersect = (a, b) => 
@@ -342,9 +373,13 @@
 				{
                     _frameCount++;
 
-                    sketch.offscreenGraphics.push();
+                    sketch.debugGraphics.clear();
+                    
+                    sketch.debugGraphics.background(255, 255, 255, 0);
 
-                    // sketch.offscreenGraphics.translate(-sketch.settings.offscreenCanvasWidth, -sketch.settings.offscreenCanvasHeight);
+                    sketch.debugGraphics.push();
+
+                    sketch.offscreenGraphics.push();
 
                     for(let i = 0; i < sketch.settings.visibleFormCount; i++)
                     {
@@ -354,8 +389,19 @@
                         {
                             behaviour.update(sketch, form);
                         });
+                    }
 
-                        form.draw(sketch, sketch.offscreenGraphics);
+                    if(sketch.settings.enableDebugDraw)
+                    {
+                        sketch.debugGraphics.push();
+
+                        for(let i = 0; i < sketch.settings.visibleFormCount; i++)
+                        {
+                            let form = sketch.forms[i];
+                            form.debugDraw(sketch, sketch.debugGraphics);
+                        }
+
+                        sketch.debugGraphics.pop();
                     }
 
                     sketch.visuals.forEach(visual => 
@@ -363,15 +409,21 @@
                         visual.draw(sketch, sketch.offscreenGraphics);
                     });
 
+                    sketch.offscreenGraphics.image(sketch.palette, 0, 0);
+
                     sketch.offscreenGraphics.pop();
 
-
+                    sketch.debugGraphics.pop();
 
                     
 
                     sketch.push();
 
                     sketch.image(sketch.offscreenGraphics, 0, 0, sketch.width, sketch.height, 0, 0, sketch.offscreenGraphics.width, sketch.offscreenGraphics.height);
+
+                    sketch.blendMode(sketch.BLEND);
+
+                    sketch.image(sketch.debugGraphics, 0, 0, sketch.width, sketch.height, 0, 0, sketch.debugGraphics.width, sketch.debugGraphics.height);
 
                     sketch.pop();
 				}
@@ -461,6 +513,48 @@
                     const name = sketch.settings.saveCanvasPrefix + '-' + date.yyyymmdd() + '.' + date.hhmmss() + '.png';
                     
                     sketch.save(sketch.offscreenGraphics, name);
+                }
+			
+                sketch.clearSketch = () => 
+                {
+                    sketch.offscreenGraphics.background(255, 255, 255, 255);
+                }
+			
+                sketch.reSeed = () => 
+                {
+                    sketch.random.ReSeed();
+
+                    console.log("Random seed: " + sketch.random.Seed());
+                }
+            
+                sketch.mediaTexturesPath = (name) => 
+                {
+                    return '/.media/textures/' + name;
+                }
+            
+                sketch.loadPalette = async (name, width, height) => 
+                {
+                    sketch.loadImage(sketch.mediaTexturesPath(name), (image) => 
+                    {
+                        if(width === null || width < 1)
+                        {
+                            width = image.width;
+                        }
+
+                        if(height === null || height < 1)
+                        {
+                            height = image.height;
+                        }
+
+                        image.resize(width, height);
+
+                        // if( typeof callback === 'function')
+                        // {
+                        //     callback(image);
+                        // }
+
+                        return image;
+                    });
                 }
             }
 
