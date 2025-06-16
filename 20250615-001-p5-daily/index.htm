@@ -92,26 +92,21 @@
                     this.speed = speed;
                     this.angle = angle;
                     this.angleStep = angleStep;
-                    this.color = p.color(0, 0, 0, 1);
-                }
+                    this.color = p.color(255, 0, 0);
 
-                setColor(color)
-                {
-                    if(color === undefined || color === null)
+                    if(p.settings.usePaletteForColors && p.palette !== null)
                     {
-                        color = p.color(0, 0, 0, 1);
-                    }
+                        let x = p.random.Int(0, p.palette.width);
+                        let y = p.random.Int(0, p.palette.height);
 
-                    this.color = color;
+                        const array = p.palette.get(x, y);
+
+                        this.color = p.color(array[0], array[1], array[2], array[3]);
+                    }
                 }
 
                 draw(sketch, graphics) 
                 {
-                    // graphics.noFill();
-                    // graphics.stroke(0, 0, 0);
-                    // graphics.strokeWeight(1);
-
-                    // graphics.circle(this.x, this.y, this.radius * 2.0);
                 }
 
                 debugDraw(sketch, graphics) 
@@ -209,11 +204,14 @@
 
                             if(result.intersects)
                             {
-                                let c = sketch.colors.red;
+                                const fraction = result.distance / result.maxDistance;
+
+                                // let c = sketch.lerpColor(inner.color, outer.color, fraction);
+                                let c = inner.color;
 
                                 if(sketch.settings.useAlphaForVisuals)
                                 {
-                                    c.setAlpha(result.distance / result.maxDistance * 255);
+                                    c.setAlpha(fraction * 255);
                                 }
                                 else
                                 {
@@ -257,6 +255,8 @@
                     useFixedFrameTime: true, // If true, uses a fixed elapsed frame time for each frame
                     fixedElapsedTime: 1.0 / 128.0, // 1024 FPS
                     enableDebugDraw: true,
+                    usePaletteForColors: true,
+                    paletteIndex: null,
                 }
 
                 sketch.colors = {
@@ -278,7 +278,9 @@
                 sketch.visuals = [];
 
                 sketch.palette = null;
-                sketch.paletteIndex = null;
+
+                sketch.assetCount = 0;
+                sketch.assetLoadedCount = 0;
 
                 sketch.Ninety = Math.PI * 0.5;
                 sketch.HundredEighty = Math.PI;
@@ -287,14 +289,8 @@
                 
                 sketch.debugGraphics = null,
 
-    			sketch.setup = async () => 
+    			sketch.setup = () => 
 				{
-                    sketch.canvasContainer = document.getElementById('canvas-container');
-                    sketch.guiContainer = document.getElementById('gui-container');
-
-                    sketch.random = new RandomGenerator(sketch.settings.randomSeed);
-                    sketch.noiseGenerator = new OpenSimplexNoiseGenerator();
-
                     console.log("Random seed: " + sketch.random.Seed());
 
 					sketch.createCanvas(800, 800);
@@ -322,13 +318,6 @@
                     sketch.gui.add(sketch, 'reSeed', 'reSeed');
                     sketch.gui.add(sketch.settings, 'enableDebugDraw');  // boolean
 
-                    if(sketch.paletteIndex === null || sketch.paletteIndex < 0 || sketch.paletteIndex >= sketch.media.textures.length)
-                    {
-                        sketch.paletteIndex = sketch.random.Int(0, sketch.media.textures.length);
-                    }
-
-                    sketch.palette = await sketch.loadPalette(sketch.media.textures[sketch.paletteIndex], 256, 256);
-
                     window.addEventListener( 'focus', function() { console.log('window focus') } );
                     window.addEventListener( 'blur', function() { console.log('window blur') } );
 
@@ -345,6 +334,27 @@
                     sketch.visuals[0] = new OverlappingCirclesCenterVisual();
 
                     sketch.offscreenGraphics.background(255, 255, 255, 255);
+                }
+
+                sketch.preload = () =>
+                {
+                    sketch.canvasContainer = document.getElementById('canvas-container');
+                    sketch.guiContainer = document.getElementById('gui-container');
+
+                    sketch.random = new RandomGenerator(sketch.settings.randomSeed);
+                    sketch.noiseGenerator = new OpenSimplexNoiseGenerator();
+
+                    if(sketch.settings.paletteIndex === null || sketch.settings.paletteIndex < 0 || sketch.settings.paletteIndex >= sketch.media.textures.length)
+                    {
+                        sketch.settings.paletteIndex = sketch.random.Int(0, sketch.media.textures.length);
+                    }
+
+                    sketch.loadImage(sketch.mediaTexturesPath(sketch.media.textures[sketch.settings.paletteIndex]), (image) =>
+                     {
+                         image.resize(256, 256);
+
+                         sketch.palette = image;
+                    });
                 }
 
                 sketch.intersect = (a, b) => 
@@ -373,12 +383,6 @@
 				{
                     _frameCount++;
 
-                    sketch.debugGraphics.clear();
-                    
-                    sketch.debugGraphics.background(255, 255, 255, 0);
-
-                    sketch.debugGraphics.push();
-
                     sketch.offscreenGraphics.push();
 
                     for(let i = 0; i < sketch.settings.visibleFormCount; i++)
@@ -390,6 +394,21 @@
                             behaviour.update(sketch, form);
                         });
                     }
+
+                    sketch.visuals.forEach(visual => 
+                    {
+                        visual.draw(sketch, sketch.offscreenGraphics);
+                    });
+
+                    sketch.offscreenGraphics.pop();
+
+                    // start debug drawing
+                    
+                    sketch.debugGraphics.clear();
+                    
+                    sketch.debugGraphics.background(255, 255, 255, 0);
+
+                    sketch.debugGraphics.push();
 
                     if(sketch.settings.enableDebugDraw)
                     {
@@ -404,17 +423,13 @@
                         sketch.debugGraphics.pop();
                     }
 
-                    sketch.visuals.forEach(visual => 
-                    {
-                        visual.draw(sketch, sketch.offscreenGraphics);
-                    });
 
-                    sketch.offscreenGraphics.image(sketch.palette, 0, 0);
-
-                    sketch.offscreenGraphics.pop();
+                    sketch.debugGraphics.image(sketch.palette, 0, 0);
 
                     sketch.debugGraphics.pop();
 
+
+                    // end debug drawing
                     
 
                     sketch.push();
@@ -531,31 +546,34 @@
                 {
                     return '/.media/textures/' + name;
                 }
+           
+                // sketch.loadAsset = async (path, options) => 
+                // {
+                //     sketch.assetCount++;
+
+                //     sketch.loadImage(path, (image) => 
+                //     {
+                //         if(options !== null && options.scale !== null && (options.scale.width !== null || options.scale.height !== null))
+                //         {
+                //             options.scale.width = options.scale.width || 0;
+                //             options.scale.height = options.scale.height || 0;
+
+                //             image.resize(options.scale.width, options.scale.height);
+                //         }
+
+                //         sketch.assetLoadedCount++;
+
+                //         return image;
+                //     });
+                // }
             
-                sketch.loadPalette = async (name, width, height) => 
-                {
-                    sketch.loadImage(sketch.mediaTexturesPath(name), (image) => 
-                    {
-                        if(width === null || width < 1)
-                        {
-                            width = image.width;
-                        }
-
-                        if(height === null || height < 1)
-                        {
-                            height = image.height;
-                        }
-
-                        image.resize(width, height);
-
-                        // if( typeof callback === 'function')
-                        // {
-                        //     callback(image);
-                        // }
-
-                        return image;
-                    });
-                }
+                // sketch.waitForAssetsToLoad = () => 
+                // {
+                //     if(sketch.assetCount > sketch.assetLoadedCount)
+                //     {
+                //         setTimeout(() => { sketch.waitForAssetsToLoad(); }, 10);
+                //     }
+                // }
             }
 
 			new P5(Sketch, document.getElementById('canvas-container'));
