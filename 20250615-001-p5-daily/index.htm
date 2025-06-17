@@ -256,7 +256,9 @@
                     fixedElapsedTime: 1.0 / 128.0, // 1024 FPS
                     enableDebugDraw: true,
                     usePaletteForColors: true,
-                    paletteIndex: null,
+                    paletteIndex: -1,
+                    paletteWidth: 64,
+                    paletteHeight: 64,
                 }
 
                 sketch.colors = {
@@ -318,6 +320,21 @@
                     sketch.gui.add(sketch, 'reSeed', 'reSeed');
                     sketch.gui.add(sketch.settings, 'enableDebugDraw');  // boolean
 
+                    let paletteFolder = sketch.gui.addFolder('Palette');
+
+                    paletteFolder.add(sketch.settings, 'paletteIndex', 0, sketch.media.textures.length - 1, 1).onChange(() =>
+                    {
+                        sketch.loadPalette();
+                    });
+                    paletteFolder.add(sketch.settings, 'paletteWidth', 2, 256, 1).onChange(() =>
+                    {
+                        sketch.loadPalette();
+                    });
+                    paletteFolder.add(sketch.settings, 'paletteHeight', 2, 256, 1).onChange(() =>
+                    {
+                        sketch.loadPalette();
+                    });
+
                     window.addEventListener( 'focus', function() { console.log('window focus') } );
                     window.addEventListener( 'blur', function() { console.log('window blur') } );
 
@@ -344,14 +361,19 @@
                     sketch.random = new RandomGenerator(sketch.settings.randomSeed);
                     sketch.noiseGenerator = new OpenSimplexNoiseGenerator();
 
+                    sketch.loadPalette();
+                }
+
+                sketch.loadPalette = () =>
+                {
                     if(sketch.settings.paletteIndex === null || sketch.settings.paletteIndex < 0 || sketch.settings.paletteIndex >= sketch.media.textures.length)
                     {
                         sketch.settings.paletteIndex = sketch.random.Int(0, sketch.media.textures.length);
                     }
 
                     sketch.loadImage(sketch.mediaTexturesPath(sketch.media.textures[sketch.settings.paletteIndex]), (image) =>
-                     {
-                         image.resize(256, 256);
+                    {
+                         image.resize(sketch.settings.paletteWidth, sketch.settings.paletteHeight);
 
                          sketch.palette = image;
                     });
